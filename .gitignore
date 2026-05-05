@@ -10,3 +10,5 @@ dist-ssr
 tsconfig.tsbuildinfo
 playwright-report/
 test-results/
+tests/_*.mjs
+tests/_*.js
