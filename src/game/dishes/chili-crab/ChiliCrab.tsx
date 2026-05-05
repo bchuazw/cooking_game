@@ -7,7 +7,7 @@ import { DishRunner } from '../../engine/DishRunner';
 import { HUD } from '../../engine/HUD';
 import { useStep } from '../../engine/useStep';
 import { sfx } from '../../../audio/audio';
-import { usePointer, dist, clamp } from '../../engine/gestureHelpers';
+import { usePointer, dist, clamp, clientToSvg } from '../../engine/gestureHelpers';
 
 const DISH = 'chili-crab';
 
@@ -113,7 +113,8 @@ function SearStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
 function EggRibbonStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
   const { remaining, finish } = useStep({ stepId: 'egg_ribbon', durationMs: 7000, onComplete, dishId: DISH });
   const ref = useRef<HTMLDivElement>(null);
-  const center = { x: 180, y: 230 };
+  const svgRef = useRef<SVGSVGElement>(null);
+  const center = { x: 180, y: 230 }; // viewBox coords
   const lastAngle = useRef<number | null>(null);
   const lastT = useRef(performance.now());
   const [ribbonPts, setRibbonPts] = useState<{ x: number; y: number }[]>([]);
@@ -123,8 +124,9 @@ function EggRibbonStep({ onComplete }: { onComplete: (r: StepResult) => void }) 
 
   usePointer(ref, (e) => {
     if (e.type !== 'down' && e.type !== 'move') return;
-    const dx = e.x - center.x;
-    const dy = e.y - center.y;
+    const vb = clientToSvg(svgRef.current, e.raw.clientX, e.raw.clientY);
+    const dx = vb.x - center.x;
+    const dy = vb.y - center.y;
     const angle = Math.atan2(dy, dx);
     const now = performance.now();
     if (lastAngle.current !== null) {
@@ -137,9 +139,9 @@ function EggRibbonStep({ onComplete }: { onComplete: (r: StepResult) => void }) 
       totalTime.current += dt;
       // target band: slow — 1.5–3 rad/s
       if (omega >= 1.5 && omega <= 3) inBandTime.current += dt;
-      // record ribbon point if in-ish-band
+      // record ribbon point if in-ish-band (in viewBox coords)
       if (omega >= 1 && omega <= 4) {
-        setRibbonPts((p) => [...p.slice(-200), { x: e.x, y: e.y }]);
+        setRibbonPts((p) => [...p.slice(-200), { x: vb.x, y: vb.y }]);
       }
     }
     lastAngle.current = angle;
@@ -158,28 +160,27 @@ function EggRibbonStep({ onComplete }: { onComplete: (r: StepResult) => void }) 
   return (
     <>
       <HUD dishId={DISH} stepKeyTitle="cc.step3.title" stepKeyHint="cc.step3.hint" remaining={remaining} total={7000} mood={inBand ? 'tasting' : 'worried'} moodValue={inBand ? 40 : -30} />
-      <div ref={ref} className="absolute inset-0 touch-none">
-        <svg viewBox="0 0 360 460" className="w-full h-full" preserveAspectRatio="xMidYMid meet">
-          {/* sauce pan */}
-          <ellipse cx={center.x} cy={center.y + 20} rx="140" ry="20" fill="#3A2D24" />
-          <ellipse cx={center.x} cy={center.y} rx="120" ry="80" fill="#A93521" />
-          <ellipse cx={center.x} cy={center.y - 4} rx="116" ry="76" fill="#D8432B" />
-          {/* speed-band ring */}
-          <circle cx={center.x} cy={center.y} r="80" fill="none" stroke={inBand ? '#E8B83A' : '#3A2D2455'} strokeWidth="4" strokeDasharray="6 6" />
-          {/* ribbons */}
-          <polyline
-            points={ribbonPts.map((p) => `${p.x},${p.y}`).join(' ')}
-            fill="none"
-            stroke="#FFE9A0"
-            strokeWidth="6"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            opacity="0.85"
-          />
-        </svg>
-        <div className="absolute bottom-24 left-0 right-0 text-center text-xs">
-          {inBand ? '✓ slow circles' : speed > 3 ? 'too fast' : 'too slow'}
+      <div className="absolute inset-0 grid place-items-center pt-28 pb-20 px-2">
+        <div ref={ref} className="relative w-full max-w-full max-h-full aspect-[360/460] touch-none">
+          <svg ref={svgRef} viewBox="0 0 360 460" className="absolute inset-0 w-full h-full" preserveAspectRatio="xMidYMid meet">
+            <ellipse cx={center.x} cy={center.y + 20} rx="140" ry="20" fill="#3A2D24" />
+            <ellipse cx={center.x} cy={center.y} rx="120" ry="80" fill="#A93521" />
+            <ellipse cx={center.x} cy={center.y - 4} rx="116" ry="76" fill="#D8432B" />
+            <circle cx={center.x} cy={center.y} r="80" fill="none" stroke={inBand ? '#E8B83A' : '#3A2D2455'} strokeWidth="4" strokeDasharray="6 6" />
+            <polyline
+              points={ribbonPts.map((p) => `${p.x},${p.y}`).join(' ')}
+              fill="none"
+              stroke="#FFE9A0"
+              strokeWidth="6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              opacity="0.85"
+            />
+          </svg>
         </div>
+      </div>
+      <div className="absolute bottom-3 left-0 right-0 text-center text-xs pointer-events-none">
+        {inBand ? '✓ slow circles' : speed > 3 ? 'too fast' : 'too slow'}
       </div>
     </>
   );
@@ -189,51 +190,57 @@ function PlateCrab({ onComplete }: { onComplete: (r: StepResult) => void }) {
   const items = ['🦀', '🍞'];
   const [placed, setPlaced] = useState<boolean[]>([false, false]);
   const ref = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState<{ x: number; y: number; idx: number | null }>({ x: 0, y: 0, idx: null });
+  const svgRef = useRef<SVGSVGElement>(null);
+  const [pos, setPos] = useState<{ x: number; y: number; vbX: number; vbY: number; idx: number | null }>({ x: 0, y: 0, vbX: 0, vbY: 0, idx: null });
   const target = { x: 180, y: 220 };
 
   usePointer(ref, (e) => {
+    const vb = clientToSvg(svgRef.current, e.raw.clientX, e.raw.clientY);
     if (e.type === 'down') {
       const idx = items.findIndex((_, i) => !placed[i]);
-      if (idx >= 0) setPos({ x: e.x, y: e.y, idx });
+      if (idx >= 0) setPos({ x: e.x, y: e.y, vbX: vb.x, vbY: vb.y, idx });
     } else if (e.type === 'move' && pos.idx !== null) {
-      setPos({ ...pos, x: e.x, y: e.y });
+      setPos({ ...pos, x: e.x, y: e.y, vbX: vb.x, vbY: vb.y });
     } else if (e.type === 'up' && pos.idx !== null) {
-      if (dist(e.x, e.y, target.x, target.y) < 90) {
+      if (dist(vb.x, vb.y, target.x, target.y) < 100) {
         sfx.snap();
         const idx = pos.idx;
         setPlaced((p) => p.map((v, i) => (i === idx ? true : v)));
       }
-      setPos({ x: 0, y: 0, idx: null });
+      setPos({ x: 0, y: 0, vbX: 0, vbY: 0, idx: null });
     }
   });
 
   useEffect(() => {
     if (placed.every(Boolean)) {
-      setTimeout(() => onComplete({ stepId: 'plate', tier: 'gold', rawScore: 1, durationMs: 0 }), 300);
+      const id = setTimeout(() => onComplete({ stepId: 'plate', tier: 'gold', rawScore: 1, durationMs: 0 }), 300);
+      return () => clearTimeout(id);
     }
+    return undefined;
   }, [placed, onComplete]);
 
   return (
     <>
       <HUD dishId={DISH} stepKeyTitle="cc.step4.title" stepKeyHint="cc.step4.hint" mood={placed.every(Boolean) ? 'tasting' : 'idle'} />
-      <div ref={ref} className="absolute inset-0 touch-none">
-        <svg viewBox="0 0 360 460" className="w-full h-full" preserveAspectRatio="xMidYMid meet">
-          <ellipse cx={target.x} cy={target.y} rx="120" ry="34" fill="#3A2D24" />
-          <ellipse cx={target.x} cy={target.y - 4} rx="116" ry="32" fill="#fff" />
-          {placed[0] && <text x={target.x - 16} y={target.y + 8} fontSize="40">🦀</text>}
-          {placed[1] && <text x={target.x + 30} y={target.y + 8} fontSize="32">🍞</text>}
-        </svg>
-        {pos.idx !== null && (
-          <div className="absolute pointer-events-none text-3xl" style={{ left: pos.x - 16, top: pos.y - 16 }}>
-            {items[pos.idx]}
-          </div>
-        )}
-        <div className="absolute bottom-24 left-0 right-0 flex justify-center gap-3">
-          {items.map((it, i) => (
-            <div key={i} className={`w-14 h-14 rounded-chip border-2 border-outline grid place-items-center text-2xl ${placed[i] ? 'opacity-30' : 'bg-white'}`}>{it}</div>
-          ))}
+      <div className="absolute inset-0 grid place-items-center pt-28 pb-24 px-2">
+        <div ref={ref} className="relative w-full max-w-full max-h-full aspect-[360/460] touch-none">
+          <svg ref={svgRef} viewBox="0 0 360 460" className="absolute inset-0 w-full h-full" preserveAspectRatio="xMidYMid meet">
+            <ellipse cx={target.x} cy={target.y} rx="120" ry="34" fill="#3A2D24" />
+            <ellipse cx={target.x} cy={target.y - 4} rx="116" ry="32" fill="#fff" />
+            {placed[0] && <text x={target.x - 16} y={target.y + 8} fontSize="40">🦀</text>}
+            {placed[1] && <text x={target.x + 30} y={target.y + 8} fontSize="32">🍞</text>}
+          </svg>
+          {pos.idx !== null && (
+            <div className="absolute pointer-events-none text-3xl" style={{ left: pos.x - 16, top: pos.y - 16 }}>
+              {items[pos.idx]}
+            </div>
+          )}
         </div>
+      </div>
+      <div className="absolute bottom-12 left-0 right-0 flex justify-center gap-3 pointer-events-none">
+        {items.map((it, i) => (
+          <div key={i} className={`w-12 h-12 rounded-chip border-2 border-outline grid place-items-center text-2xl ${placed[i] ? 'opacity-30' : 'bg-white'}`}>{it}</div>
+        ))}
       </div>
     </>
   );

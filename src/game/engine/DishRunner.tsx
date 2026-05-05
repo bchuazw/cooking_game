@@ -1,7 +1,7 @@
 // Generic dish runner. Each dish provides an array of step components; the
 // runner collects results and emits the final aggregate.
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import type { DishId, DishResult, StepResult, Stars } from '../../types';
 import { aggregateStars, tierToScore } from './scoring';
 import { sfx } from '../../audio/audio';
@@ -24,32 +24,36 @@ export function DishRunner({
   const [idx, setIdx] = useState(0);
   const [results, setResults] = useState<StepResult[]>([]);
 
-  const onStep = useCallback(
-    (r: StepResult) => {
-      setResults((prev) => {
-        const next = [...prev, r];
-        if (idx + 1 >= steps.length) {
-          // dish complete
-          const stars = aggregateStars(next) as Stars;
-          const totalScore = next.reduce((a, b) => a + tierToScore(b.tier), 0);
-          sfx.chime();
-          setTimeout(() => {
-            onComplete({
-              dishId,
-              stars,
-              steps: next,
-              totalScore,
-              completedAt: Date.now(),
-            });
-          }, 250);
-        } else {
-          setTimeout(() => setIdx((i) => i + 1), 250);
-        }
-        return next;
-      });
-    },
-    [idx, steps.length, dishId, onComplete],
-  );
+  const onStep = useCallback((r: StepResult) => {
+    // Pure setter — no side effects so StrictMode double-invoke is safe.
+    setResults((prev) => (prev.length >= steps.length ? prev : [...prev, r]));
+  }, [steps.length]);
+
+  // Drive advancement / completion off the results length so side effects only
+  // run once per actual step transition.
+  useEffect(() => {
+    if (results.length === 0) return;
+    if (results.length >= steps.length) {
+      sfx.chime();
+      const t = setTimeout(() => {
+        const stars = aggregateStars(results) as Stars;
+        const totalScore = results.reduce((a, b) => a + tierToScore(b.tier), 0);
+        onComplete({
+          dishId,
+          stars,
+          steps: results,
+          totalScore,
+          completedAt: Date.now(),
+        });
+      }, 250);
+      return () => clearTimeout(t);
+    }
+    if (results.length > idx) {
+      const t = setTimeout(() => setIdx(results.length), 250);
+      return () => clearTimeout(t);
+    }
+    return undefined;
+  }, [results, idx, steps.length, dishId, onComplete]);
 
   const cur = steps[idx];
 

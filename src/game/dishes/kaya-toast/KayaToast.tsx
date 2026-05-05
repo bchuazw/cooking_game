@@ -92,6 +92,13 @@ function SpreadStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
   const [variance, setVariance] = useState(0);
   const finishedRef = useRef(false);
 
+  // Timeout fallback after 12s — auto-finalize with whatever progress.
+  useEffect(() => {
+    const id = setTimeout(() => { if (!finishedRef.current) onDone(); }, 12000);
+    return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   usePointer(containerRef, (e) => {
     if (e.type !== 'down' && e.type !== 'move') return;
     const cv = ref.current;

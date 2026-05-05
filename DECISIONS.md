@@ -65,6 +65,23 @@ Priority order from §2 #8 was: Vercel → Netlify → Cloudflare → Surge → 
 - **Animalese** uses 12 client-synthesized vowel buzzes via WebAudio (pure tones with ADSR + small chorus) — no external samples needed. Pitch-jittered ±15%, ducks under SFX. One file (`animalese.ts`) for future ElevenLabs swap.
 - **Cultural research**: cards drafted from publicly cited Roots.gov.sg, Singapore Infopedia, UNESCO 2020 inscription, and Wendy Hutton/D'Silva references. Sources logged per dish in `/content/culture-cards/{id}/sources.md`.
 
+## Refinement pass (post-smoke-test)
+
+After the initial commit, ran a Playwright/Chromium headless smoke test
+(`tests/smoke.mjs`) against the preview build at iPhone-12 viewport (390×844)
+and patched real bugs it surfaced:
+
+| Bug | Fix |
+|---|---|
+| `DishRunner` invoked `sfx.chime()` and scheduled timeouts inside a `setResults` updater function, which React StrictMode double-invokes — causing duplicate chimes / scheduled completions in dev. | Moved side effects out of the state updater into a `useEffect` keyed on `results.length`. |
+| `playTone` and `speakSyllable` called `exponentialRampToValueAtTime(0)` when the user had SFX/voice volume at 0, throwing an uncaught `InvalidStateError`. | Short-circuit at zero volume; floor any non-zero peak at `2e-4` so the exponential ramp is well-defined. |
+| Six interactive steps (CR IceBath/Plate, Laksa Bloom/Garnish, Chili-Crab EggRibbon/PlateCrab) used pointer container-px coordinates as if they were SVG viewBox coordinates — meaning drag targets and snap-distance checks were off whenever the container aspect ratio differed from the step's viewBox. | Added `clientToSvg` and `clientToCanvas` helpers using `SVGSVGElement.getScreenCTM()` and canvas bounding-rect ratios. Each affected step converts pointer events to the right coordinate system. PlateStep also wraps its SVG + paint canvas in an aspect-fixed container so the sauce paint visually overlaps the plate. |
+| Four steps lacked a timeout fallback (`la.OrderStep`, `la.NoodleStep`, `pr.FlickStep`, `kt.SpreadStep`) — players could get stuck if they didn't perform the gesture, with no progress past that step. | Added `useEffect` watching `remaining === 0` to call `finish()` with whatever progress had been made, mapped to a forgiving tier. Also surfaced the timer ring on those steps' HUDs. |
+| HUD rendered an `×` exit button with no handler when steps didn't pass `onExit`, producing a dead control. | Render conditionally only when `onExit` is defined. |
+| Laksa OrderStep showed the step hint twice (once in the HUD, once in the body) and used English `"stock"`/`"coconut"`/`"taupok"`/`"broth stable"` strings even in JA mode. | Removed the duplicate, added i18n keys, localized in both locales. |
+
+Smoke test now passes for all 5 dishes (no console errors, step 1 → step 2 transition verified). Run via `npm run test:smoke` (requires the preview server at `http://127.0.0.1:4173/cooking_game/`).
+
 ## Engine substitution decisions (bundle-budget driven)
 
 Brief §6 specifies Phaser 3 + Howler + i18next + Dexie + Rive. The §15 budget caps initial JS at **250 KB gzipped**, with each dish bundle ≤ 1.5 MB. Phaser alone is ~400 KB gzipped. To honor the budget I substituted lighter equivalents while preserving the **gesture / scoring / audio contracts** described in the brief:

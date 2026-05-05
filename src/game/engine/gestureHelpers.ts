@@ -63,3 +63,29 @@ export function dist(ax: number, ay: number, bx: number, by: number) {
   const dy = ay - by;
   return Math.sqrt(dx * dx + dy * dy);
 }
+
+// Convert client (page) pointer coords to a SVG element's viewBox-local coords.
+// Used by interactive steps so positions match what the user actually touched
+// regardless of container size / preserveAspectRatio scaling.
+export function clientToSvg(svg: SVGSVGElement | null, clientX: number, clientY: number): { x: number; y: number } {
+  if (!svg) return { x: clientX, y: clientY };
+  const ctm = svg.getScreenCTM();
+  if (!ctm) return { x: clientX, y: clientY };
+  const pt = svg.createSVGPoint();
+  pt.x = clientX;
+  pt.y = clientY;
+  const out = pt.matrixTransform(ctm.inverse());
+  return { x: out.x, y: out.y };
+}
+
+// Convert client point to a canvas element's drawing-surface coords (handles
+// the difference between cv.width/height and the displayed cv.clientWidth/Height).
+export function clientToCanvas(cv: HTMLCanvasElement | null, clientX: number, clientY: number): { x: number; y: number } {
+  if (!cv) return { x: clientX, y: clientY };
+  const r = cv.getBoundingClientRect();
+  if (r.width === 0 || r.height === 0) return { x: 0, y: 0 };
+  return {
+    x: ((clientX - r.left) / r.width) * cv.width,
+    y: ((clientY - r.top) / r.height) * cv.height,
+  };
+}

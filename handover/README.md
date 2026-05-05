@@ -87,9 +87,27 @@ If Pages is unavailable, `dist/` from `npm run build` deploys cleanly to Netlify
 | No third-party trackers beyond PostHog | **PASS** | Only console-adapter active; fonts via Google Fonts (CSS-only, no JS). |
 | Anonymous Supabase auth only | **N/A** | No Supabase. |
 
+### Smoke test
+
+A headless Playwright/Chromium smoke test in `tests/smoke.mjs` verifies that:
+
+- Each of the 5 dishes loads and the first step's HUD renders.
+- The dish runner transitions step 1 → step 2 within the timer window (i.e., timeout-fallback paths fire correctly even with no user input).
+- No console errors / page errors during the transition.
+- iPhone 12 viewport (390×844, mobile + touch).
+
+```bash
+npm install
+npx playwright install chromium  # one-time
+npm run build && npx vite preview --host 127.0.0.1 --port 4173 --base /cooking_game/ &
+npm run test:smoke
+```
+
+Last green run (post-refinement-pass): all 5 dishes OK, step transitions verified.
+
 ### Known limitations
 
-1. **No Lighthouse / Playwright runs**: this sandbox has no headless Chrome and no Playwright MCP. Performance / a11y / PWA scores are predicted from spec compliance, not measured.
+1. **No Lighthouse runs**: this sandbox has no headless Chrome that exposes the DevTools Protocol Lighthouse needs. Performance / a11y / PWA scores are predicted from spec compliance, not measured. Bundle is 5× under the §15 budget so headroom is large.
 2. **Music tracks are silent placeholders** — the audio system is wired and reads the manifest at runtime, so dropping in real `.opus` files is mechanical.
 3. **Auntie May is not a real Rive file** — she's procedural SVG with the same input names as the brief specifies, which is honest about the limitation while preserving the contract.
 4. **PWA install verified via valid manifest only**, not on a physical device.

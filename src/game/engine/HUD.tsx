@@ -60,9 +60,11 @@ export function HUD({ dishId, stepKeyTitle, stepKeyHint, remaining = 0, total = 
             <div className="font-bold">{t(stepKeyTitle)}</div>
           </div>
         </div>
-        <div className="pointer-events-auto">
-          <button className="btn-ghost text-xs px-2 py-1" onClick={onExit} aria-label={t('menu.back')}>×</button>
-        </div>
+        {onExit && (
+          <div className="pointer-events-auto">
+            <button className="btn-ghost text-xs px-2 py-1" onClick={onExit} aria-label={t('menu.back')}>×</button>
+          </div>
+        )}
       </div>
 
       <div className="flex items-end justify-between gap-3 px-3">

@@ -37,8 +37,10 @@ type Tone = {
 function playTone(t: Tone, duckTo = 1): void {
   const c = audio();
   const sfxVol = useApp.getState().sfx;
+  // Short-circuit when muted — exponentialRampToValueAtTime forbids 0/sub-denormal targets.
+  if (sfxVol <= 0 || c.state === 'closed') return;
   const g = c.createGain();
-  const peak = (t.gain ?? 0.18) * sfxVol * duckTo;
+  const peak = Math.max(0.0002, (t.gain ?? 0.18) * sfxVol * duckTo);
   g.gain.setValueAtTime(0.0001, c.currentTime);
   g.gain.exponentialRampToValueAtTime(peak, c.currentTime + 0.01);
   g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + t.ms / 1000);

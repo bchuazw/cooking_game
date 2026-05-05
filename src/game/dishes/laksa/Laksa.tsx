@@ -8,7 +8,7 @@ import { HUD } from '../../engine/HUD';
 import { useStep } from '../../engine/useStep';
 import { useT } from '../../../i18n/useT';
 import { sfx } from '../../../audio/audio';
-import { usePointer, dist, clamp } from '../../engine/gestureHelpers';
+import { usePointer, dist, clamp, clientToSvg } from '../../engine/gestureHelpers';
 import { scoreFromBands } from '../../engine/scoring';
 
 const DISH = 'laksa';
@@ -17,6 +17,7 @@ const DISH = 'laksa';
 function BloomStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
   const { remaining, finish } = useStep({ stepId: 'bloom', durationMs: 9000, onComplete, dishId: DISH });
   const ref = useRef<HTMLDivElement>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
   const center = { x: 180, y: 200 };
   const lastAngle = useRef<number | null>(null);
   const lastT = useRef(performance.now());
@@ -26,8 +27,9 @@ function BloomStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
 
   usePointer(ref, (e) => {
     if (e.type !== 'down' && e.type !== 'move') return;
-    const dx = e.x - center.x;
-    const dy = e.y - center.y;
+    const vb = clientToSvg(svgRef.current, e.raw.clientX, e.raw.clientY);
+    const dx = vb.x - center.x;
+    const dy = vb.y - center.y;
     const angle = Math.atan2(dy, dx);
     const now = performance.now();
     if (lastAngle.current !== null) {
@@ -72,28 +74,30 @@ function BloomStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
         mood={bloom > 0.6 ? 'cheering' : 'idle'}
         moodValue={bloom * 80 - 30}
       />
-      <div ref={ref} className="absolute inset-0 touch-none">
-        <svg viewBox="0 0 360 460" className="w-full h-full" preserveAspectRatio="xMidYMid meet">
-          {/* wok */}
-          <ellipse cx={center.x} cy={center.y + 20} rx="150" ry="20" fill="#3A2D24" />
-          <ellipse cx={center.x} cy={center.y} rx="130" ry="80" fill="#5A4A42" />
-          <ellipse cx={center.x} cy={center.y - 4} rx="124" ry="74" fill="#3A2D24" />
-          {/* paste blob */}
-          <ellipse
-            cx={center.x}
-            cy={center.y}
-            rx={70 + bloom * 10}
-            ry={50 + bloom * 8}
-            fill={`rgb(${r},${g},${b})`}
-            opacity={0.85}
-          />
-          {/* speed ring around finger reference */}
-          <circle cx={center.x} cy={center.y} r="100" fill="none" stroke={speed >= 0.6 && speed <= 1.2 ? '#6FB552' : '#3A2D2433'} strokeWidth="3" strokeDasharray="6 6" />
-        </svg>
-        <div className="absolute bottom-24 left-0 right-0 text-center text-sm">
-          <div>{Math.round(bloom * 100)}%</div>
-          <div className="text-[11px] text-outline/60">{speed >= 0.6 && speed <= 1.2 ? '✓ in band' : 'too ' + (speed > 1.2 ? 'fast' : 'slow')}</div>
+      <div className="absolute inset-0 grid place-items-center pt-28 pb-20 px-2">
+        <div ref={ref} className="relative w-full max-w-full max-h-full aspect-[360/460] touch-none">
+          <svg ref={svgRef} viewBox="0 0 360 460" className="absolute inset-0 w-full h-full" preserveAspectRatio="xMidYMid meet">
+            {/* wok */}
+            <ellipse cx={center.x} cy={center.y + 20} rx="150" ry="20" fill="#3A2D24" />
+            <ellipse cx={center.x} cy={center.y} rx="130" ry="80" fill="#5A4A42" />
+            <ellipse cx={center.x} cy={center.y - 4} rx="124" ry="74" fill="#3A2D24" />
+            {/* paste blob */}
+            <ellipse
+              cx={center.x}
+              cy={center.y}
+              rx={70 + bloom * 10}
+              ry={50 + bloom * 8}
+              fill={`rgb(${r},${g},${b})`}
+              opacity={0.85}
+            />
+            {/* speed ring around finger reference */}
+            <circle cx={center.x} cy={center.y} r="100" fill="none" stroke={speed >= 0.6 && speed <= 1.2 ? '#6FB552' : '#3A2D2433'} strokeWidth="3" strokeDasharray="6 6" />
+          </svg>
         </div>
+      </div>
+      <div className="absolute bottom-20 left-0 right-0 text-center text-sm pointer-events-none">
+        <div>{Math.round(bloom * 100)}%</div>
+        <div className="text-[11px] text-outline/60">{speed >= 0.6 && speed <= 1.2 ? '✓ in band' : 'too ' + (speed > 1.2 ? 'fast' : 'slow')}</div>
       </div>
     </>
   );
@@ -102,7 +106,7 @@ function BloomStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
 // Step 2: Sequenced snap targets — order matters
 function OrderStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
   const t = useT();
-  const { finish } = useStep({ stepId: 'order', onComplete, dishId: DISH, durationMs: 9000 });
+  const { remaining, finish } = useStep({ stepId: 'order', onComplete, dishId: DISH, durationMs: 9000 });
   const order = ['stock', 'coconut', 'taupok'] as const;
   const [step, setStep] = useState(0);
   const [split, setSplit] = useState(false);
@@ -118,30 +122,41 @@ function OrderStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
     } else {
       sfx.error();
       setSplit(true);
-      // visual broth split
     }
   };
 
+  // Timeout fallback so the step always advances — score reflects progress.
+  useEffect(() => {
+    if (remaining > 0) return;
+    const tier: ScoreTier =
+      step === order.length ? (split ? 'silver' : 'gold')
+      : step === 2 ? 'silver'
+      : step === 1 ? 'bronze'
+      : 'miss';
+    finish(tier, step / order.length);
+  }, [remaining, step, split, finish, order.length]);
+
   return (
     <>
-      <HUD dishId={DISH} stepKeyTitle="la.step2.title" stepKeyHint="la.step2.hint" mood={split ? 'worried' : 'tutorial_pointing'} />
-      <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-6">
-        <div className="text-sm text-outline/70">{t('la.step2.hint')}</div>
-        <div className={`w-56 h-32 rounded-3xl border-2 border-outline ${split ? 'bg-gradient-to-r from-kaya/40 to-marble' : 'bg-sambal/30'}`}>
-          <div className="text-center text-xs pt-2">{split ? '⚠ broth split — keep stirring' : 'broth stable'}</div>
+      <HUD dishId={DISH} stepKeyTitle="la.step2.title" stepKeyHint="la.step2.hint" remaining={remaining} total={9000} mood={split ? 'worried' : 'tutorial_pointing'} />
+      <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 px-6 pt-32 pb-20">
+        <div className={`w-64 h-32 rounded-3xl border-2 border-outline grid place-items-center ${split ? 'bg-gradient-to-r from-kaya/40 to-marble' : 'bg-sambal/30'}`}>
+          <div className="text-center text-xs px-3">{split ? t('la.step2.broth_split') : t('la.step2.broth_stable')}</div>
         </div>
-        <div className="grid grid-cols-3 gap-3 mt-2">
+        <div className="grid grid-cols-3 gap-3">
           {(['stock', 'coconut', 'taupok'] as const).map((k, i) => (
             <button
               key={k}
               onClick={() => tap(k)}
               disabled={i < step}
-              className={`thumb-target px-4 py-4 rounded-chip border-2 border-outline ${i < step ? 'bg-pandan/40 line-through' : 'bg-white'}`}
+              className={`thumb-target px-3 py-3 rounded-chip border-2 border-outline ${i < step ? 'bg-pandan/40 line-through' : 'bg-white'}`}
             >
-              {k === 'stock' && '🍲'}
-              {k === 'coconut' && '🥥'}
-              {k === 'taupok' && '🟤'}
-              <div className="text-[11px] mt-1">{k}</div>
+              <div className="text-2xl">
+                {k === 'stock' && '🍲'}
+                {k === 'coconut' && '🥥'}
+                {k === 'taupok' && '🟤'}
+              </div>
+              <div className="text-[11px] mt-1">{t(`la.step2.${k}`)}</div>
             </button>
           ))}
         </div>
@@ -153,7 +168,7 @@ function OrderStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
 // Step 3: Noodle bath — release in 4–6s window
 function NoodleStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
   const t = useT();
-  const { finish } = useStep({ stepId: 'noodle', onComplete, dishId: DISH, durationMs: 9000 });
+  const { remaining, finish } = useStep({ stepId: 'noodle', onComplete, dishId: DISH, durationMs: 9000 });
   const [holding, setHolding] = useState(false);
   const [held, setHeld] = useState(0);
   const startRef = useRef<number | null>(null);
@@ -183,11 +198,17 @@ function NoodleStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
     finish(tier, ms >= 4000 && ms <= 6000 ? 1 : 0.5);
   };
 
+  // Timeout fallback (mushy noodles).
+  useEffect(() => {
+    if (remaining > 0) return;
+    finish(held >= 2000 ? 'bronze' : 'miss', 0.3);
+  }, [remaining, held, finish]);
+
   const glow = held >= 3500 && held <= 6500;
 
   return (
     <>
-      <HUD dishId={DISH} stepKeyTitle="la.step3.title" stepKeyHint="la.step3.hint" mood={glow ? 'cheering' : 'idle'} />
+      <HUD dishId={DISH} stepKeyTitle="la.step3.title" stepKeyHint="la.step3.hint" remaining={remaining} total={9000} mood={glow ? 'cheering' : 'idle'} />
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <div className="relative">
           <div className="w-44 h-44 rounded-full bg-tile-teal/30 border-2 border-outline" />
@@ -216,68 +237,71 @@ function GarnishStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
   const t = useT();
   const items = ['🦐', '🥚', '🌿', '🌶'];
   const [placed, setPlaced] = useState<boolean[]>([false, false, false, false]);
-  const [pos, setPos] = useState<{ x: number; y: number; idx: number | null }>({ x: 0, y: 0, idx: null });
+  // pos.x/y in container px (for the dragged emoji follow), pos.vbX/vbY in viewBox px (for snap distance check).
+  const [pos, setPos] = useState<{ x: number; y: number; vbX: number; vbY: number; idx: number | null }>({ x: 0, y: 0, vbX: 0, vbY: 0, idx: null });
   const ref = useRef<HTMLDivElement>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
 
-  const target = { x: 180, y: 200 };
+  const target = { x: 180, y: 200 }; // viewBox coords
 
   usePointer(ref, (e) => {
+    const vb = clientToSvg(svgRef.current, e.raw.clientX, e.raw.clientY);
     if (e.type === 'down') {
-      // pick up nearest unplaced
       const idx = items.findIndex((_, i) => !placed[i]);
-      if (idx >= 0) setPos({ x: e.x, y: e.y, idx });
+      if (idx >= 0) setPos({ x: e.x, y: e.y, vbX: vb.x, vbY: vb.y, idx });
     } else if (e.type === 'move' && pos.idx !== null) {
-      setPos({ ...pos, x: e.x, y: e.y });
+      setPos({ ...pos, x: e.x, y: e.y, vbX: vb.x, vbY: vb.y });
     } else if (e.type === 'up' && pos.idx !== null) {
-      const onPlate = dist(e.x, e.y, target.x, target.y) < 90;
+      const onPlate = dist(vb.x, vb.y, target.x, target.y) < 90;
       if (onPlate) {
         sfx.snap();
         const idx = pos.idx;
         setPlaced((p) => p.map((v, i) => (i === idx ? true : v)));
       }
-      setPos({ x: 0, y: 0, idx: null });
+      setPos({ x: 0, y: 0, vbX: 0, vbY: 0, idx: null });
     }
   });
 
   const allDone = placed.every(Boolean);
   useEffect(() => {
     if (!allDone) return;
-    const t = setTimeout(() => {
+    const id = setTimeout(() => {
       onComplete({ stepId: 'garnish', tier: 'gold', rawScore: 1, durationMs: 0 });
     }, 400);
-    return () => clearTimeout(t);
+    return () => clearTimeout(id);
   }, [allDone, onComplete]);
 
   return (
     <>
       <HUD dishId={DISH} stepKeyTitle="la.step4.title" stepKeyHint="la.step4.hint" mood={allDone ? 'tasting' : 'idle'} />
-      <div ref={ref} className="absolute inset-0 touch-none">
-        <svg viewBox="0 0 360 460" className="w-full h-full" preserveAspectRatio="xMidYMid meet">
-          {/* bowl */}
-          <ellipse cx={target.x} cy={target.y} rx="100" ry="30" fill="#3A2D24" />
-          <ellipse cx={target.x} cy={target.y - 4} rx="96" ry="28" fill="#D8432B" opacity="0.7" />
-          <ellipse cx={target.x} cy={target.y - 8} rx="80" ry="20" fill="#E89B8B" />
-          {placed.map((p, i) => p && (
-            <text key={i} x={target.x - 30 + i * 18} y={target.y - 6} fontSize="22">{items[i]}</text>
-          ))}
-        </svg>
-        {pos.idx !== null && (
-          <div className="absolute pointer-events-none text-3xl" style={{ left: pos.x - 16, top: pos.y - 16 }}>
-            {items[pos.idx]}
-          </div>
-        )}
-        <div className="absolute bottom-24 left-0 right-0 flex justify-center gap-3">
-          {items.map((it, i) => (
-            <div
-              key={i}
-              className={`w-14 h-14 rounded-chip border-2 border-outline grid place-items-center text-2xl ${placed[i] ? 'opacity-30' : 'bg-white'}`}
-            >
-              {it}
+      <div className="absolute inset-0 grid place-items-center pt-28 pb-24 px-2">
+        <div ref={ref} className="relative w-full max-w-full max-h-full aspect-[360/460] touch-none">
+          <svg ref={svgRef} viewBox="0 0 360 460" className="absolute inset-0 w-full h-full" preserveAspectRatio="xMidYMid meet">
+            <ellipse cx={target.x} cy={target.y} rx="100" ry="30" fill="#3A2D24" />
+            <ellipse cx={target.x} cy={target.y - 4} rx="96" ry="28" fill="#D8432B" opacity="0.7" />
+            <ellipse cx={target.x} cy={target.y - 8} rx="80" ry="20" fill="#E89B8B" />
+            {placed.map((p, i) => p && (
+              <text key={i} x={target.x - 30 + i * 18} y={target.y - 6} fontSize="22">{items[i]}</text>
+            ))}
+          </svg>
+          {pos.idx !== null && (
+            <div className="absolute pointer-events-none text-3xl" style={{ left: pos.x - 16, top: pos.y - 16 }}>
+              {items[pos.idx]}
             </div>
-          ))}
+          )}
         </div>
-        <div className="absolute bottom-3 left-0 right-0 text-center text-xs text-outline/60">{t('la.step4.hint')}</div>
       </div>
+      <div className="absolute bottom-12 left-0 right-0 flex justify-center gap-3 pointer-events-none">
+        {items.map((it, i) => (
+          <div
+            key={i}
+            className={`w-12 h-12 rounded-chip border-2 border-outline grid place-items-center text-2xl ${placed[i] ? 'opacity-30' : 'bg-white'}`}
+          >
+            {it}
+          </div>
+        ))}
+      </div>
+      <div className="absolute bottom-2 left-0 right-0 text-center text-xs text-outline/60 pointer-events-none">{t('la.step4.hint')}</div>
     </>
   );
 }

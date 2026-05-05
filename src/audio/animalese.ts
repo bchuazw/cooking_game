@@ -38,9 +38,16 @@ function speakSyllable(charSeed: string, base: number, gainMul = 1): Promise<voi
     const dur = 90 + (h & 0x1f); // 90–121 ms
     const voiceVol = useApp.getState().voice * gainMul;
 
+    // Short-circuit when muted — exponentialRampToValueAtTime forbids zero target.
+    if (voiceVol <= 0 || c.state === 'closed') {
+      setTimeout(resolve, dur);
+      return;
+    }
+
     const g = c.createGain();
+    const peak = Math.max(0.0002, 0.18 * voiceVol);
     g.gain.setValueAtTime(0.0001, c.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.18 * voiceVol, c.currentTime + 0.012);
+    g.gain.exponentialRampToValueAtTime(peak, c.currentTime + 0.012);
     g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + dur / 1000);
     g.connect(c.destination);
 

@@ -105,7 +105,7 @@ function SlapStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
 
 // Step 3: Flick-flip — swipe up to flick, tap when shadow aligns. 3 flips.
 function FlickStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
-  const { finish } = useStep({ stepId: 'flick', onComplete, dishId: DISH, durationMs: 14000 });
+  const { remaining, finish } = useStep({ stepId: 'flick', onComplete, dishId: DISH, durationMs: 14000 });
   const [phase, setPhase] = useState<'idle' | 'flying' | 'caught'>('idle');
   const [flipsDone, setFlipsDone] = useState(0);
   const flightStart = useRef(0);
@@ -114,6 +114,15 @@ function FlickStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
   const swipeStartY = useRef<number | null>(null);
   const flipsRequired = 3;
   const goodFlips = useRef(0);
+
+  // Timeout fallback if player doesn't finish all flips within the window.
+  useEffect(() => {
+    if (remaining > 0) return;
+    if (flipsDone >= flipsRequired) return; // already finishing via the other effect
+    const ratio = goodFlips.current / flipsRequired;
+    const tier: ScoreTier = ratio >= 0.66 ? 'silver' : ratio > 0 ? 'bronze' : 'miss';
+    finish(tier, ratio);
+  }, [remaining, flipsDone, finish]);
 
   useEffect(() => {
     if (phase !== 'flying') return;
@@ -181,7 +190,7 @@ function FlickStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
 
   return (
     <>
-      <HUD dishId={DISH} stepKeyTitle="pr.step3.title" stepKeyHint="pr.step3.hint" mood={flipsDone === flipsRequired ? 'cheering' : 'idle'} />
+      <HUD dishId={DISH} stepKeyTitle="pr.step3.title" stepKeyHint="pr.step3.hint" remaining={remaining} total={14000} mood={flipsDone === flipsRequired ? 'cheering' : 'idle'} />
       <div ref={ref} className="absolute inset-0 touch-none">
         <svg viewBox="0 0 360 460" className="w-full h-full" preserveAspectRatio="xMidYMid meet">
           {/* tawa pan */}

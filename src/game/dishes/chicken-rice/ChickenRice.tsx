@@ -8,7 +8,7 @@ import { HUD } from '../../engine/HUD';
 import { useStep } from '../../engine/useStep';
 import { useT } from '../../../i18n/useT';
 import { sfx } from '../../../audio/audio';
-import { usePointer, clamp, dist } from '../../engine/gestureHelpers';
+import { usePointer, clamp, dist, clientToSvg, clientToCanvas } from '../../engine/gestureHelpers';
 import { scoreFromBands } from '../../engine/scoring';
 
 const DISH = 'chicken-rice';
@@ -162,12 +162,14 @@ function PoachStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
 // ---------- Step 2: Ice bath (drag chicken) ----------
 function IceBathStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
   const { remaining, finish } = useStep({ stepId: 'ice_bath', onComplete, dishId: DISH, durationMs: 5500 });
-  const [pos, setPos] = useState({ x: 100, y: 200 });
+  const [pos, setPos] = useState({ x: 100, y: 220 });
   const [held, setHeld] = useState(0); // ms held in bowl
   const [done, setDone] = useState(false);
   const startRef = useRef(performance.now());
   const ref = useRef<HTMLDivElement>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
 
+  // viewBox: 0 0 360 380 (see render below)
   const bowlX = 260, bowlY = 200, bowlR = 60;
   const overBowl = dist(pos.x, pos.y, bowlX, bowlY) < bowlR;
 
@@ -207,7 +209,8 @@ function IceBathStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
 
   usePointer(ref, (e) => {
     if (e.type === 'down' || e.type === 'move') {
-      setPos({ x: e.x, y: e.y });
+      const p = clientToSvg(svgRef.current, e.raw.clientX, e.raw.clientY);
+      setPos({ x: p.x, y: p.y });
     }
     if (e.type === 'up' && !overBowl) {
       setHeld(0);
@@ -225,7 +228,7 @@ function IceBathStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
         mood={overBowl ? 'cheering' : 'idle'}
       />
       <div ref={ref} className="absolute inset-0 touch-none">
-        <svg viewBox="0 0 360 380" className="w-full h-full" preserveAspectRatio="xMidYMid meet">
+        <svg ref={svgRef} viewBox="0 0 360 380" className="w-full h-full" preserveAspectRatio="xMidYMid meet">
           {/* pot (left) */}
           <ellipse cx="100" cy="220" rx="56" ry="14" fill="#3A2D24" />
           <ellipse cx="100" cy="218" rx="54" ry="12" fill="#5FBFB8" />
@@ -412,53 +415,57 @@ function PlateStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
   const [coriander, setCoriander] = useState({ x: 290, y: 330, placed: false });
   const [coverage, setCoverage] = useState(0); // 0..100
   const ref = useRef<HTMLDivElement>(null);
-  const target = { x: 180, y: 180 }; // plate center
+  const svgRef = useRef<SVGSVGElement>(null);
+  const target = { x: 180, y: 180 }; // viewBox coords (matches the SVG below)
   const finishedRef = useRef(false);
 
-  // Coverage canvas: count painted pixels
+  // Sauce paint canvas. We size it to the displayed area in a layout effect so
+  // the paint coords map 1:1 with what the user touches.
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   usePointer(ref, (e) => {
-    const cv = canvasRef.current;
-    const inPlateRadius = dist(e.x, e.y, target.x, target.y) < 90;
+    // Convert pointer to viewBox coords for placement / proximity checks.
+    const vb = clientToSvg(svgRef.current, e.raw.clientX, e.raw.clientY);
+    const inPlateRadius = dist(vb.x, vb.y, target.x, target.y) < 100;
+
     if (e.type === 'down' || e.type === 'move') {
       if (!chicken.placed) {
-        setChicken({ x: e.x, y: e.y, placed: false });
+        setChicken({ x: vb.x, y: vb.y, placed: false });
       } else if (!cucumber.placed) {
-        setCucumber({ x: e.x, y: e.y, placed: false });
+        setCucumber({ x: vb.x, y: vb.y, placed: false });
       } else if (!coriander.placed) {
-        setCoriander({ x: e.x, y: e.y, placed: false });
-      } else if (cv && inPlateRadius) {
-        // paint mode
-        const ctx = cv.getContext('2d');
-        if (ctx) {
-          ctx.fillStyle = '#A93521';
-          ctx.beginPath();
-          ctx.arc(e.x, e.y, 14, 0, Math.PI * 2);
-          ctx.fill();
+        setCoriander({ x: vb.x, y: vb.y, placed: false });
+      } else {
+        const cv = canvasRef.current;
+        if (cv && inPlateRadius) {
+          const cvP = clientToCanvas(cv, e.raw.clientX, e.raw.clientY);
+          const ctx = cv.getContext('2d');
+          if (ctx) {
+            ctx.fillStyle = '#A93521';
+            ctx.beginPath();
+            ctx.arc(cvP.x, cvP.y, 14, 0, Math.PI * 2);
+            ctx.fill();
+          }
         }
       }
     }
     if (e.type === 'up') {
-      const ax = chicken.placed ? null : 'chicken';
-      const bx = cucumber.placed ? null : 'cucumber';
-      const cx = coriander.placed ? null : 'coriander';
-      if (ax === 'chicken') {
-        if (dist(chicken.x, chicken.y, target.x, target.y) < 70) {
+      if (!chicken.placed) {
+        if (dist(vb.x, vb.y, target.x, target.y) < 80) {
           setChicken({ x: target.x, y: target.y, placed: true });
           sfx.snap();
         } else {
           setChicken({ x: 70, y: 320, placed: false });
         }
-      } else if (bx === 'cucumber') {
-        if (dist(cucumber.x, cucumber.y, target.x + 50, target.y + 30) < 70) {
+      } else if (!cucumber.placed) {
+        if (dist(vb.x, vb.y, target.x + 50, target.y + 30) < 80) {
           setCucumber({ x: target.x + 50, y: target.y + 30, placed: true });
           sfx.snap();
         } else {
           setCucumber({ x: 230, y: 330, placed: false });
         }
-      } else if (cx === 'coriander') {
-        if (dist(coriander.x, coriander.y, target.x - 30, target.y - 40) < 70) {
+      } else if (!coriander.placed) {
+        if (dist(vb.x, vb.y, target.x - 30, target.y - 40) < 80) {
           setCoriander({ x: target.x - 30, y: target.y - 40, placed: true });
           sfx.snap();
         } else {
@@ -521,50 +528,38 @@ function PlateStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
         stepKeyHint="cr.step5.hint"
         mood={allPlaced ? 'tasting' : 'idle'}
       />
-      <div ref={ref} className="absolute inset-0 touch-none">
-        <svg viewBox="0 0 360 460" className="w-full h-full" preserveAspectRatio="xMidYMid meet">
-          {/* plate */}
-          <ellipse cx={target.x} cy={target.y} rx="100" ry="30" fill="#3A2D24" />
-          <ellipse cx={target.x} cy={target.y - 4} rx="96" ry="28" fill="#fff" />
-          {/* rice */}
-          <ellipse cx={target.x} cy={target.y - 8} rx="80" ry="20" fill="#FFF7DC" />
-          {/* placement targets ghosts */}
-          {!chicken.placed && (
-            <ellipse cx={target.x} cy={target.y} rx="40" ry="12" fill="none" stroke="#3A2D24" strokeDasharray="4 3" opacity="0.4" />
-          )}
-          {/* chicken slices */}
-          <g transform={`translate(${chicken.x - 30}, ${chicken.y - 8})`}>
-            <ellipse cx="30" cy="8" rx="30" ry="8" fill="#F1C9A4" stroke="#3A2D24" strokeWidth="2" />
-            <line x1="14" y1="8" x2="46" y2="8" stroke="#3A2D24" strokeWidth="1" />
-          </g>
-          {!coriander.placed && (
+      <div className="absolute inset-0 grid place-items-center pt-28 pb-20 px-2">
+        <div ref={ref} className="relative w-full max-w-full max-h-full aspect-[360/460] touch-none">
+          <svg ref={svgRef} viewBox="0 0 360 460" className="absolute inset-0 w-full h-full" preserveAspectRatio="xMidYMid meet">
+            {/* plate */}
+            <ellipse cx={target.x} cy={target.y} rx="100" ry="30" fill="#3A2D24" />
+            <ellipse cx={target.x} cy={target.y - 4} rx="96" ry="28" fill="#fff" />
+            {/* rice */}
+            <ellipse cx={target.x} cy={target.y - 8} rx="80" ry="20" fill="#FFF7DC" />
+            {/* placement targets ghosts */}
+            {!chicken.placed && (
+              <ellipse cx={target.x} cy={target.y} rx="40" ry="12" fill="none" stroke="#3A2D24" strokeDasharray="4 3" opacity="0.4" />
+            )}
+            {/* chicken slices */}
+            <g transform={`translate(${chicken.x - 30}, ${chicken.y - 8})`}>
+              <ellipse cx="30" cy="8" rx="30" ry="8" fill="#F1C9A4" stroke="#3A2D24" strokeWidth="2" />
+              <line x1="14" y1="8" x2="46" y2="8" stroke="#3A2D24" strokeWidth="1" />
+            </g>
             <g transform={`translate(${coriander.x - 12}, ${coriander.y - 12})`}>
-              <circle cx="12" cy="12" r="10" fill="#6FB552" stroke="#3A2D24" strokeWidth="2" />
+              <circle cx="12" cy="12" r={coriander.placed ? 8 : 10} fill="#6FB552" stroke="#3A2D24" strokeWidth="2" />
             </g>
-          )}
-          {coriander.placed && (
-            <g transform={`translate(${coriander.x - 8}, ${coriander.y - 8})`}>
-              <circle cx="8" cy="8" r="8" fill="#6FB552" stroke="#3A2D24" strokeWidth="2" />
-            </g>
-          )}
-          {!cucumber.placed && (
             <g transform={`translate(${cucumber.x - 16}, ${cucumber.y - 8})`}>
-              <ellipse cx="16" cy="8" rx="16" ry="6" fill="#6FB55288" stroke="#3A2D24" strokeWidth="2" />
+              <ellipse cx="16" cy="8" rx={cucumber.placed ? 14 : 16} ry={cucumber.placed ? 4 : 6} fill="#6FB55288" stroke="#3A2D24" strokeWidth="2" />
             </g>
-          )}
-          {cucumber.placed && (
-            <g transform={`translate(${cucumber.x - 14}, ${cucumber.y - 4})`}>
-              <ellipse cx="14" cy="4" rx="14" ry="4" fill="#6FB55288" stroke="#3A2D24" strokeWidth="2" />
-            </g>
-          )}
-        </svg>
-        {/* sauce paint canvas overlay (only after garnish placed) */}
-        <canvas ref={canvasRef} width={360} height={460} className="absolute inset-0 w-full h-full pointer-events-none" />
-        <div className="absolute bottom-24 left-0 right-0 text-center pointer-events-none">
-          <div className="text-xs text-outline/70">
-            {t('hud.score')}: 🍳 {chicken.placed ? '✓' : '–'} 🥒 {cucumber.placed ? '✓' : '–'} 🌿 {coriander.placed ? '✓' : '–'}
+          </svg>
+          {/* sauce paint canvas overlay — same aspect-fixed wrapper so coords align */}
+          <canvas ref={canvasRef} width={360} height={460} className="absolute inset-0 w-full h-full pointer-events-none" />
+          <div className="absolute bottom-2 left-0 right-0 text-center pointer-events-none">
+            <div className="text-xs text-outline/70">
+              {t('hud.score')}: 🍳 {chicken.placed ? '✓' : '–'} 🥒 {cucumber.placed ? '✓' : '–'} 🌿 {coriander.placed ? '✓' : '–'}
+            </div>
+            <div className="text-xs text-outline/70">Sauce: {coverage}% (60–85%)</div>
           </div>
-          <div className="text-xs text-outline/70">Sauce: {coverage}% (60–85%)</div>
         </div>
       </div>
       <button
