@@ -5,6 +5,12 @@ Japanese audience. Inspired by *Cooking Mama*; built with Vite + React +
 TypeScript + Tailwind, custom Canvas/SVG rendering, WebAudio, and a
 client-side animalese voice synth.
 
+| Title | Hawker map | Cooking | Culture card |
+|:---:|:---:|:---:|:---:|
+| <img src="handover/screenshots/03-title-screen.png" width="160"> | <img src="handover/screenshots/04-hawker-map.png" width="160"> | <img src="handover/screenshots/10-step5-plate.png" width="160"> | <img src="handover/screenshots/12-culture-card.png" width="160"> |
+
+> Full end-to-end screenshot walkthrough: [`handover/README.md#screenshots`](./handover/README.md#screenshots--full-end-to-end). Re-capture with `npm run capture`.
+
 - **Live preview:** https://bchuazw.github.io/cooking_game/ (after first
   successful workflow run; see `DEPLOY.md`)
 - **Build decisions and substitutions:** [`DECISIONS.md`](./DECISIONS.md)

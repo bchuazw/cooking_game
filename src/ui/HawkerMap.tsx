@@ -33,12 +33,12 @@ export function HawkerMap({
 
   return (
     <div className="absolute inset-0 flex flex-col bg-[#FFF7E8]">
-      <header className="px-4 pt-4 pb-2 flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-display font-bold text-outline">{t('map.title')}</h1>
-          <p className="text-[11px] text-outline/70">{t('map.unesco_note')}</p>
+      <header className="px-4 pt-4 pb-2 flex items-center justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-xl font-display font-bold text-outline truncate">{t('map.title')}</h1>
+          <p className="text-[11px] text-outline/70 truncate">{t('map.unesco_note')}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 shrink-0">
           <button className="btn-ghost text-xs px-2 py-1" onClick={onLeaderboard} aria-label={t('menu.leaderboard')}>★</button>
           <button className="btn-ghost text-xs px-2 py-1" onClick={onSettings} aria-label={t('menu.settings')}>⚙</button>
         </div>
@@ -114,7 +114,7 @@ export function HawkerMap({
         </svg>
 
         {/* Unlock-order hint */}
-        <div className="absolute bottom-2 left-0 right-0 text-center text-[11px] text-outline/60">
+        <div className="absolute bottom-6 left-3 right-3 text-center text-[11px] text-outline/60">
           {(() => {
             const next = UNLOCK_ORDER.find((id) => bestStarFor(id) === 0);
             if (!next) return t('status.unlocks_kaya-toast');

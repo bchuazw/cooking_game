@@ -34,7 +34,7 @@ const ja: Dict = {
   'first.continue': 'はじめる',
 
   // hawker map
-  'map.title': 'ホーカーセンターへようこそ',
+  'map.title': 'ホーカーセンター',
   'map.unesco_note': 'シンガポールのホーカー文化はUNESCO無形文化遺産（2020年登録）',
 
   // dishes — names
@@ -241,7 +241,7 @@ const en: Dict = {
     'Halal mode is off. All five MVP dishes are halal-compatible by default. Toggle anytime in settings.',
   'first.continue': 'Begin',
 
-  'map.title': 'Welcome to the Hawker Centre',
+  'map.title': 'Hawker Centre',
   'map.unesco_note':
     "Singapore's Hawker Culture is on UNESCO's Intangible Cultural Heritage list (2020).",
 

@@ -2,6 +2,52 @@
 
 > Mobile-first browser cooking game teaching Singaporean cuisine to a Japanese audience. *Cooking-Mama-style* gestures, Auntie May as the host, five MVP dishes, culture cards with cited sources.
 
+## Screenshots — full end-to-end
+
+Captured automatically with `npm run capture` (Playwright Chromium, iPhone-12 viewport 390×844 @ 2×). Source: [`tests/capture.mjs`](../tests/capture.mjs).
+
+### Onboarding
+
+| First-launch locale | Welcome + halal note | Title screen |
+|:---:|:---:|:---:|
+| <img src="screenshots/01-first-launch-locale.png" width="220"> | <img src="screenshots/02-first-launch-welcome.png" width="220"> | <img src="screenshots/03-title-screen.png" width="220"> |
+
+### Hawker map → dish intro
+
+| Hawker map (JA) | Dish intro — Hainanese Chicken Rice |
+|:---:|:---:|
+| <img src="screenshots/04-hawker-map.png" width="240"> | <img src="screenshots/05-dish-intro-chicken-rice.png" width="240"> |
+
+### Hainanese Chicken Rice — all 5 steps
+
+| 1. Poach (slider tracking) | 2. Ice bath (drag-and-hold) | 3. Aromatics (rhythm tap) |
+|:---:|:---:|:---:|
+| <img src="screenshots/06-step1-poach.png" width="220"> | <img src="screenshots/07-step2-icebath.png" width="220"> | <img src="screenshots/08-step3-aromatics.png" width="220"> |
+
+| 4. Pestle (alternating taps) | 5. Plate (drag-snap + paint sauce) |
+|:---:|:---:|
+| <img src="screenshots/09-step4-pestle.png" width="240"> | <img src="screenshots/10-step5-plate.png" width="240"> |
+
+### Post-dish
+
+| Dish complete (stars + per-step recap) | Culture card (with sources) |
+|:---:|:---:|
+| <img src="screenshots/11-dish-complete.png" width="240"> | <img src="screenshots/12-culture-card.png" width="240"> |
+
+### Menu
+
+| Settings | Leaderboard (local) |
+|:---:|:---:|
+| <img src="screenshots/13-settings.png" width="240"> | <img src="screenshots/14-leaderboard.png" width="240"> |
+
+### Other locales / dishes
+
+| Hawker map (EN) | Laksa — bloom rempah (circular drag) |
+|:---:|:---:|
+| <img src="screenshots/15-hawker-map-en.png" width="240"> | <img src="screenshots/16-laksa-bloom.png" width="240"> |
+
+> Re-run with `npm run capture` (requires `npx playwright install chromium` once + a local preview server: `npm run build && npx vite preview --host 127.0.0.1 --port 4173 --base /cooking_game/`).
+
 ## Quick links
 
 | Item | Where |

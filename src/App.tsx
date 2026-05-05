@@ -1,6 +1,5 @@
 import { useEffect, useState, lazy, Suspense } from 'react';
 import { useApp } from './state/store';
-import { useT } from './i18n/useT';
 import { TitleScreen } from './ui/TitleScreen';
 import { HawkerMap } from './ui/HawkerMap';
 import { Settings } from './ui/Settings';
@@ -49,7 +48,6 @@ function DishPlayer({ dishId, onComplete, onExit }: { dishId: DishId; onComplete
 export default function App() {
   const firstLaunchSeen = useApp((s) => s.firstLaunchSeen);
   const recordDishResult = useApp((s) => s.recordDishResult);
-  const t = useT();
   const [screen, setScreen] = useState<Screen>({ kind: 'title' });
 
   useEffect(() => {
@@ -145,8 +143,8 @@ export default function App() {
       {/* Aria live region for "describe current step" — populated by step components */}
       <div id="aria-live" aria-live="polite" className="sr-only" />
 
-      <div className="absolute bottom-1 left-2 text-[10px] text-outline/50 pointer-events-none select-none">
-        {t('app.title')} · v0.1
+      <div className="absolute bottom-1 right-2 text-[9px] text-outline/30 pointer-events-none select-none">
+        v0.1
       </div>
     </div>
   );
