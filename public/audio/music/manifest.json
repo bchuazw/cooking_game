@@ -1,0 +1,34 @@
+{
+  "_comment": "Music slot manifest. Brief §9. Placeholder data-URI silence ships by default; replace with ElevenLabs Music outputs (see prompts.md). All slots are referenced by src/audio/audio.ts.",
+  "tracks": [
+    {
+      "slot": "title_theme",
+      "src": "data:audio/wav;base64,UklGRiwAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=",
+      "loop": true,
+      "fadeMs": 600
+    },
+    {
+      "slot": "hawker_map_bed",
+      "src": "data:audio/wav;base64,UklGRiwAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=",
+      "loop": true,
+      "fadeMs": 600
+    },
+    {
+      "slot": "dish_complete_sting",
+      "src": "data:audio/wav;base64,UklGRiwAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=",
+      "loop": false
+    },
+    {
+      "slot": "culture_card_calm",
+      "src": "data:audio/wav;base64,UklGRiwAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=",
+      "loop": true,
+      "fadeMs": 800
+    },
+    {
+      "slot": "tutorial_bed",
+      "src": "data:audio/wav;base64,UklGRiwAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=",
+      "loop": true,
+      "fadeMs": 600
+    }
+  ]
+}
