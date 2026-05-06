@@ -13,6 +13,7 @@ import { scoreFromBands } from '../../engine/scoring';
 import { PixelIcon, PixelIconSvg } from '../../../art/PixelFood';
 
 const DISH = 'chicken-rice';
+const ASSET_BASE = (import.meta.env.BASE_URL as string) ?? '/';
 
 // ---------- Step 1: Poach (slider thermometer) ----------
 function PoachStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
@@ -24,8 +25,10 @@ function PoachStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
   });
   const [temp, setTemp] = useState(80); // °C, target 75–85
   const [knob, setKnob] = useState(0.5); // 0..1
+  const [holdPct, setHoldPct] = useState(0);
   const drift = useRef(0);
   const inGreen = useRef(0);
+  const steady = useRef(0);
   const total = useRef(0);
   const lastT = useRef(performance.now());
 
@@ -49,13 +52,24 @@ function PoachStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
       const next = clamp(target - drift.current, 60, 100);
       setTemp(next);
       total.current += dt;
-      if (next >= 75 && next <= 85) inGreen.current += dt;
+      const inTarget = next >= 75 && next <= 85;
+      if (inTarget) {
+        inGreen.current += dt;
+        steady.current += dt;
+      } else {
+        steady.current = Math.max(0, steady.current - dt * 1.2);
+      }
+      setHoldPct(clamp(steady.current / 2600, 0, 1));
+      if (steady.current >= 2600 && total.current > 3200) {
+        const ratio = total.current > 0 ? inGreen.current / total.current : 0;
+        finish(ratio >= 0.75 ? 'gold' : 'silver', ratio);
+      }
       // tink on entering band
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, [knob]);
+  }, [finish, knob]);
 
   // when timer ends, score
   useEffect(() => {
@@ -198,6 +212,9 @@ function PoachStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
           <div className="pixel-meter w-full">
             <span style={{ width: `${clamp((temp - 65) / 30, 0, 1) * 100}%` }} />
           </div>
+          <div className="pixel-meter h-[10px] w-full">
+            <span style={{ width: `${holdPct * 100}%` }} />
+          </div>
           <div className={`text-sm font-bold ${inBand ? 'text-[#8ee06b]' : 'text-[#ffcf66]'}`}>
             {inBand ? 'GOOD HEAT' : temp < 75 ? 'HEAT UP' : 'TOO HOT'}
           </div>
@@ -303,24 +320,55 @@ function IceBathStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
         mood={overBowl ? 'cheering' : 'idle'}
       />
       <div ref={ref} className="absolute inset-0 touch-none">
-        <svg ref={svgRef} viewBox="0 0 360 380" className="w-full h-full" preserveAspectRatio="xMidYMid meet">
-          {/* pot (left) */}
-          <ellipse cx="100" cy="220" rx="56" ry="14" fill="#3A2D24" />
-          <ellipse cx="100" cy="218" rx="54" ry="12" fill="#5FBFB8" />
-          {/* ice bowl (right) */}
-          <ellipse cx={bowlX} cy={bowlY} rx={bowlR} ry={20} fill="#3A2D24" />
-          <ellipse cx={bowlX} cy={bowlY - 2} rx={bowlR - 2} ry={18} fill="#CFE8FF" />
-          {[0, 1, 2, 3, 4].map((i) => (
-            <rect key={i} x={bowlX - 30 + i * 14} y={bowlY - 8} width="10" height="10" rx="2" fill="#fff" stroke="#3A2D24" strokeWidth="1.5" />
-          ))}
-          {/* chicken */}
-          <g transform={`translate(${pos.x - 32}, ${pos.y - 28})`}>
-            <PixelIcon kind="chicken" size={64} />
+        <svg ref={svgRef} viewBox="0 0 360 380" className="w-full h-full" preserveAspectRatio="xMidYMid meet" shapeRendering="crispEdges">
+          <defs>
+            <pattern id="ice-sparkle" width="10" height="10" patternUnits="userSpaceOnUse">
+              <rect x="1" y="1" width="3" height="3" fill="#ffffff" opacity="0.85" />
+              <rect x="7" y="5" width="2" height="2" fill="#7bd1ef" opacity="0.55" />
+            </pattern>
+          </defs>
+          <rect x="28" y="265" width="304" height="18" fill="rgba(42,26,24,0.18)" />
+
+          <g transform="translate(42, 156)">
+            <rect x="4" y="68" width="114" height="16" fill="#2a1a18" opacity="0.22" />
+            <rect x="16" y="30" width="88" height="58" fill="#2a1a18" />
+            <rect x="23" y="37" width="74" height="43" fill="#8a8f8f" />
+            <rect x="30" y="37" width="15" height="43" fill="#c7cfcc" opacity="0.72" />
+            <rect x="20" y="24" width="80" height="14" fill="#2a1a18" />
+            <rect x="26" y="20" width="68" height="13" fill="#5fbfb8" />
+            <rect x="36" y="17" width="34" height="5" fill="#d7fff6" opacity="0.72" />
+            <rect x="2" y="44" width="18" height="16" fill="#2a1a18" />
+            <rect x="100" y="44" width="18" height="16" fill="#2a1a18" />
+            {[0, 1, 2].map((i) => (
+              <rect key={i} x={44 + i * 16} y={2 + (i % 2) * 6} width="7" height="18" fill="#fff7d7" opacity="0.38" />
+            ))}
           </g>
-          {/* hint */}
-          <text x="180" y="350" textAnchor="middle" fontSize="14" fill="#3A2D24" opacity="0.6">
-            ↑↓ {Math.round(held)}/500 ms
-          </text>
+
+          <g className={overBowl ? 'target-flash' : ''} transform={`translate(${bowlX - 78}, ${bowlY - 64})`}>
+            <rect x="9" y="77" width="142" height="16" fill="#2a1a18" opacity="0.24" />
+            <rect x="14" y="25" width="132" height="65" fill="#2a1a18" />
+            <rect x="22" y="30" width="116" height="47" fill={overBowl ? '#d8fbff' : '#bfeaff'} />
+            <rect x="30" y="38" width="100" height="28" fill="url(#ice-sparkle)" />
+            <rect x="34" y="34" width="25" height="21" fill="#fffef0" />
+            <rect x="68" y="30" width="24" height="22" fill="#e9fbff" />
+            <rect x="102" y="38" width="18" height="17" fill="#fffef0" />
+            <rect x="22" y="72" width="116" height="14" fill="#7bc9e4" />
+            <rect x="7" y="20" width="146" height="10" fill="#2a1a18" />
+            <rect x="16" y="14" width="128" height="11" fill={overBowl ? '#fff7d7' : '#dff9ff'} />
+            <rect x="33" y="15" width="42" height="4" fill="#ffffff" opacity="0.9" />
+            {overBowl && <rect x="6" y="8" width="148" height="7" fill="#6fb552" />}
+          </g>
+          <g transform={`translate(${pos.x - 44}, ${pos.y - 44})`} className={overBowl ? 'target-flash' : ''}>
+            <rect x="8" y="72" width="74" height="10" fill="#2a1a18" opacity="0.22" />
+            <PixelIcon kind="wholeChicken" size={88} />
+          </g>
+          <g transform="translate(110, 326)" opacity="0.72">
+            <rect x="0" y="0" width="140" height="24" fill="#fff7d7" stroke="#2a1a18" strokeWidth="3" />
+            <rect x="4" y="4" width={Math.min(132, held / 500 * 132)} height="16" fill={overBowl ? '#6fb552' : '#e8b83a'} />
+            <text x="70" y="17" textAnchor="middle" fontSize="12" fontWeight="700" fill="#2a1a18">
+              {Math.round(held)}/500 ms
+            </text>
+          </g>
         </svg>
       </div>
     </>
@@ -345,6 +393,12 @@ function AromaticsStep({ onComplete }: { onComplete: (r: StepResult) => void }) 
     }, 60);
     return () => clearInterval(id);
   }, []);
+
+  useEffect(() => {
+    if (!hits.every(Boolean)) return;
+    const id = setTimeout(() => finish('gold', 1), 180);
+    return () => clearTimeout(id);
+  }, [hits, finish]);
 
   useEffect(() => {
     if (remaining > 0) return;
@@ -399,7 +453,7 @@ function AromaticsStep({ onComplete }: { onComplete: (r: StepResult) => void }) 
           {ingredients.map((it, i) => (
             <button
               key={i}
-              className={`pixel-token thumb-target w-32 h-32 font-bold ${hits[i] ? 'bg-pandan/25 border-pandan-shade' : ''}`}
+              className={`pixel-token thumb-target w-32 h-32 font-bold ${activeBeat === i ? 'target-flash bg-kaya' : ''} ${hits[i] ? 'bg-pandan/25 border-pandan-shade' : ''}`}
               onClick={() => tap(i)}
               aria-label={`${it.label} beat ${i + 1}`}
             >
@@ -425,9 +479,15 @@ function PestleStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
   const t = useT();
 
   useEffect(() => {
+    if (count >= 28) {
+      finish('gold', 1);
+    }
+  }, [count, finish]);
+
+  useEffect(() => {
     if (remaining > 0) return;
-    const tier: ScoreTier = count >= 36 ? 'gold' : count >= 24 ? 'silver' : count >= 12 ? 'bronze' : 'miss';
-    finish(tier, count / 40);
+    const tier: ScoreTier = count >= 28 ? 'gold' : count >= 20 ? 'silver' : count >= 10 ? 'bronze' : 'miss';
+    finish(tier, count / 28);
   }, [remaining, count, finish]);
 
   const onTap = (side: 'L' | 'R') => {
@@ -441,7 +501,7 @@ function PestleStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
   };
 
   // paste color shift white -> pale green
-  const pct = clamp(count / 40, 0, 1);
+  const pct = clamp(count / 28, 0, 1);
   const r = Math.round(255 - (255 - 165) * pct);
   const g = Math.round(255 - (255 - 200) * pct);
   const b = Math.round(255 - (255 - 130) * pct);
@@ -495,8 +555,7 @@ function PestleStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
 function PlateStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
   const t = useT();
   const [chicken, setChicken] = useState({ x: 70, y: 320, placed: false });
-  const [cucumber, setCucumber] = useState({ x: 230, y: 330, placed: false });
-  const [coriander, setCoriander] = useState({ x: 290, y: 330, placed: false });
+  const [garnish, setGarnish] = useState({ x: 250, y: 330, placed: false });
   const [coverage, setCoverage] = useState(0); // 0..100
   const ref = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -516,10 +575,8 @@ function PlateStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
     if (e.type === 'down' || e.type === 'move') {
       if (!chicken.placed) {
         setChicken({ x: vb.x, y: vb.y, placed: false });
-      } else if (!cucumber.placed) {
-        setCucumber({ x: vb.x, y: vb.y, placed: false });
-      } else if (!coriander.placed) {
-        setCoriander({ x: vb.x, y: vb.y, placed: false });
+      } else if (!garnish.placed) {
+        setGarnish({ x: vb.x, y: vb.y, placed: false });
       } else {
         const cv = canvasRef.current;
         if (cv) {
@@ -566,19 +623,12 @@ function PlateStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
         } else {
           setChicken({ x: 70, y: 320, placed: false });
         }
-      } else if (!cucumber.placed) {
-        if (dist(vb.x, vb.y, target.x + 50, target.y + 30) < 80) {
-          setCucumber({ x: target.x + 50, y: target.y + 30, placed: true });
+      } else if (!garnish.placed) {
+        if (dist(vb.x, vb.y, target.x + 50, target.y + 30) < 90) {
+          setGarnish({ x: target.x + 50, y: target.y + 26, placed: true });
           sfx.snap();
         } else {
-          setCucumber({ x: 230, y: 330, placed: false });
-        }
-      } else if (!coriander.placed) {
-        if (dist(vb.x, vb.y, target.x - 30, target.y - 40) < 80) {
-          setCoriander({ x: target.x - 30, y: target.y - 40, placed: true });
-          sfx.snap();
-        } else {
-          setCoriander({ x: 290, y: 330, placed: false });
+          setGarnish({ x: 250, y: 330, placed: false });
         }
       }
     }
@@ -608,7 +658,7 @@ function PlateStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
     return () => clearInterval(id);
   }, []);
 
-  const allPlaced = chicken.placed && cucumber.placed && coriander.placed;
+  const allPlaced = chicken.placed && garnish.placed;
 
   const onDone = () => {
     if (finishedRef.current) return;
@@ -619,7 +669,7 @@ function PlateStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
     else if ((coverage >= 40 && coverage < 60) || (coverage > 85 && coverage <= 95)) sauceTier = 'silver';
     else if (coverage > 0) sauceTier = 'bronze';
     else sauceTier = 'miss';
-    const garnishCount = (cucumber.placed ? 1 : 0) + (coriander.placed ? 1 : 0);
+    const garnishCount = garnish.placed ? 2 : 0;
     // Combined raw: weight sauce 60%, garnish 40%
     const raw = (
       (sauceTier === 'gold' ? 1 : sauceTier === 'silver' ? 0.7 : sauceTier === 'bronze' ? 0.4 : 0) * 0.6 +
@@ -640,50 +690,20 @@ function PlateStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
       />
       <div className="absolute inset-0 grid place-items-center pt-28 pb-20 px-2">
         <div ref={ref} className="relative w-full max-w-full max-h-full aspect-[360/460] touch-none">
-          {/* Layer 1: plate + rice (under the sauce) */}
           <svg ref={svgRef} viewBox="0 0 360 460" className="absolute inset-0 w-full h-full pointer-events-none" preserveAspectRatio="xMidYMid meet">
-            <defs>
-              <radialGradient id="plate-fill" cx="0.5" cy="0.4" r="0.7">
-                <stop offset="0%" stopColor="#FFFFFF" />
-                <stop offset="70%" stopColor="#F4ECDC" />
-                <stop offset="100%" stopColor="#D9CDB6" />
-              </radialGradient>
-              <radialGradient id="rice-fill" cx="0.5" cy="0.4" r="0.6">
-                <stop offset="0%" stopColor="#FFFCEC" />
-                <stop offset="70%" stopColor="#F4E9C7" />
-                <stop offset="100%" stopColor="#D8C99B" />
-              </radialGradient>
-              <pattern id="rice-grain" x="0" y="0" width="6" height="6" patternUnits="userSpaceOnUse">
-                <ellipse cx="3" cy="3" rx="1.5" ry="0.6" fill="#C9B97F" opacity="0.55" />
-              </pattern>
-              <filter id="plate-shadow" x="-20%" y="-20%" width="140%" height="140%">
-                <feGaussianBlur in="SourceAlpha" stdDeviation="3" />
-                <feOffset dx="0" dy="4" />
-                <feComponentTransfer><feFuncA type="linear" slope="0.35" /></feComponentTransfer>
-                <feMerge><feMergeNode /><feMergeNode in="SourceGraphic" /></feMerge>
-              </filter>
-            </defs>
-
-            {/* table-shadow under plate */}
-            <ellipse cx={target.x} cy={target.y + 22} rx="118" ry="14" fill="rgba(58,45,36,0.18)" />
-            {/* plate outer ring (rim) */}
-            <ellipse cx={target.x} cy={target.y} rx="116" ry="34" fill="#3A2D24" />
-            <ellipse cx={target.x} cy={target.y - 2} rx="112" ry="32" fill="url(#plate-fill)" />
-            {/* plate well shadow */}
-            <ellipse cx={target.x} cy={target.y + 4} rx="92" ry="22" fill="rgba(58,45,36,0.10)" />
-            <ellipse cx={target.x} cy={target.y - 2} rx="92" ry="22" fill="url(#plate-fill)" stroke="rgba(58,45,36,0.10)" strokeWidth="1" />
-            {/* rice mound */}
-            <ellipse cx={target.x} cy={target.y - 6} rx="78" ry="20" fill="url(#rice-fill)" stroke="rgba(58,45,36,0.20)" strokeWidth="1.5" />
-            {/* rice grain texture */}
-            <ellipse cx={target.x} cy={target.y - 6} rx="78" ry="20" fill="url(#rice-grain)" opacity="0.85" />
-            {/* upper rice highlight */}
-            <ellipse cx={target.x - 10} cy={target.y - 14} rx="40" ry="6" fill="#FFF7DC" opacity="0.7" />
-            {/* placement target ghost */}
+            <ellipse cx={target.x} cy={target.y + 34} rx="128" ry="18" fill="rgba(58,45,36,0.18)" />
+            <image
+              href={`${ASSET_BASE}assets/gameplay/plate-rice-640.webp`}
+              x={target.x - 145}
+              y={target.y - 70}
+              width="290"
+              height="139"
+              preserveAspectRatio="xMidYMid meet"
+              style={{ imageRendering: 'auto' }}
+            />
             {!chicken.placed && (
-              <ellipse cx={target.x} cy={target.y - 4} rx="40" ry="12" fill="none" stroke="#3A2D24" strokeDasharray="4 3" opacity="0.35" />
+              <ellipse cx={target.x} cy={target.y - 4} rx="56" ry="17" fill="none" stroke="#3A2D24" strokeDasharray="6 5" strokeWidth="2" opacity="0.42" />
             )}
-            {/* plate top rim highlight */}
-            <path d={`M ${target.x - 80} ${target.y - 24} Q ${target.x} ${target.y - 32} ${target.x + 80} ${target.y - 24}`} stroke="rgba(255,255,255,0.7)" strokeWidth="1.5" fill="none" />
           </svg>
 
           {/* Layer 2: sauce paint canvas (between rice and chicken) */}
@@ -691,74 +711,61 @@ function PlateStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
 
           {/* Layer 3: chicken + garnish (over the sauce) */}
           <svg viewBox="0 0 360 460" className="absolute inset-0 w-full h-full pointer-events-none" preserveAspectRatio="xMidYMid meet">
-            <defs>
-              <linearGradient id="chicken-flesh" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#FBE3BF" />
-                <stop offset="55%" stopColor="#F1C9A4" />
-                <stop offset="100%" stopColor="#D8AB7C" />
-              </linearGradient>
-              <linearGradient id="chicken-skin" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#FFE9B0" />
-                <stop offset="100%" stopColor="#E5C273" />
-              </linearGradient>
-              <linearGradient id="cucumber-skin" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#92C97A" />
-                <stop offset="100%" stopColor="#558D40" />
-              </linearGradient>
-              <radialGradient id="cucumber-flesh" cx="0.5" cy="0.5" r="0.6">
-                <stop offset="0%" stopColor="#EFF8DD" />
-                <stop offset="100%" stopColor="#C9DFA1" />
-              </radialGradient>
-            </defs>
-
-            {/* Chicken slice (rendered as a fan of three slices when placed; one when dragging) */}
             {chicken.placed ? (
-              <g transform={`translate(${target.x}, ${target.y - 8})`}>
-                {/* slice 1 (back) */}
-                <g transform="translate(-26, 2) rotate(-6)">
-                  <ellipse cx="0" cy="0" rx="28" ry="9" fill="url(#chicken-flesh)" stroke="#7B5A3D" strokeWidth="1.6" />
-                  <path d="M -22 -7 Q 0 -10 22 -7 L 22 -3 Q 0 -6 -22 -3 Z" fill="url(#chicken-skin)" stroke="#7B5A3D" strokeWidth="1" />
-                </g>
-                {/* slice 2 (middle) */}
-                <g transform="translate(0, -3) rotate(0)">
-                  <ellipse cx="0" cy="0" rx="32" ry="10" fill="url(#chicken-flesh)" stroke="#7B5A3D" strokeWidth="1.8" />
-                  <path d="M -26 -8 Q 0 -12 26 -8 L 26 -3 Q 0 -7 -26 -3 Z" fill="url(#chicken-skin)" stroke="#7B5A3D" strokeWidth="1" />
-                  <path d="M -18 0 L 18 0" stroke="rgba(123,90,61,0.35)" strokeWidth="1" />
-                </g>
-                {/* slice 3 (front) */}
-                <g transform="translate(28, 2) rotate(8)">
-                  <ellipse cx="0" cy="0" rx="28" ry="9" fill="url(#chicken-flesh)" stroke="#7B5A3D" strokeWidth="1.6" />
-                  <path d="M -22 -7 Q 0 -10 22 -7 L 22 -3 Q 0 -6 -22 -3 Z" fill="url(#chicken-skin)" stroke="#7B5A3D" strokeWidth="1" />
-                </g>
+              <g>
+                <ellipse cx={target.x} cy={target.y + 18} rx="78" ry="16" fill="rgba(58,45,36,0.18)" />
+                <image
+                  href={`${ASSET_BASE}assets/gameplay/chicken-slices-512.webp`}
+                  x={target.x - 76}
+                  y={target.y - 61}
+                  width="152"
+                  height="108"
+                  preserveAspectRatio="xMidYMid meet"
+                  style={{ imageRendering: 'auto' }}
+                />
               </g>
             ) : (
-              <g transform={`translate(${chicken.x}, ${chicken.y})`}>
-                <ellipse cx="0" cy="2" rx="32" ry="10" fill="rgba(58,45,36,0.18)" />
-                <ellipse cx="0" cy="0" rx="32" ry="10" fill="url(#chicken-flesh)" stroke="#7B5A3D" strokeWidth="1.8" />
-                <path d="M -26 -8 Q 0 -12 26 -8 L 26 -3 Q 0 -7 -26 -3 Z" fill="url(#chicken-skin)" stroke="#7B5A3D" strokeWidth="1" />
+              <g className="tap-pop">
+                <ellipse cx={chicken.x} cy={chicken.y + 22} rx="62" ry="13" fill="rgba(58,45,36,0.18)" />
+                <image
+                  href={`${ASSET_BASE}assets/gameplay/chicken-slices-512.webp`}
+                  x={chicken.x - 62}
+                  y={chicken.y - 43}
+                  width="124"
+                  height="88"
+                  preserveAspectRatio="xMidYMid meet"
+                  style={{ imageRendering: 'auto' }}
+                />
               </g>
             )}
 
-            {/* Cucumber slice */}
-            <g transform={`translate(${cucumber.x}, ${cucumber.y})`}>
-              {!cucumber.placed && <ellipse cx="0" cy="3" rx="16" ry="5" fill="rgba(58,45,36,0.18)" />}
-              <circle cx="0" cy="0" r={cucumber.placed ? 11 : 13} fill="url(#cucumber-skin)" stroke="#3A4F23" strokeWidth="1.6" />
-              <circle cx="0" cy="0" r={cucumber.placed ? 8 : 10} fill="url(#cucumber-flesh)" stroke="#86A86A" strokeWidth="0.8" />
-              {/* seeds */}
-              {[0, 1, 2, 3].map((i) => {
-                const a = (i / 4) * Math.PI * 2;
-                const r = cucumber.placed ? 4 : 5;
-                return <ellipse key={i} cx={Math.cos(a) * r} cy={Math.sin(a) * r} rx="0.9" ry="1.6" fill="#9DBC78" />;
-              })}
-            </g>
-
-            {/* Coriander leaf (3-lobe) */}
-            <g transform={`translate(${coriander.x}, ${coriander.y}) ${coriander.placed ? 'scale(0.85)' : ''}`}>
-              {!coriander.placed && <ellipse cx="0" cy="3" rx="9" ry="3" fill="rgba(58,45,36,0.18)" />}
-              <path d="M 0 -8 Q -7 -10 -10 -4 Q -8 2 -3 0 Q -7 6 -1 9 Q 5 6 1 0 Q 6 2 8 -4 Q 5 -10 0 -8 Z" fill="#6FB552" stroke="#3A6A22" strokeWidth="1.2" />
-              <path d="M 0 -7 L 0 8" stroke="#3A6A22" strokeWidth="0.6" opacity="0.7" />
-              <path d="M -6 -2 L 6 -2" stroke="#3A6A22" strokeWidth="0.4" opacity="0.5" />
-            </g>
+            {garnish.placed ? (
+              <g>
+                <ellipse cx={garnish.x} cy={garnish.y + 17} rx="38" ry="9" fill="rgba(58,45,36,0.16)" />
+                <image
+                  href={`${ASSET_BASE}assets/gameplay/garnish-320.webp`}
+                  x={garnish.x - 48}
+                  y={garnish.y - 38}
+                  width="96"
+                  height="71"
+                  preserveAspectRatio="xMidYMid meet"
+                  style={{ imageRendering: 'auto' }}
+                />
+              </g>
+            ) : (
+              <g className="tap-pop">
+                <ellipse cx={garnish.x} cy={garnish.y + 15} rx="34" ry="8" fill="rgba(58,45,36,0.16)" />
+                <image
+                  href={`${ASSET_BASE}assets/gameplay/garnish-320.webp`}
+                  x={garnish.x - 42}
+                  y={garnish.y - 34}
+                  width="84"
+                  height="62"
+                  preserveAspectRatio="xMidYMid meet"
+                  style={{ imageRendering: 'auto' }}
+                />
+              </g>
+            )}
 
             {/* steam wisps when complete-ish */}
             {allPlaced && (
@@ -771,7 +778,7 @@ function PlateStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
 
           <div className="absolute bottom-2 left-0 right-0 text-center pointer-events-none">
             <div className="text-xs text-outline/70">
-              {t('hud.score')}: chicken {chicken.placed ? '✓' : '-'} · cucumber {cucumber.placed ? '✓' : '-'} · coriander {coriander.placed ? '✓' : '-'}
+              {t('hud.score')}: chicken {chicken.placed ? '✓' : '-'} · garnish {garnish.placed ? '✓' : '-'}
             </div>
             <div className="text-xs text-outline/70">{t('cr.step5.sauce_label', { coverage: String(coverage) })}</div>
           </div>

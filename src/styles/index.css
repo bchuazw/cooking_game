@@ -351,6 +351,149 @@ button:focus-visible,
   background: linear-gradient(90deg, #49b35d 0%, #f2d45c 65%, #e64b33 100%);
 }
 
+.dish-progress {
+  display: flex;
+  gap: 5px;
+  padding: 5px 7px;
+  background: rgba(255, 247, 215, 0.88);
+  border: 3px solid #2a1a18;
+  box-shadow: 0 4px 0 #2a1a18;
+}
+
+.dish-progress-pip {
+  width: 18px;
+  height: 10px;
+  background: #9c7b52;
+  border: 2px solid #2a1a18;
+}
+
+.dish-progress-pip.is-active {
+  background: #ffcf66;
+  animation: pixel-pip 720ms steps(2, end) infinite;
+}
+
+.dish-progress-pip.is-done {
+  background: #6fb552;
+}
+
+.dish-step-enter {
+  animation: dish-step-enter 180ms steps(3, end);
+  will-change: transform, opacity;
+}
+
+.step-start-cue {
+  animation: cue-layer 560ms steps(4, end) forwards;
+}
+
+.step-start-card {
+  display: grid;
+  min-width: 132px;
+  gap: 2px;
+  padding: 12px 18px;
+  text-align: center;
+  color: #2a1a18;
+  animation: cue-card 560ms steps(5, end) forwards;
+}
+
+.step-start-card span {
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.step-start-card strong {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.grade-slam {
+  animation: grade-layer 560ms steps(5, end) forwards;
+}
+
+.grade-card {
+  min-width: 176px;
+  padding: 16px 22px;
+  text-align: center;
+  color: #2a1a18;
+  animation: grade-card 560ms steps(5, end) forwards;
+}
+
+.grade-card span {
+  display: block;
+  font-size: 30px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.grade-gold .grade-card {
+  background: linear-gradient(180deg, #fff6a8 0%, #e8b83a 58%, #b58e27 58%, #b58e27 100%);
+}
+
+.grade-silver .grade-card {
+  background: linear-gradient(180deg, #ffffff 0%, #cfcfd4 58%, #9d9da7 58%, #9d9da7 100%);
+}
+
+.grade-bronze .grade-card {
+  background: linear-gradient(180deg, #ffd09b 0%, #c58b5a 58%, #8f5d38 58%, #8f5d38 100%);
+}
+
+.grade-miss .grade-card {
+  background: linear-gradient(180deg, #c7c7c7 0%, #7b7b7b 58%, #4b4b4b 58%, #4b4b4b 100%);
+  color: #fff7d7;
+}
+
+.target-flash {
+  animation: target-flash 320ms steps(2, end);
+}
+
+.tap-pop {
+  animation: tap-pop 180ms steps(2, end);
+}
+
+@keyframes pixel-pip {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
+}
+
+@keyframes dish-step-enter {
+  0% { opacity: 0; transform: translateY(10px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes cue-layer {
+  0% { opacity: 0; }
+  12%, 58% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes cue-card {
+  0% { transform: translateY(18px) scale(0.72); }
+  44% { transform: translateY(0) scale(1.08); }
+  100% { transform: translateY(-8px) scale(1); }
+}
+
+@keyframes grade-layer {
+  0% { opacity: 0; }
+  14%, 74% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes grade-card {
+  0% { transform: translateY(24px) scale(0.62); }
+  36% { transform: translateY(0) scale(1.12); }
+  100% { transform: translateY(-14px) scale(1); }
+}
+
+@keyframes target-flash {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.32); }
+}
+
+@keyframes tap-pop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+
 /* Peranakan tile divider used at section boundaries */
 .tile-divider {
   height: 14px;

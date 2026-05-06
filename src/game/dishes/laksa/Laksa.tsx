@@ -55,6 +55,12 @@ function BloomStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
   });
 
   useEffect(() => {
+    if (bloom < 0.92) return;
+    const id = setTimeout(() => finish('gold', bloom), 160);
+    return () => clearTimeout(id);
+  }, [bloom, finish]);
+
+  useEffect(() => {
     if (remaining > 0) return;
     const tier: ScoreTier = scoreFromBands(bloom, 0.85, 0.55, 0.25);
     finish(tier, bloom);
@@ -78,7 +84,7 @@ function BloomStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
       />
       <div className="absolute inset-0 grid place-items-center pt-28 pb-20 px-2">
         <div ref={ref} className="relative w-full max-w-full max-h-full aspect-[360/460] touch-none">
-          <svg ref={svgRef} viewBox="0 0 360 460" className="absolute inset-0 w-full h-full opacity-0" preserveAspectRatio="xMidYMid meet" shapeRendering="crispEdges">
+          <svg ref={svgRef} viewBox="0 0 360 460" className="absolute inset-0 w-full h-full" preserveAspectRatio="xMidYMid meet" shapeRendering="crispEdges">
             <defs>
               <radialGradient id="wok-iron" cx="0.5" cy="0.4" r="0.7">
                 <stop offset="0%" stopColor="#5A4A42" />
@@ -149,14 +155,14 @@ function BloomStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
             {/* speed ring around finger reference */}
             <circle cx={center.x} cy={center.y} r="100" fill="none" stroke={speed >= 0.6 && speed <= 1.2 ? '#6FB552' : '#3A2D2433'} strokeWidth="3" strokeDasharray="8 6" />
           </svg>
-          <div className="absolute left-1/2 top-[52%] grid h-56 w-56 -translate-x-1/2 -translate-y-1/2 place-items-center pixel-dark-panel">
-            <div
-              className="grid h-36 w-36 place-items-center border-[4px] border-outline bg-[#d86c36]"
-              style={{ boxShadow: speed >= 0.6 && speed <= 1.2 ? '0 0 0 8px #6FB552 inset' : '0 0 0 8px rgba(42,26,24,0.22) inset' }}
-            >
-              <PixelIconSvg kind="wok" size={94} title="wok" />
-            </div>
-            <div className="pixel-meter mt-3 w-40">
+          <div
+            className="pointer-events-none absolute left-1/2 top-[52%] flex h-56 w-56 -translate-x-1/2 -translate-y-1/2 items-end justify-center pb-4"
+            style={{
+              border: speed >= 0.6 && speed <= 1.2 ? '5px solid #6FB552' : '5px dashed rgba(255,247,215,0.82)',
+              boxShadow: speed >= 0.6 && speed <= 1.2 ? '0 0 0 6px rgba(232,184,58,0.42)' : 'none',
+            }}
+          >
+            <div className="pixel-meter w-40 bg-[#fff7d7]/90">
               <span style={{ width: `${bloom * 100}%` }} />
             </div>
           </div>

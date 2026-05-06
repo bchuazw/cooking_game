@@ -241,8 +241,13 @@ function KopiStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
   const [pourY, setPourY] = useState(80); // higher = taller pour stream
   const [holding, setHolding] = useState(false);
   const [froth, setFroth] = useState(0); // 0..1
+  const frothRef = useRef(0);
   const startedY = useRef<number | null>(null);
   const finishedRef = useRef(false);
+
+  useEffect(() => {
+    frothRef.current = froth;
+  }, [froth]);
 
   usePointer(ref, (e) => {
     if (e.type === 'down') { setHolding(true); startedY.current = e.y; sfx.pour(); }
@@ -263,17 +268,26 @@ function KopiStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
     return () => cancelAnimationFrame(raf);
   }, [holding, pourY]);
 
-  const finalize = () => {
+  const finalize = (force = false) => {
     if (finishedRef.current) return;
-    if (froth < 0.15 && !holding) return; // need at least some pour
+    const score = frothRef.current;
+    if (score < 0.15 && !force) return; // need at least some pour
     finishedRef.current = true;
-    const tier: ScoreTier = froth >= 0.8 ? 'gold' : froth >= 0.55 ? 'silver' : froth >= 0.25 ? 'bronze' : 'miss';
-    onComplete({ stepId: 'kopi', tier, rawScore: froth, durationMs: 0 });
+    const tier: ScoreTier = score >= 0.8 ? 'gold' : score >= 0.55 ? 'silver' : score >= 0.25 ? 'bronze' : 'miss';
+    onComplete({ stepId: 'kopi', tier, rawScore: score, durationMs: 0 });
   };
+
+  useEffect(() => {
+    if (froth < 0.9 || finishedRef.current) return;
+    setHolding(false);
+    sfx.chime();
+    finalize(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [froth]);
 
   // safety: auto-complete after 8s
   useEffect(() => {
-    const t = setTimeout(() => { if (!finishedRef.current) { setHolding(false); finalize(); } }, 8000);
+    const t = setTimeout(() => { if (!finishedRef.current) { setHolding(false); finalize(true); } }, 8000);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

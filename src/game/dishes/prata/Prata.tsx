@@ -32,18 +32,24 @@ function KneadStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
       if (initialDist.current === null) initialDist.current = d;
       const delta = d - initialDist.current;
       if (delta > 4) {
-        setStretch((s) => clamp(s + 0.01, 0, 1));
+        setStretch((s) => clamp(s + 0.018, 0, 1));
         initialDist.current = d;
       }
     } else {
       // single-finger fallback: drag distance increments
-      setStretch((s) => clamp(s + 0.003, 0, 1));
+      setStretch((s) => clamp(s + 0.006, 0, 1));
     }
   });
 
   useEffect(() => {
+    if (stretch >= 0.88) {
+      finish('gold', stretch);
+    }
+  }, [stretch, finish]);
+
+  useEffect(() => {
     if (remaining > 0) return;
-    const tier: ScoreTier = stretch >= 0.85 ? 'gold' : stretch >= 0.6 ? 'silver' : stretch >= 0.3 ? 'bronze' : 'miss';
+    const tier: ScoreTier = stretch >= 0.82 ? 'gold' : stretch >= 0.58 ? 'silver' : stretch >= 0.25 ? 'bronze' : 'miss';
     finish(tier, stretch);
   }, [remaining, stretch, finish]);
 
@@ -86,7 +92,7 @@ function SlapStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
     else if (e.type === 'move' && lastX.current !== null) {
       const dx = e.x - lastX.current;
       if (Math.abs(dx) > 30) {
-        setThinness((t) => clamp(t + 0.025, 0, 1));
+        setThinness((t) => clamp(t + 0.045, 0, 1));
         sfx.thud();
         lastX.current = e.x;
       }
@@ -96,8 +102,14 @@ function SlapStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
   });
 
   useEffect(() => {
+    if (thinness >= 0.86) {
+      finish('gold', thinness);
+    }
+  }, [thinness, finish]);
+
+  useEffect(() => {
     if (remaining > 0) return;
-    const tier: ScoreTier = thinness >= 0.85 ? 'gold' : thinness >= 0.7 ? 'silver' : thinness >= 0.5 ? 'bronze' : 'miss';
+    const tier: ScoreTier = thinness >= 0.82 ? 'gold' : thinness >= 0.62 ? 'silver' : thinness >= 0.38 ? 'bronze' : 'miss';
     finish(tier, thinness);
   }, [remaining, thinness, finish]);
 

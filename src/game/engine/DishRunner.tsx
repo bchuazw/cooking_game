@@ -101,25 +101,53 @@ export function DishRunner({
       return () => clearTimeout(t);
     }
     if (results.length > idx) {
-      const t = setTimeout(() => setIdx(results.length), 350);
+      const t = setTimeout(() => setIdx(results.length), 520);
       return () => clearTimeout(t);
     }
     return undefined;
   }, [results, idx, steps.length, dishId, onComplete, maxCombo]);
 
   const cur = steps[idx];
+  const pendingResult = results.length > idx ? results[results.length - 1] : null;
+  const stepNumber = Math.min(idx + 1, steps.length);
 
   return (
     <div className="absolute inset-0 select-none pixel-art">
       <DishBackplate dishId={dishId} />
-      {cur.render({ onComplete: onStep })}
+      <div className="dish-progress pointer-events-none absolute bottom-2 left-2 z-30">
+        {steps.map((step, i) => (
+          <span
+            key={step.id}
+            className={`dish-progress-pip ${i < results.length ? 'is-done' : i === idx ? 'is-active' : ''}`}
+          />
+        ))}
+      </div>
+      <div key={cur.id} className="dish-step-enter absolute inset-0">
+        {cur.render({ onComplete: onStep })}
+      </div>
+      <div key={`cue-${cur.id}`} className="step-start-cue pointer-events-none absolute inset-0 z-40 grid place-items-center">
+        <div className="pixel-panel step-start-card">
+          <span>STEP {stepNumber}</span>
+          <strong>GO!</strong>
+        </div>
+      </div>
+      {pendingResult && (
+        <div
+          key={`grade-${results.length}-${pendingResult.stepId}-${pendingResult.tier}`}
+          className={`grade-slam pointer-events-none absolute inset-0 z-40 grid place-items-center grade-${pendingResult.tier}`}
+        >
+          <div className="pixel-panel grade-card">
+            <span>{pendingResult.tier.toUpperCase()}</span>
+          </div>
+        </div>
+      )}
       <ComboBadge combo={combo} />
       <button
         className="btn-ghost text-xs absolute bottom-2 right-2 z-30 px-2 py-1 opacity-50"
         onClick={onExit}
         aria-label="exit"
       >
-        ⏏
+        X
       </button>
     </div>
   );

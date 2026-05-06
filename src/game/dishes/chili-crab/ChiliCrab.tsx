@@ -19,9 +19,15 @@ function SambalStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
   const [last, setLast] = useState<'L' | 'R' | null>(null);
 
   useEffect(() => {
+    if (count >= 28) {
+      finish('gold', 1);
+    }
+  }, [count, finish]);
+
+  useEffect(() => {
     if (remaining > 0) return;
-    const tier: ScoreTier = count >= 40 ? 'gold' : count >= 28 ? 'silver' : count >= 14 ? 'bronze' : 'miss';
-    finish(tier, count / 50);
+    const tier: ScoreTier = count >= 28 ? 'gold' : count >= 20 ? 'silver' : count >= 10 ? 'bronze' : 'miss';
+    finish(tier, count / 28);
   }, [remaining, count, finish]);
 
   const tap = (s: 'L' | 'R') => {
@@ -29,7 +35,7 @@ function SambalStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
     sfx.thud(); setCount(c => c + 1); setLast(s);
   };
 
-  const heat = clamp(count / 30, 0, 1);
+  const heat = clamp(count / 28, 0, 1);
 
   return (
     <>
@@ -124,6 +130,7 @@ function EggRibbonStep({ onComplete }: { onComplete: (r: StepResult) => void }) 
   const lastAngle = useRef<number | null>(null);
   const lastT = useRef(performance.now());
   const [ribbonPts, setRibbonPts] = useState<{ x: number; y: number }[]>([]);
+  const pointCount = useRef(0);
   const inBandTime = useRef(0);
   const totalTime = useRef(0);
   const [speed, setSpeed] = useState(0);
@@ -147,7 +154,12 @@ function EggRibbonStep({ onComplete }: { onComplete: (r: StepResult) => void }) 
       if (omega >= 1.5 && omega <= 3) inBandTime.current += dt;
       // record ribbon point if in-ish-band (in viewBox coords)
       if (omega >= 1 && omega <= 4) {
+        pointCount.current += 1;
         setRibbonPts((p) => [...p.slice(-200), { x: vb.x, y: vb.y }]);
+      }
+      const ratio = totalTime.current > 0 ? inBandTime.current / totalTime.current : 0;
+      if (totalTime.current >= 3200 && ratio >= 0.68 && pointCount.current >= 44) {
+        finish('gold', ratio);
       }
     }
     lastAngle.current = angle;
