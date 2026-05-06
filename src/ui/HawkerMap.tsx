@@ -1,21 +1,21 @@
 import { useT } from '../i18n/useT';
 import { useApp, UNLOCK_ORDER } from '../state/store';
 import type { DishId } from '../types';
+import { Defs, StallCard } from '../art/DishIcons';
 
 interface StallSpec {
   id: DishId;
   x: number;
   y: number;
-  swatch: string; // accent color
-  emoji: string; // line-icon proxy via emoji-shape (no emoji font dependency)
+  iconKey: 'chicken-rice' | 'laksa' | 'prata' | 'chili-crab' | 'kaya-toast';
 }
 
 const STALLS: StallSpec[] = [
-  { id: 'chicken-rice', x: 60, y: 90, swatch: '#E8B83A', emoji: '🍗' },
-  { id: 'laksa', x: 200, y: 70, swatch: '#D8432B', emoji: '🍜' },
-  { id: 'prata', x: 340, y: 100, swatch: '#F1C9A4', emoji: '🫓' },
-  { id: 'chili-crab', x: 110, y: 220, swatch: '#D8432B', emoji: '🦀' },
-  { id: 'kaya-toast', x: 280, y: 240, swatch: '#6FB552', emoji: '🍞' },
+  { id: 'chicken-rice', x: 14, y: 70, iconKey: 'chicken-rice' },
+  { id: 'laksa', x: 200, y: 30, iconKey: 'laksa' },
+  { id: 'prata', x: 386, y: 70, iconKey: 'prata' },
+  { id: 'chili-crab', x: 96, y: 268, iconKey: 'chili-crab' },
+  { id: 'kaya-toast', x: 312, y: 290, iconKey: 'kaya-toast' },
 ];
 
 export function HawkerMap({
@@ -47,73 +47,87 @@ export function HawkerMap({
       <div className="tile-divider" />
 
       <div className="relative flex-1 overflow-hidden">
-        {/* Hawker centre top-down map: tiled floor + stalls */}
-        <svg viewBox="0 0 480 380" className="w-full h-full" preserveAspectRatio="xMidYMid meet">
+        <svg viewBox="0 0 540 460" className="w-full h-full" preserveAspectRatio="xMidYMid meet">
+          <Defs />
           <defs>
-            <pattern id="floor" width="32" height="32" patternUnits="userSpaceOnUse">
-              <rect width="32" height="32" fill="#F4EFE6" />
-              <rect x="0" y="0" width="32" height="32" fill="none" stroke="#E1D6C5" strokeWidth="1" />
+            <pattern id="map-floor" x="0" y="0" width="36" height="36" patternUnits="userSpaceOnUse">
+              <rect width="36" height="36" fill="#F4EFE6" />
+              <path d="M 0 0 L 36 0 M 0 36 L 36 36" stroke="#E1D6C5" strokeWidth="0.6" />
+              <path d="M 0 0 L 0 36 M 36 0 L 36 36" stroke="#E1D6C5" strokeWidth="0.6" />
+              <circle cx="18" cy="18" r="0.8" fill="#D8CDB6" opacity="0.6" />
             </pattern>
+            <linearGradient id="map-bg" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#FFF7E8" />
+              <stop offset="100%" stopColor="#F0E2C7" />
+            </linearGradient>
           </defs>
-          <rect width="480" height="380" fill="url(#floor)" />
 
-          {/* Centre tables */}
-          <g opacity="0.6">
-            <ellipse cx="240" cy="170" rx="44" ry="22" fill="#fff" stroke="#3A2D24" strokeWidth="2" />
-            <ellipse cx="240" cy="170" rx="32" ry="14" fill="#F1C9A4" />
+          {/* ambient floor */}
+          <rect width="540" height="460" fill="url(#map-bg)" pointerEvents="none" />
+          <rect y="200" width="540" height="220" fill="url(#map-floor)" pointerEvents="none" />
+
+          {/* hanging string lights between top stalls */}
+          <g stroke="#5A4A42" strokeWidth="1.5" fill="none" pointerEvents="none">
+            <path d="M 80 30 q 80 -10 160 0" />
+            <path d="M 240 30 q 80 -10 160 0" />
+          </g>
+          {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => {
+            const xs = [110, 145, 185, 215, 270, 310, 350, 390];
+            return <circle key={i} cx={xs[i]} cy={30 + Math.sin(i) * 4} r="3" fill="#E8B83A" stroke="#7E5C0F" strokeWidth="0.6" pointerEvents="none" />;
+          })}
+
+          {/* table cluster centre */}
+          <g opacity="0.85" pointerEvents="none">
+            <ellipse cx="270" cy="220" rx="62" ry="18" fill="rgba(58,45,36,0.18)" />
+            <ellipse cx="270" cy="216" rx="58" ry="16" fill="#fff" stroke="#3A2D24" strokeWidth="1.5" />
+            <ellipse cx="270" cy="212" rx="50" ry="12" fill="url(#hm-wood)" />
+            <ellipse cx="270" cy="212" rx="50" ry="12" fill="url(#hm-wood-grain)" />
+            {/* a chopsticks rest */}
+            <rect x="252" y="208" width="36" height="2" fill="#3A2D24" />
+            {/* tiny condiment bottles */}
+            <g transform="translate(244, 200)">
+              <rect x="-3" y="0" width="6" height="10" rx="1" fill="#D8432B" stroke="#3A2D24" strokeWidth="0.6" />
+              <rect x="-2" y="-2" width="4" height="2" fill="#3A2D24" />
+            </g>
+            <g transform="translate(296, 200)">
+              <rect x="-3" y="0" width="6" height="10" rx="1" fill="#5A3F26" stroke="#3A2D24" strokeWidth="0.6" />
+              <rect x="-2" y="-2" width="4" height="2" fill="#3A2D24" />
+            </g>
           </g>
 
-          {/* Stalls */}
+          {/* potted plant accent */}
+          <g transform="translate(40, 350)" pointerEvents="none">
+            <ellipse cx="0" cy="20" rx="14" ry="3" fill="rgba(58,45,36,0.18)" />
+            <path d="M -12 0 L 12 0 L 8 18 L -8 18 Z" fill="#7E5022" stroke="#3A2D24" strokeWidth="1" />
+            <ellipse cx="0" cy="-2" rx="10" ry="2" fill="#3A2D24" />
+            <path d="M -6 -2 q -2 -10 -8 -14 M 0 -2 q 0 -14 0 -20 M 6 -2 q 2 -10 8 -14" stroke="#558D40" strokeWidth="2" fill="none" strokeLinecap="round" />
+            <ellipse cx="-9" cy="-12" rx="4" ry="6" fill="url(#hm-leaf)" stroke="#3A6A22" strokeWidth="0.6" transform="rotate(-25 -9 -12)" />
+            <ellipse cx="9" cy="-12" rx="4" ry="6" fill="url(#hm-leaf)" stroke="#3A6A22" strokeWidth="0.6" transform="rotate(25 9 -12)" />
+            <ellipse cx="0" cy="-18" rx="4" ry="6" fill="url(#hm-leaf)" stroke="#3A6A22" strokeWidth="0.6" />
+          </g>
+
+          {/* stalls */}
           {STALLS.map((s) => {
             const unlocked = isUnlocked(s.id);
             const stars = bestStarFor(s.id);
             return (
-              <g
+              <StallCard
                 key={s.id}
-                transform={`translate(${s.x}, ${s.y})`}
-                style={{ cursor: unlocked ? 'pointer' : 'not-allowed' }}
+                x={s.x}
+                y={s.y}
+                scale={1}
+                swatchColor=""
+                unlocked={unlocked}
+                stars={stars}
+                dishLabel={t(`dish.${s.id}.name`)}
+                dishIcon={s.iconKey}
                 onClick={() => unlocked && onPickDish(s.id)}
-                role="button"
-                aria-label={`${t(`dish.${s.id}.name`)} ${unlocked ? '' : t('menu.locked')}`}
-                tabIndex={unlocked ? 0 : -1}
-              >
-                {/* stall body */}
-                <rect width="100" height="80" rx="10" fill={unlocked ? s.swatch : '#D9D2CC'} stroke="#3A2D24" strokeWidth="3" />
-                {/* awning */}
-                <path d="M-4 -4 L104 -4 L94 18 L6 18 Z" fill="#D8432B" stroke="#3A2D24" strokeWidth="2" opacity={unlocked ? 1 : 0.4} />
-                <path d="M16 -4 L16 18 M40 -4 L40 18 M64 -4 L64 18 M88 -4 L88 18" stroke="#FFF7E8" strokeWidth="2" opacity={unlocked ? 1 : 0.5} />
-                {/* counter */}
-                <rect x="0" y="60" width="100" height="20" fill="#FFF7E8" stroke="#3A2D24" strokeWidth="2" />
-                {/* dish swatch */}
-                <text x="50" y="50" fontSize="34" textAnchor="middle">{s.emoji}</text>
-                {/* sign */}
-                <text x="50" y="75" fontSize="11" fontWeight="700" fontFamily="M PLUS Rounded 1c, sans-serif" textAnchor="middle" fill="#3A2D24">
-                  {t(`dish.${s.id}.name`)}
-                </text>
-                {/* stars */}
-                {[1, 2, 3].map((i) => (
-                  <circle
-                    key={i}
-                    cx={20 + i * 15}
-                    cy={-12}
-                    r={5}
-                    fill={i <= stars ? '#E8B83A' : 'transparent'}
-                    stroke="#3A2D24"
-                    strokeWidth="1.5"
-                  />
-                ))}
-                {!unlocked && (
-                  <g>
-                    <circle cx="50" cy="40" r="14" fill="rgba(0,0,0,0.4)" />
-                    <text x="50" y="45" fontSize="14" textAnchor="middle" fill="white">🔒</text>
-                  </g>
-                )}
-              </g>
+                ariaLabel={`${t(`dish.${s.id}.name`)}${unlocked ? '' : ' ' + t('menu.locked')}`}
+              />
             );
           })}
         </svg>
 
-        {/* Unlock-order hint */}
         <div className="absolute bottom-6 left-3 right-3 text-center text-[11px] text-outline/60">
           {(() => {
             const next = UNLOCK_ORDER.find((id) => bestStarFor(id) === 0);

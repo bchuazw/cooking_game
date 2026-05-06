@@ -77,21 +77,75 @@ function BloomStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
       <div className="absolute inset-0 grid place-items-center pt-28 pb-20 px-2">
         <div ref={ref} className="relative w-full max-w-full max-h-full aspect-[360/460] touch-none">
           <svg ref={svgRef} viewBox="0 0 360 460" className="absolute inset-0 w-full h-full" preserveAspectRatio="xMidYMid meet">
-            {/* wok */}
-            <ellipse cx={center.x} cy={center.y + 20} rx="150" ry="20" fill="#3A2D24" />
-            <ellipse cx={center.x} cy={center.y} rx="130" ry="80" fill="#5A4A42" />
-            <ellipse cx={center.x} cy={center.y - 4} rx="124" ry="74" fill="#3A2D24" />
-            {/* paste blob */}
-            <ellipse
-              cx={center.x}
-              cy={center.y}
-              rx={70 + bloom * 10}
-              ry={50 + bloom * 8}
-              fill={`rgb(${r},${g},${b})`}
-              opacity={0.85}
-            />
+            <defs>
+              <radialGradient id="wok-iron" cx="0.5" cy="0.4" r="0.7">
+                <stop offset="0%" stopColor="#5A4A42" />
+                <stop offset="60%" stopColor="#2D1F18" />
+                <stop offset="100%" stopColor="#1B1A1A" />
+              </radialGradient>
+              <radialGradient id="wok-rim-light" cx="0.5" cy="0.5" r="0.5">
+                <stop offset="0%" stopColor="rgba(255,200,150,0.0)" />
+                <stop offset="80%" stopColor="rgba(255,200,150,0.3)" />
+              </radialGradient>
+              <radialGradient id="rempah-paste" cx="0.5" cy="0.5" r="0.6">
+                <stop offset="0%" stopColor={`rgb(${Math.min(255, r + 40)},${Math.min(255, g + 30)},${b})`} />
+                <stop offset="60%" stopColor={`rgb(${r},${g},${b})`} />
+                <stop offset="100%" stopColor={`rgb(${Math.max(0, r - 50)},${Math.max(0, g - 30)},${Math.max(0, b - 10)})`} />
+              </radialGradient>
+            </defs>
+
+            {/* table shadow */}
+            <ellipse cx={center.x} cy={center.y + 100} rx="170" ry="14" fill="rgba(58,45,36,0.25)" />
+            {/* heat glow under wok */}
+            <ellipse cx={center.x} cy={center.y + 80} rx="120" ry="28" fill="rgba(232,184,58,0.25)" />
+            {/* wok handles */}
+            <g transform={`translate(${center.x - 150}, ${center.y - 10})`}>
+              <ellipse cx="0" cy="0" rx="22" ry="9" fill="#2D1F18" stroke="#1B1A1A" strokeWidth="1.5" />
+              <ellipse cx="-2" cy="-2" rx="16" ry="5" fill="rgba(255,255,255,0.1)" />
+            </g>
+            <g transform={`translate(${center.x + 150}, ${center.y - 10})`}>
+              <ellipse cx="0" cy="0" rx="22" ry="9" fill="#2D1F18" stroke="#1B1A1A" strokeWidth="1.5" />
+              <ellipse cx="-2" cy="-2" rx="16" ry="5" fill="rgba(255,255,255,0.1)" />
+            </g>
+            {/* wok bowl outer */}
+            <ellipse cx={center.x} cy={center.y + 18} rx="150" ry="24" fill="#1B1A1A" />
+            <path d={`M ${center.x - 145} ${center.y - 10} Q ${center.x - 160} ${center.y + 60} ${center.x} ${center.y + 70} Q ${center.x + 160} ${center.y + 60} ${center.x + 145} ${center.y - 10} Z`} fill="url(#wok-iron)" stroke="#1B1A1A" strokeWidth="2" />
+            {/* wok inner */}
+            <ellipse cx={center.x} cy={center.y - 4} rx="135" ry="72" fill="#1B1A1A" />
+            <ellipse cx={center.x} cy={center.y - 4} rx="128" ry="68" fill="url(#wok-iron)" />
+            {/* rim highlight (top) */}
+            <ellipse cx={center.x} cy={center.y - 8} rx="125" ry="62" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="2" />
+            {/* season patina rings */}
+            {[55, 40, 22].map((r) => (
+              <ellipse key={r} cx={center.x} cy={center.y - 2} rx={r * 1.6} ry={r * 0.8} fill="none" stroke="rgba(255,180,120,0.08)" strokeWidth="1" />
+            ))}
+
+            {/* paste blob (rempah) — ridge and texture */}
+            <ellipse cx={center.x} cy={center.y + 4} rx={70 + bloom * 12} ry={50 + bloom * 10} fill="rgba(0,0,0,0.4)" />
+            <ellipse cx={center.x} cy={center.y} rx={70 + bloom * 10} ry={50 + bloom * 8} fill="url(#rempah-paste)" stroke={`rgb(${Math.max(0, r - 70)},${Math.max(0, g - 50)},${Math.max(0, b - 20)})`} strokeWidth="1.2" />
+            {/* paste highlight */}
+            <ellipse cx={center.x - 12} cy={center.y - 12} rx={28 + bloom * 8} ry={14 + bloom * 4} fill={`rgba(255,200,140,${0.2 + bloom * 0.3})`} />
+            {/* chili / shallot bits poking out */}
+            {[0, 1, 2, 3, 4, 5].map((i) => {
+              const a = (i / 6) * Math.PI * 2;
+              const rad = 50 + bloom * 6;
+              const cx = center.x + Math.cos(a) * rad;
+              const cy = center.y + Math.sin(a) * rad * 0.7;
+              return (
+                <g key={i}>
+                  <ellipse cx={cx} cy={cy} rx="3" ry="2" fill={i % 2 === 0 ? '#D8432B' : '#FFD9A0'} stroke={i % 2 === 0 ? '#7E2113' : '#A87A50'} strokeWidth="0.4" />
+                </g>
+              );
+            })}
+            {/* shimmer */}
+            {bloom > 0.4 && (
+              <g opacity={Math.min(0.8, bloom)}>
+                <path d={`M ${center.x - 60} ${center.y - 50} q -10 -16 0 -28`} stroke="rgba(255,237,200,0.6)" strokeWidth="2" fill="none" />
+                <path d={`M ${center.x + 60} ${center.y - 50} q 10 -16 0 -28`} stroke="rgba(255,237,200,0.6)" strokeWidth="2" fill="none" />
+              </g>
+            )}
             {/* speed ring around finger reference */}
-            <circle cx={center.x} cy={center.y} r="100" fill="none" stroke={speed >= 0.6 && speed <= 1.2 ? '#6FB552' : '#3A2D2433'} strokeWidth="3" strokeDasharray="6 6" />
+            <circle cx={center.x} cy={center.y} r="100" fill="none" stroke={speed >= 0.6 && speed <= 1.2 ? '#6FB552' : '#3A2D2433'} strokeWidth="3" strokeDasharray="8 6" />
           </svg>
         </div>
       </div>

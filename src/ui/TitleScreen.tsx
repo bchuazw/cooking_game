@@ -3,6 +3,7 @@ import { AuntieMay } from '../art/AuntieMay';
 import { say } from '../audio/animalese';
 import { useEffect } from 'react';
 import { useApp } from '../state/store';
+import { Defs, ChickenRiceIcon, LaksaIcon, KayaToastIcon } from '../art/DishIcons';
 
 export function TitleScreen({
   onStart,
@@ -26,57 +27,102 @@ export function TitleScreen({
     <div className="absolute inset-0 flex flex-col">
       {/* Hawker stall illustration backdrop */}
       <svg viewBox="0 0 480 320" className="w-full h-1/2" preserveAspectRatio="xMidYMid slice">
-        <rect width="480" height="320" fill="#F4EFE6" />
-        {/* sky / wall */}
-        <rect width="480" height="200" fill="#FFF7E8" />
-        {/* tile-teal stripe */}
-        <rect y="120" width="480" height="14" fill="#2BA59D" />
-        <rect y="138" width="480" height="2" fill="#3A2D24" />
-        {/* stall counter */}
-        <rect y="200" width="480" height="120" fill="#E8B83A" />
-        <rect y="200" width="480" height="6" fill="#3A2D24" />
+        <Defs />
+        <defs>
+          <linearGradient id="title-sky" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#FFE7BD" />
+            <stop offset="100%" stopColor="#FFF7E8" />
+          </linearGradient>
+          <linearGradient id="title-wall" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#FBE7B6" />
+            <stop offset="100%" stopColor="#E0BD7A" />
+          </linearGradient>
+          <radialGradient id="title-lantern" cx="0.5" cy="0.5" r="0.6">
+            <stop offset="0%" stopColor="#FFB870" />
+            <stop offset="60%" stopColor="#D8432B" />
+            <stop offset="100%" stopColor="#7E2113" />
+          </radialGradient>
+          <radialGradient id="title-glow" cx="0.5" cy="0.5" r="0.5">
+            <stop offset="0%" stopColor="rgba(255,200,120,0.6)" />
+            <stop offset="100%" stopColor="rgba(255,200,120,0)" />
+          </radialGradient>
+          <pattern id="title-tiles" x="0" y="0" width="22" height="22" patternUnits="userSpaceOnUse">
+            <rect width="22" height="22" fill="#2BA59D" />
+            <path d="M 11 2 L 20 11 L 11 20 L 2 11 Z" fill="#FFD9A0" opacity="0.6" />
+            <path d="M 11 6 L 16 11 L 11 16 L 6 11 Z" fill="#7E2113" opacity="0.4" />
+          </pattern>
+        </defs>
+
+        {/* sky */}
+        <rect width="480" height="200" fill="url(#title-sky)" />
+        {/* wall */}
+        <rect width="480" height="80" y="140" fill="url(#title-wall)" />
+        {/* lantern glow halos */}
+        <circle cx="60" cy="55" r="46" fill="url(#title-glow)" />
+        <circle cx="420" cy="55" r="46" fill="url(#title-glow)" />
+        <circle cx="240" cy="60" r="60" fill="url(#title-glow)" />
+
+        {/* peranakan tile band */}
+        <rect y="120" width="480" height="22" fill="url(#title-tiles)" />
+        <rect y="120" width="480" height="2" fill="#3A2D24" />
+        <rect y="142" width="480" height="2" fill="#3A2D24" />
+
+        {/* stall counter (wooden) */}
+        <rect y="200" width="480" height="120" fill="url(#hm-wood)" />
+        <rect y="200" width="480" height="120" fill="url(#hm-wood-grain)" />
+        <rect y="200" width="480" height="3" fill="#3A2D24" />
+        <rect y="318" width="480" height="2" fill="#3A2D24" />
+        {/* counter front edge highlight */}
+        <rect y="204" width="480" height="2" fill="rgba(255,255,255,0.35)" />
+
         {/* steam rising */}
-        <g fill="none" stroke="#3A2D24" strokeWidth="2" opacity="0.4">
-          <path d="M120 110 q-10 -25 0 -45 q10 -10 0 -30" />
-          <path d="M150 100 q-8 -22 0 -45 q8 -10 0 -30" />
-          <path d="M340 110 q10 -25 0 -45 q-10 -10 0 -30" />
+        <g fill="none" stroke="#3A2D24" strokeWidth="2" opacity="0.35">
+          <path d="M120 200 q-10 -25 0 -45 q10 -10 0 -30" />
+          <path d="M150 195 q-8 -22 0 -45 q8 -10 0 -30" />
+          <path d="M340 205 q10 -25 0 -45 q-10 -10 0 -30" />
+          <path d="M370 200 q8 -22 0 -45 q-8 -10 0 -30" />
         </g>
-        {/* sign */}
-        <g transform="translate(120, 30)">
-          <rect width="240" height="60" rx="10" fill="#D8432B" stroke="#3A2D24" strokeWidth="3" />
-          <text
-            x="120"
-            y="40"
-            textAnchor="middle"
-            fontFamily="M PLUS Rounded 1c, sans-serif"
-            fontSize="28"
-            fontWeight="700"
-            fill="#FFF7E8"
-          >
+
+        {/* big sambal-red sign with bevel */}
+        <g transform="translate(120, 26)">
+          <rect width="240" height="68" rx="12" fill="#7E2113" />
+          <rect width="240" height="64" rx="11" fill="#D8432B" stroke="#3A2D24" strokeWidth="3" />
+          <rect x="6" y="6" width="228" height="14" rx="6" fill="rgba(255,255,255,0.18)" />
+          <text x="120" y="44" textAnchor="middle" fontFamily="M PLUS Rounded 1c, sans-serif" fontSize="30" fontWeight="700" fill="#FFF7E8">
             Hawker Mama
           </text>
+          {/* JA accent */}
+          <text x="120" y="58" textAnchor="middle" fontFamily="Noto Sans JP, sans-serif" fontSize="9" fill="#FFD9A0">
+            ホーカーマ
+          </text>
         </g>
-        {/* hanging lanterns (decorative) */}
-        <g>
-          <line x1="60" y1="0" x2="60" y2="40" stroke="#3A2D24" />
-          <ellipse cx="60" cy="55" rx="18" ry="14" fill="#D8432B" stroke="#3A2D24" strokeWidth="2" />
+
+        {/* hanging lanterns with tassels */}
+        {[60, 420].map((cx) => (
+          <g key={cx}>
+            <line x1={cx} y1="0" x2={cx} y2="32" stroke="#3A2D24" strokeWidth="1.2" />
+            <ellipse cx={cx} cy="55" rx="20" ry="16" fill="url(#title-lantern)" stroke="#3A2D24" strokeWidth="2" />
+            <path d={`M ${cx - 18} 55 Q ${cx} 60 ${cx + 18} 55`} stroke="rgba(255,255,255,0.4)" strokeWidth="1" fill="none" />
+            <ellipse cx={cx} cy="42" rx="14" ry="3" fill="rgba(0,0,0,0.2)" />
+            <line x1={cx} y1="71" x2={cx} y2="80" stroke="#3A2D24" strokeWidth="1.2" />
+            {/* tassel */}
+            {[-3, 0, 3].map((dx) => (
+              <line key={dx} x1={cx + dx} y1="80" x2={cx + dx} y2="92" stroke="#7E2113" strokeWidth="1" />
+            ))}
+            {/* lantern text */}
+            <text x={cx} y="60" textAnchor="middle" fontFamily="Noto Sans JP" fontSize="10" fontWeight="700" fill="#FFD9A0">福</text>
+          </g>
+        ))}
+
+        {/* counter dishes — real mini illustrations */}
+        <g transform="translate(40, 200) scale(1.2)">
+          <ChickenRiceIcon />
         </g>
-        <g>
-          <line x1="420" y1="0" x2="420" y2="40" stroke="#3A2D24" />
-          <ellipse cx="420" cy="55" rx="18" ry="14" fill="#D8432B" stroke="#3A2D24" strokeWidth="2" />
+        <g transform="translate(192, 198) scale(1.3)">
+          <LaksaIcon />
         </g>
-        {/* counter dishes */}
-        <g transform="translate(60, 220)">
-          <ellipse cx="40" cy="20" rx="36" ry="10" fill="#fff" stroke="#3A2D24" strokeWidth="2" />
-          <ellipse cx="40" cy="14" rx="28" ry="6" fill="#F1C9A4" />
-        </g>
-        <g transform="translate(180, 220)">
-          <ellipse cx="40" cy="20" rx="36" ry="10" fill="#fff" stroke="#3A2D24" strokeWidth="2" />
-          <ellipse cx="40" cy="14" rx="26" ry="6" fill="#D8432B" />
-        </g>
-        <g transform="translate(300, 220)">
-          <ellipse cx="40" cy="20" rx="36" ry="10" fill="#fff" stroke="#3A2D24" strokeWidth="2" />
-          <ellipse cx="40" cy="14" rx="22" ry="6" fill="#E8B83A" />
+        <g transform="translate(348, 200) scale(1.2)">
+          <KayaToastIcon />
         </g>
       </svg>
 

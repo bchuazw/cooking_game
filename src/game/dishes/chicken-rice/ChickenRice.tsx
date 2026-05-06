@@ -94,38 +94,102 @@ function PoachStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
 
       <div className="absolute inset-0 flex items-end justify-center pb-24">
         {/* Pot */}
-        <svg viewBox="0 0 320 280" className="w-[88%] max-w-[420px]">
-          {/* steam */}
-          <g opacity="0.5">
-            {[0, 1, 2, 3].map((i) => (
-              <circle key={i} cx={120 + i * 30} cy={40} r={8 + Math.random() * 4} fill="#fff" stroke="#3A2D24" />
-            ))}
+        <svg viewBox="0 0 360 320" className="w-[92%] max-w-[460px]">
+          <defs>
+            <linearGradient id="pot-steel" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#E5E5E5" />
+              <stop offset="50%" stopColor="#A8A8A8" />
+              <stop offset="100%" stopColor="#5C5C5C" />
+            </linearGradient>
+            <linearGradient id="pot-inside" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#3A2D24" />
+              <stop offset="100%" stopColor="#1B1A1A" />
+            </linearGradient>
+            <radialGradient id="broth-gradient" cx="0.5" cy="0.45" r="0.6">
+              <stop offset="0%" stopColor={inBand ? '#FFE9B0' : temp < 72 ? '#D8E8FF' : '#F2C9A0'} />
+              <stop offset="70%" stopColor={inBand ? '#E8B83A' : temp < 72 ? '#8DA9D6' : '#C9925A'} />
+              <stop offset="100%" stopColor={inBand ? '#A8772D' : temp < 72 ? '#5A7CA8' : '#7E5022'} />
+            </radialGradient>
+            <linearGradient id="pot-handle" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#5A4A42" />
+              <stop offset="100%" stopColor="#2D1F18" />
+            </linearGradient>
+            <radialGradient id="bubble-grad" cx="0.5" cy="0.4" r="0.5">
+              <stop offset="0%" stopColor="#FFFFFF" />
+              <stop offset="100%" stopColor="rgba(255,255,255,0.3)" />
+            </radialGradient>
+          </defs>
+
+          {/* table shadow */}
+          <ellipse cx="180" cy="240" rx="160" ry="14" fill="rgba(58,45,36,0.22)" />
+          {/* steam wisps */}
+          <g opacity="0.55">
+            <path d="M 120 80 Q 110 50 130 30 Q 140 10 130 -10" stroke="#fff" strokeWidth="6" fill="none" strokeLinecap="round" />
+            <path d="M 180 70 Q 190 40 175 20 Q 160 0 180 -20" stroke="#fff" strokeWidth="7" fill="none" strokeLinecap="round" />
+            <path d="M 240 80 Q 250 50 230 30 Q 220 10 240 -10" stroke="#fff" strokeWidth="6" fill="none" strokeLinecap="round" />
           </g>
-          {/* pot body */}
-          <ellipse cx="160" cy="120" rx="120" ry="20" fill="#3A2D24" />
-          <ellipse cx="160" cy="118" rx="118" ry="18" fill={inBand ? '#5FBFB8' : '#8DA9D6'} />
-          {/* bubble dots */}
+          <g opacity="0.35" stroke="#3A2D24" strokeWidth="1.5" fill="none">
+            <path d="M 110 84 q -2 -16 6 -28" />
+            <path d="M 175 76 q 2 -16 -2 -28" />
+            <path d="M 246 84 q 2 -16 -6 -28" />
+          </g>
+
+          {/* handles (sides) */}
+          <g transform="translate(40, 145)">
+            <ellipse cx="0" cy="0" rx="18" ry="10" fill="url(#pot-handle)" stroke="#1B1A1A" strokeWidth="2" />
+            <ellipse cx="-2" cy="-2" rx="13" ry="6" fill="rgba(255,255,255,0.15)" />
+          </g>
+          <g transform="translate(320, 145)">
+            <ellipse cx="0" cy="0" rx="18" ry="10" fill="url(#pot-handle)" stroke="#1B1A1A" strokeWidth="2" />
+            <ellipse cx="-2" cy="-2" rx="13" ry="6" fill="rgba(255,255,255,0.15)" />
+          </g>
+
+          {/* pot body (sides curving down) */}
+          <path d="M 50 120 Q 40 200 80 220 L 280 220 Q 320 200 310 120 Z" fill="url(#pot-steel)" stroke="#1B1A1A" strokeWidth="2" />
+          {/* pot vertical brushed-steel hint */}
+          {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
+            <line key={i} x1={70 + i * 32} y1={130} x2={72 + i * 32} y2={210} stroke="rgba(255,255,255,0.12)" strokeWidth="1" />
+          ))}
+          {/* pot rim front */}
+          <ellipse cx="180" cy="120" rx="125" ry="20" fill="url(#pot-inside)" stroke="#1B1A1A" strokeWidth="2" />
+          <ellipse cx="180" cy="116" rx="120" ry="16" fill="url(#broth-gradient)" />
+          {/* broth surface highlight */}
+          <ellipse cx="160" cy="110" rx="60" ry="3" fill="rgba(255,255,255,0.45)" />
+          {/* aromatics floating: ginger slice */}
+          <g transform="translate(105, 116)">
+            <ellipse cx="0" cy="0" rx="9" ry="5" fill="#F1C9A4" stroke="#7E5022" strokeWidth="0.6" />
+            <path d="M -5 0 q 5 -2 10 0 M -5 1 q 5 -2 10 0" stroke="#7E5022" strokeWidth="0.4" fill="none" />
+          </g>
+          <g transform="translate(245, 117)">
+            <ellipse cx="0" cy="0" rx="7" ry="4" fill="#F1C9A4" stroke="#7E5022" strokeWidth="0.6" />
+            <path d="M -4 0 q 4 -1.5 8 0" stroke="#7E5022" strokeWidth="0.4" fill="none" />
+          </g>
+          {/* scallion strands */}
+          <path d="M 90 113 q 6 -1 12 0" stroke="#558D40" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+          <path d="M 230 115 q 6 -1 14 0" stroke="#558D40" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+          {/* pandan knot */}
+          <path d="M 200 110 q -8 -4 0 -10 q 8 -4 0 -10" stroke="#3A6A22" strokeWidth="1.6" fill="none" />
+
+          {/* chicken (whole) submerged */}
+          <g transform="translate(180, 117)">
+            <ellipse cx="0" cy="0" rx="50" ry="11" fill={temp > 90 ? '#B8A88A' : temp < 72 ? '#F8C5C0' : '#F1C9A4'} stroke="#7B5A3D" strokeWidth="1.5" opacity="0.92" />
+            <ellipse cx="0" cy="-2" rx="44" ry="6" fill={temp > 90 ? '#A89F8A' : temp < 72 ? '#FFD8D5' : '#FFE5C8'} opacity="0.7" />
+            <path d="M -36 -2 Q 0 -6 36 -2" stroke="#FFE9B0" strokeWidth="2" fill="none" opacity="0.6" />
+          </g>
+
+          {/* bubbles */}
           {inBand &&
-            [0, 1, 2, 3, 4].map((i) => (
+            [0, 1, 2, 3, 4, 5].map((i) => (
               <circle
                 key={i}
-                cx={70 + ((Date.now() / 100 + i * 50) % 180)}
+                cx={90 + ((Date.now() / 80 + i * 45) % 180)}
                 cy={108 + Math.sin((Date.now() / 200 + i) * 0.5) * 4}
-                r={4}
-                fill="#fff"
-                opacity="0.7"
+                r={3 + (i % 3)}
+                fill="url(#bubble-grad)"
+                stroke="rgba(255,255,255,0.6)"
+                strokeWidth="0.5"
               />
             ))}
-          {/* chicken visible */}
-          <ellipse
-            cx="160"
-            cy="118"
-            rx="46"
-            ry="10"
-            fill={temp > 90 ? '#A89F8A' : temp < 72 ? '#F8C5C0' : '#F1C9A4'}
-          />
-          {/* pot rim */}
-          <rect x="38" y="100" width="244" height="14" rx="6" fill="#3A2D24" />
         </svg>
 
         {/* Thermometer slider */}
@@ -418,6 +482,7 @@ function PlateStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
   const svgRef = useRef<SVGSVGElement>(null);
   const target = { x: 180, y: 180 }; // viewBox coords (matches the SVG below)
   const finishedRef = useRef(false);
+  const lastPaint = useRef<{ x: number; y: number } | null>(null);
 
   // Sauce paint canvas. We size it to the displayed area in a layout effect so
   // the paint coords map 1:1 with what the user touches.
@@ -437,19 +502,43 @@ function PlateStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
         setCoriander({ x: vb.x, y: vb.y, placed: false });
       } else {
         const cv = canvasRef.current;
-        if (cv && inPlateRadius) {
+        if (cv) {
           const cvP = clientToCanvas(cv, e.raw.clientX, e.raw.clientY);
-          const ctx = cv.getContext('2d');
-          if (ctx) {
-            ctx.fillStyle = '#A93521';
-            ctx.beginPath();
-            ctx.arc(cvP.x, cvP.y, 14, 0, Math.PI * 2);
-            ctx.fill();
+          // restrict drizzle to the rice area (plate well) — ellipse at (180, 174) rx=78 ry=20
+          const dxp = (cvP.x - 180) / 78;
+          const dyp = (cvP.y - 174) / 20;
+          if (dxp * dxp + dyp * dyp <= 1) {
+            const ctx = cv.getContext('2d');
+            if (ctx) {
+              // narrower drizzle stroke + translucency for a saucy look
+              if (lastPaint.current) {
+                ctx.strokeStyle = 'rgba(168, 38, 22, 0.85)';
+                ctx.lineWidth = 5;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(lastPaint.current.x, lastPaint.current.y);
+                ctx.lineTo(cvP.x, cvP.y);
+                ctx.stroke();
+              }
+              ctx.fillStyle = 'rgba(168, 38, 22, 0.85)';
+              ctx.beginPath();
+              ctx.arc(cvP.x, cvP.y, 3.5, 0, Math.PI * 2);
+              ctx.fill();
+              // glossy highlight dot
+              ctx.fillStyle = 'rgba(255, 200, 180, 0.45)';
+              ctx.beginPath();
+              ctx.arc(cvP.x - 1, cvP.y - 1, 1, 0, Math.PI * 2);
+              ctx.fill();
+              lastPaint.current = { x: cvP.x, y: cvP.y };
+            }
+          } else {
+            lastPaint.current = null;
           }
         }
       }
     }
     if (e.type === 'up') {
+      lastPaint.current = null;
       if (!chicken.placed) {
         if (dist(vb.x, vb.y, target.x, target.y) < 80) {
           setChicken({ x: target.x, y: target.y, placed: true });
@@ -475,21 +564,22 @@ function PlateStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
     }
   });
 
-  // Periodically compute paint coverage.
+  // Periodically compute paint coverage over the rice ellipse area.
   useEffect(() => {
     const id = setInterval(() => {
       const cv = canvasRef.current;
       if (!cv) return;
       const ctx = cv.getContext('2d');
       if (!ctx) return;
-      const r = 90;
-      const data = ctx.getImageData(target.x - r, target.y - r, r * 2, r * 2).data;
-      let painted = 0,
-        total = 0;
+      // rice ellipse is centered at (180, 174) with rx=78, ry=20 in canvas px
+      const cx = 180, cy = 174, rx = 78, ry = 20;
+      const data = ctx.getImageData(cx - rx, cy - ry, rx * 2, ry * 2).data;
+      let painted = 0, total = 0;
+      const w = rx * 2;
       for (let i = 0; i < data.length; i += 4) {
-        const dx = ((i / 4) % (r * 2)) - r;
-        const dy = Math.floor(i / 4 / (r * 2)) - r;
-        if (dx * dx + dy * dy > r * r) continue;
+        const px = ((i / 4) % w) - rx;
+        const py = Math.floor(i / 4 / w) - ry;
+        if ((px * px) / (rx * rx) + (py * py) / (ry * ry) > 1) continue;
         total++;
         if (data[i + 3] > 0) painted++;
       }
@@ -530,35 +620,140 @@ function PlateStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
       />
       <div className="absolute inset-0 grid place-items-center pt-28 pb-20 px-2">
         <div ref={ref} className="relative w-full max-w-full max-h-full aspect-[360/460] touch-none">
-          <svg ref={svgRef} viewBox="0 0 360 460" className="absolute inset-0 w-full h-full" preserveAspectRatio="xMidYMid meet">
-            {/* plate */}
-            <ellipse cx={target.x} cy={target.y} rx="100" ry="30" fill="#3A2D24" />
-            <ellipse cx={target.x} cy={target.y - 4} rx="96" ry="28" fill="#fff" />
-            {/* rice */}
-            <ellipse cx={target.x} cy={target.y - 8} rx="80" ry="20" fill="#FFF7DC" />
-            {/* placement targets ghosts */}
+          {/* Layer 1: plate + rice (under the sauce) */}
+          <svg ref={svgRef} viewBox="0 0 360 460" className="absolute inset-0 w-full h-full pointer-events-none" preserveAspectRatio="xMidYMid meet">
+            <defs>
+              <radialGradient id="plate-fill" cx="0.5" cy="0.4" r="0.7">
+                <stop offset="0%" stopColor="#FFFFFF" />
+                <stop offset="70%" stopColor="#F4ECDC" />
+                <stop offset="100%" stopColor="#D9CDB6" />
+              </radialGradient>
+              <radialGradient id="rice-fill" cx="0.5" cy="0.4" r="0.6">
+                <stop offset="0%" stopColor="#FFFCEC" />
+                <stop offset="70%" stopColor="#F4E9C7" />
+                <stop offset="100%" stopColor="#D8C99B" />
+              </radialGradient>
+              <pattern id="rice-grain" x="0" y="0" width="6" height="6" patternUnits="userSpaceOnUse">
+                <ellipse cx="3" cy="3" rx="1.5" ry="0.6" fill="#C9B97F" opacity="0.55" />
+              </pattern>
+              <filter id="plate-shadow" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur in="SourceAlpha" stdDeviation="3" />
+                <feOffset dx="0" dy="4" />
+                <feComponentTransfer><feFuncA type="linear" slope="0.35" /></feComponentTransfer>
+                <feMerge><feMergeNode /><feMergeNode in="SourceGraphic" /></feMerge>
+              </filter>
+            </defs>
+
+            {/* table-shadow under plate */}
+            <ellipse cx={target.x} cy={target.y + 22} rx="118" ry="14" fill="rgba(58,45,36,0.18)" />
+            {/* plate outer ring (rim) */}
+            <ellipse cx={target.x} cy={target.y} rx="116" ry="34" fill="#3A2D24" />
+            <ellipse cx={target.x} cy={target.y - 2} rx="112" ry="32" fill="url(#plate-fill)" />
+            {/* plate well shadow */}
+            <ellipse cx={target.x} cy={target.y + 4} rx="92" ry="22" fill="rgba(58,45,36,0.10)" />
+            <ellipse cx={target.x} cy={target.y - 2} rx="92" ry="22" fill="url(#plate-fill)" stroke="rgba(58,45,36,0.10)" strokeWidth="1" />
+            {/* rice mound */}
+            <ellipse cx={target.x} cy={target.y - 6} rx="78" ry="20" fill="url(#rice-fill)" stroke="rgba(58,45,36,0.20)" strokeWidth="1.5" />
+            {/* rice grain texture */}
+            <ellipse cx={target.x} cy={target.y - 6} rx="78" ry="20" fill="url(#rice-grain)" opacity="0.85" />
+            {/* upper rice highlight */}
+            <ellipse cx={target.x - 10} cy={target.y - 14} rx="40" ry="6" fill="#FFF7DC" opacity="0.7" />
+            {/* placement target ghost */}
             {!chicken.placed && (
-              <ellipse cx={target.x} cy={target.y} rx="40" ry="12" fill="none" stroke="#3A2D24" strokeDasharray="4 3" opacity="0.4" />
+              <ellipse cx={target.x} cy={target.y - 4} rx="40" ry="12" fill="none" stroke="#3A2D24" strokeDasharray="4 3" opacity="0.35" />
             )}
-            {/* chicken slices */}
-            <g transform={`translate(${chicken.x - 30}, ${chicken.y - 8})`}>
-              <ellipse cx="30" cy="8" rx="30" ry="8" fill="#F1C9A4" stroke="#3A2D24" strokeWidth="2" />
-              <line x1="14" y1="8" x2="46" y2="8" stroke="#3A2D24" strokeWidth="1" />
-            </g>
-            <g transform={`translate(${coriander.x - 12}, ${coriander.y - 12})`}>
-              <circle cx="12" cy="12" r={coriander.placed ? 8 : 10} fill="#6FB552" stroke="#3A2D24" strokeWidth="2" />
-            </g>
-            <g transform={`translate(${cucumber.x - 16}, ${cucumber.y - 8})`}>
-              <ellipse cx="16" cy="8" rx={cucumber.placed ? 14 : 16} ry={cucumber.placed ? 4 : 6} fill="#6FB55288" stroke="#3A2D24" strokeWidth="2" />
-            </g>
+            {/* plate top rim highlight */}
+            <path d={`M ${target.x - 80} ${target.y - 24} Q ${target.x} ${target.y - 32} ${target.x + 80} ${target.y - 24}`} stroke="rgba(255,255,255,0.7)" strokeWidth="1.5" fill="none" />
           </svg>
-          {/* sauce paint canvas overlay — same aspect-fixed wrapper so coords align */}
+
+          {/* Layer 2: sauce paint canvas (between rice and chicken) */}
           <canvas ref={canvasRef} width={360} height={460} className="absolute inset-0 w-full h-full pointer-events-none" />
+
+          {/* Layer 3: chicken + garnish (over the sauce) */}
+          <svg viewBox="0 0 360 460" className="absolute inset-0 w-full h-full pointer-events-none" preserveAspectRatio="xMidYMid meet">
+            <defs>
+              <linearGradient id="chicken-flesh" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#FBE3BF" />
+                <stop offset="55%" stopColor="#F1C9A4" />
+                <stop offset="100%" stopColor="#D8AB7C" />
+              </linearGradient>
+              <linearGradient id="chicken-skin" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#FFE9B0" />
+                <stop offset="100%" stopColor="#E5C273" />
+              </linearGradient>
+              <linearGradient id="cucumber-skin" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#92C97A" />
+                <stop offset="100%" stopColor="#558D40" />
+              </linearGradient>
+              <radialGradient id="cucumber-flesh" cx="0.5" cy="0.5" r="0.6">
+                <stop offset="0%" stopColor="#EFF8DD" />
+                <stop offset="100%" stopColor="#C9DFA1" />
+              </radialGradient>
+            </defs>
+
+            {/* Chicken slice (rendered as a fan of three slices when placed; one when dragging) */}
+            {chicken.placed ? (
+              <g transform={`translate(${target.x}, ${target.y - 8})`}>
+                {/* slice 1 (back) */}
+                <g transform="translate(-26, 2) rotate(-6)">
+                  <ellipse cx="0" cy="0" rx="28" ry="9" fill="url(#chicken-flesh)" stroke="#7B5A3D" strokeWidth="1.6" />
+                  <path d="M -22 -7 Q 0 -10 22 -7 L 22 -3 Q 0 -6 -22 -3 Z" fill="url(#chicken-skin)" stroke="#7B5A3D" strokeWidth="1" />
+                </g>
+                {/* slice 2 (middle) */}
+                <g transform="translate(0, -3) rotate(0)">
+                  <ellipse cx="0" cy="0" rx="32" ry="10" fill="url(#chicken-flesh)" stroke="#7B5A3D" strokeWidth="1.8" />
+                  <path d="M -26 -8 Q 0 -12 26 -8 L 26 -3 Q 0 -7 -26 -3 Z" fill="url(#chicken-skin)" stroke="#7B5A3D" strokeWidth="1" />
+                  <path d="M -18 0 L 18 0" stroke="rgba(123,90,61,0.35)" strokeWidth="1" />
+                </g>
+                {/* slice 3 (front) */}
+                <g transform="translate(28, 2) rotate(8)">
+                  <ellipse cx="0" cy="0" rx="28" ry="9" fill="url(#chicken-flesh)" stroke="#7B5A3D" strokeWidth="1.6" />
+                  <path d="M -22 -7 Q 0 -10 22 -7 L 22 -3 Q 0 -6 -22 -3 Z" fill="url(#chicken-skin)" stroke="#7B5A3D" strokeWidth="1" />
+                </g>
+              </g>
+            ) : (
+              <g transform={`translate(${chicken.x}, ${chicken.y})`}>
+                <ellipse cx="0" cy="2" rx="32" ry="10" fill="rgba(58,45,36,0.18)" />
+                <ellipse cx="0" cy="0" rx="32" ry="10" fill="url(#chicken-flesh)" stroke="#7B5A3D" strokeWidth="1.8" />
+                <path d="M -26 -8 Q 0 -12 26 -8 L 26 -3 Q 0 -7 -26 -3 Z" fill="url(#chicken-skin)" stroke="#7B5A3D" strokeWidth="1" />
+              </g>
+            )}
+
+            {/* Cucumber slice */}
+            <g transform={`translate(${cucumber.x}, ${cucumber.y})`}>
+              {!cucumber.placed && <ellipse cx="0" cy="3" rx="16" ry="5" fill="rgba(58,45,36,0.18)" />}
+              <circle cx="0" cy="0" r={cucumber.placed ? 11 : 13} fill="url(#cucumber-skin)" stroke="#3A4F23" strokeWidth="1.6" />
+              <circle cx="0" cy="0" r={cucumber.placed ? 8 : 10} fill="url(#cucumber-flesh)" stroke="#86A86A" strokeWidth="0.8" />
+              {/* seeds */}
+              {[0, 1, 2, 3].map((i) => {
+                const a = (i / 4) * Math.PI * 2;
+                const r = cucumber.placed ? 4 : 5;
+                return <ellipse key={i} cx={Math.cos(a) * r} cy={Math.sin(a) * r} rx="0.9" ry="1.6" fill="#9DBC78" />;
+              })}
+            </g>
+
+            {/* Coriander leaf (3-lobe) */}
+            <g transform={`translate(${coriander.x}, ${coriander.y}) ${coriander.placed ? 'scale(0.85)' : ''}`}>
+              {!coriander.placed && <ellipse cx="0" cy="3" rx="9" ry="3" fill="rgba(58,45,36,0.18)" />}
+              <path d="M 0 -8 Q -7 -10 -10 -4 Q -8 2 -3 0 Q -7 6 -1 9 Q 5 6 1 0 Q 6 2 8 -4 Q 5 -10 0 -8 Z" fill="#6FB552" stroke="#3A6A22" strokeWidth="1.2" />
+              <path d="M 0 -7 L 0 8" stroke="#3A6A22" strokeWidth="0.6" opacity="0.7" />
+              <path d="M -6 -2 L 6 -2" stroke="#3A6A22" strokeWidth="0.4" opacity="0.5" />
+            </g>
+
+            {/* steam wisps when complete-ish */}
+            {allPlaced && (
+              <g opacity="0.5">
+                <path d="M 150 110 q -6 -16 0 -28 q 6 -8 0 -20" stroke="#3A2D24" strokeWidth="1.5" fill="none" />
+                <path d="M 200 100 q 6 -16 0 -28 q -6 -8 0 -22" stroke="#3A2D24" strokeWidth="1.5" fill="none" />
+              </g>
+            )}
+          </svg>
+
           <div className="absolute bottom-2 left-0 right-0 text-center pointer-events-none">
             <div className="text-xs text-outline/70">
-              {t('hud.score')}: 🍳 {chicken.placed ? '✓' : '–'} 🥒 {cucumber.placed ? '✓' : '–'} 🌿 {coriander.placed ? '✓' : '–'}
+              {t('hud.score')}: 🍗 {chicken.placed ? '✓' : '–'} 🥒 {cucumber.placed ? '✓' : '–'} 🌿 {coriander.placed ? '✓' : '–'}
             </div>
-            <div className="text-xs text-outline/70">Sauce: {coverage}% (60–85%)</div>
+            <div className="text-xs text-outline/70">{t('cr.step5.sauce_label', { coverage: String(coverage) })}</div>
           </div>
         </div>
       </div>

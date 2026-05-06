@@ -15,8 +15,8 @@ import { track } from './telemetry';
 type Screen =
   | { kind: 'title' }
   | { kind: 'map' }
-  | { kind: 'settings' }
-  | { kind: 'leaderboard' }
+  | { kind: 'settings'; from: 'title' | 'map' }
+  | { kind: 'leaderboard'; from: 'title' | 'map' }
   | { kind: 'intro'; dishId: DishId }
   | { kind: 'culture'; dishId: DishId; afterDish?: boolean }
   | { kind: 'dish'; dishId: DishId }
@@ -78,8 +78,8 @@ export default function App() {
       {screen.kind === 'title' && (
         <TitleScreen
           onStart={goMap}
-          onSettings={() => setScreen({ kind: 'settings' })}
-          onLeaderboard={() => setScreen({ kind: 'leaderboard' })}
+          onSettings={() => setScreen({ kind: 'settings', from: 'title' })}
+          onLeaderboard={() => setScreen({ kind: 'leaderboard', from: 'title' })}
         />
       )}
 
@@ -89,13 +89,17 @@ export default function App() {
             track('dish_started', { dish_id: id });
             setScreen({ kind: 'intro', dishId: id });
           }}
-          onSettings={() => setScreen({ kind: 'settings' })}
-          onLeaderboard={() => setScreen({ kind: 'leaderboard' })}
+          onSettings={() => setScreen({ kind: 'settings', from: 'map' })}
+          onLeaderboard={() => setScreen({ kind: 'leaderboard', from: 'map' })}
         />
       )}
 
-      {screen.kind === 'settings' && <Settings onBack={goMap} />}
-      {screen.kind === 'leaderboard' && <Leaderboard onBack={goMap} />}
+      {screen.kind === 'settings' && (
+        <Settings onBack={() => setScreen({ kind: screen.from })} />
+      )}
+      {screen.kind === 'leaderboard' && (
+        <Leaderboard onBack={() => setScreen({ kind: screen.from })} />
+      )}
 
       {screen.kind === 'intro' && (
         <DishIntro

@@ -70,6 +70,7 @@ const ja: Dict = {
   'cr.step4.hint': '左右交互にタップして、ペーストを作る',
   'cr.step5.title': '盛り付け',
   'cr.step5.hint': '鶏をご飯に、たれは控えめ（60〜85%）、香菜ときゅうりを添えて',
+  'cr.step5.sauce_label': 'たれ：{{coverage}}%（60〜85%）',
 
   // laksa
   'la.step1.title': 'ルンパを炒める',
@@ -277,6 +278,7 @@ const en: Dict = {
   'cr.step5.title': 'Plate',
   'cr.step5.hint':
     'Place chicken, sauce coverage 60–85%, garnish cucumber and coriander',
+  'cr.step5.sauce_label': 'sauce: {{coverage}}% (60–85%)',
 
   'la.step1.title': 'Bloom the rempah',
   'la.step1.hint': 'Stir in circles in the wok at the right speed',

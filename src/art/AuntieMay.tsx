@@ -81,79 +81,131 @@ export function AuntieMay({ mood, size = 220, className = '', moodValue = 0 }: A
       aria-label="Auntie May"
       style={{ overflow: 'visible' }}
     >
+      <defs>
+        {/* skin radial — warm with subtle shadow */}
+        <radialGradient id="am-skin" cx="0.5" cy="0.4" r="0.7">
+          <stop offset="0%" stopColor="#FFE5C8" />
+          <stop offset="60%" stopColor="#F1C9A4" />
+          <stop offset="100%" stopColor="#C99977" />
+        </radialGradient>
+        <linearGradient id="am-polo" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#7EBF5F" />
+          <stop offset="60%" stopColor="#6FB552" />
+          <stop offset="100%" stopColor="#4A8635" />
+        </linearGradient>
+        <linearGradient id="am-apron" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#FFFAF1" />
+          <stop offset="100%" stopColor="#E0D6C0" />
+        </linearGradient>
+        <linearGradient id="am-hair" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#6F5A50" />
+          <stop offset="100%" stopColor="#3D2E26" />
+        </linearGradient>
+        <radialGradient id="am-cheek" cx="0.5" cy="0.5" r="0.6">
+          <stop offset="0%" stopColor="rgba(232,155,139,0.9)" />
+          <stop offset="100%" stopColor="rgba(232,155,139,0)" />
+        </radialGradient>
+        <pattern id="am-batik" x="0" y="0" width="10" height="10" patternUnits="userSpaceOnUse">
+          <rect width="10" height="10" fill="#2BA59D" />
+          <path d="M 5 0 L 7 3 L 5 6 L 3 3 Z" fill="#FFD9A0" opacity="0.7" />
+        </pattern>
+      </defs>
       <g style={{ transform: `translate(0, var(--breath, 0px)) translateX(${exp.lean}px)` }}>
         {/* Polo body */}
         <path
           d="M30 220 C30 170, 60 150, 110 150 C160 150, 190 170, 190 220 Z"
-          fill="#6FB552"
+          fill="url(#am-polo)"
           stroke="#3A2D24"
           strokeWidth="3"
         />
+        {/* sleeve fold */}
+        <path d="M40 200 q 8 8 18 6" stroke="rgba(58,45,36,0.35)" strokeWidth="1.5" fill="none" />
+        <path d="M180 200 q -8 8 -18 6" stroke="rgba(58,45,36,0.35)" strokeWidth="1.5" fill="none" />
         {/* Apron */}
         <path
           d="M70 160 L150 160 L160 220 L60 220 Z"
-          fill="#F4EFE6"
+          fill="url(#am-apron)"
           stroke="#3A2D24"
           strokeWidth="3"
         />
+        {/* apron stitching */}
+        <path d="M75 165 L145 165" stroke="rgba(58,45,36,0.3)" strokeDasharray="2 3" strokeWidth="0.8" fill="none" />
+        <path d="M65 215 L155 215" stroke="rgba(58,45,36,0.3)" strokeDasharray="2 3" strokeWidth="0.8" fill="none" />
+        {/* apron pocket */}
+        <path d="M115 178 L145 178 L143 198 L117 198 Z" fill="rgba(58,45,36,0.05)" stroke="rgba(58,45,36,0.4)" strokeWidth="1" />
         {/* Sambal red apron piping */}
         <path d="M70 160 L150 160 M60 220 L160 220" stroke="#D8432B" strokeWidth="3" fill="none" />
         {/* Ladle clipped to apron pocket */}
-        <g transform="translate(120, 178) rotate(15)">
-          <rect x="0" y="0" width="3" height="32" fill="#3A2D24" />
-          <ellipse cx="1.5" cy="36" rx="6" ry="4" fill="#3A2D24" />
+        <g transform="translate(124, 178) rotate(15)">
+          <rect x="0" y="0" width="3" height="32" fill="#5A3F26" />
+          <rect x="0" y="0" width="1.2" height="32" fill="#7E5C3D" />
+          <ellipse cx="1.5" cy="36" rx="7" ry="4.5" fill="#3A2D24" />
+          <ellipse cx="1.5" cy="35" rx="5.5" ry="3" fill="#5A3F26" />
         </g>
         {/* Batik trim collar */}
         <path
           d="M85 152 Q110 144 135 152 L130 162 Q110 156 90 162 Z"
-          fill="#2BA59D"
+          fill="url(#am-batik)"
           stroke="#3A2D24"
           strokeWidth="2"
         />
         {/* Hands */}
         {exp.hands === 'up' && (
           <>
-            <circle cx="40" cy="158" r="14" fill="#F1C9A4" stroke="#3A2D24" strokeWidth="3" />
-            <circle cx="180" cy="158" r="14" fill="#F1C9A4" stroke="#3A2D24" strokeWidth="3" />
+            <circle cx="40" cy="158" r="14" fill="url(#am-skin)" stroke="#7B5A3D" strokeWidth="2.5" />
+            <circle cx="180" cy="158" r="14" fill="url(#am-skin)" stroke="#7B5A3D" strokeWidth="2.5" />
           </>
         )}
         {exp.hands === 'fan' && (
           <g>
-            <circle cx="60" cy="180" r="12" fill="#F1C9A4" stroke="#3A2D24" strokeWidth="3" />
-            <circle cx="160" cy="170" r="12" fill="#F1C9A4" stroke="#3A2D24" strokeWidth="3" />
+            <circle cx="60" cy="180" r="12" fill="url(#am-skin)" stroke="#7B5A3D" strokeWidth="2.5" />
+            <circle cx="160" cy="170" r="12" fill="url(#am-skin)" stroke="#7B5A3D" strokeWidth="2.5" />
             <path d="M150 165 Q145 145 165 140" stroke="#999" strokeWidth="2" fill="none" />
             <path d="M155 162 Q160 142 175 142" stroke="#999" strokeWidth="2" fill="none" />
           </g>
         )}
         {exp.hands === 'point' && (
           <>
-            <circle cx="50" cy="195" r="12" fill="#F1C9A4" stroke="#3A2D24" strokeWidth="3" />
-            <circle cx="180" cy="180" r="12" fill="#F1C9A4" stroke="#3A2D24" strokeWidth="3" />
+            <circle cx="50" cy="195" r="12" fill="url(#am-skin)" stroke="#7B5A3D" strokeWidth="2.5" />
+            <circle cx="180" cy="180" r="12" fill="url(#am-skin)" stroke="#7B5A3D" strokeWidth="2.5" />
             <rect x="190" y="178" width="14" height="4" fill="#F1C9A4" stroke="#3A2D24" strokeWidth="2" />
           </>
         )}
         {(exp.hands === 'down' || exp.hands === 'ladle') && (
           <>
-            <circle cx="55" cy="200" r="12" fill="#F1C9A4" stroke="#3A2D24" strokeWidth="3" />
-            <circle cx="165" cy="200" r="12" fill="#F1C9A4" stroke="#3A2D24" strokeWidth="3" />
+            <circle cx="55" cy="200" r="12" fill="url(#am-skin)" stroke="#7B5A3D" strokeWidth="2.5" />
+            <circle cx="165" cy="200" r="12" fill="url(#am-skin)" stroke="#7B5A3D" strokeWidth="2.5" />
           </>
         )}
 
         {/* Neck */}
-        <rect x="100" y="135" width="20" height="20" fill="#F1C9A4" stroke="#3A2D24" strokeWidth="3" />
+        <rect x="100" y="135" width="20" height="20" fill="url(#am-skin)" stroke="#7B5A3D" strokeWidth="2.5" />
+        {/* neck shadow */}
+        <path d="M100 135 Q110 142 120 135" stroke="rgba(58,45,36,0.35)" strokeWidth="1.5" fill="rgba(58,45,36,0.1)" />
         {/* Head */}
-        <ellipse cx="110" cy="100" rx="56" ry="50" fill="#F1C9A4" stroke="#3A2D24" strokeWidth="3" />
+        <ellipse cx="110" cy="100" rx="56" ry="50" fill="url(#am-skin)" stroke="#7B5A3D" strokeWidth="2.5" />
+        {/* face left-side shadow */}
+        <ellipse cx="76" cy="110" rx="20" ry="34" fill="rgba(58,45,36,0.06)" />
+        {/* cheek blush */}
+        <ellipse cx="76" cy="118" rx="10" ry="6" fill="url(#am-cheek)" />
+        <ellipse cx="146" cy="118" rx="10" ry="6" fill="url(#am-cheek)" />
         {/* Hair (salt and pepper bun) */}
         <path
           d="M55 90 Q50 50 110 45 Q170 50 165 90 Q160 65 110 60 Q60 65 55 90 Z"
-          fill="#5A4A42"
+          fill="url(#am-hair)"
           stroke="#3A2D24"
-          strokeWidth="3"
+          strokeWidth="2.5"
         />
-        <ellipse cx="110" cy="46" rx="22" ry="14" fill="#5A4A42" stroke="#3A2D24" strokeWidth="3" />
+        {/* hair strand highlights */}
+        <path d="M62 80 Q70 60 90 56" stroke="#8C7567" strokeWidth="1.2" fill="none" opacity="0.8" />
+        <path d="M150 78 Q145 60 130 56" stroke="#8C7567" strokeWidth="1.2" fill="none" opacity="0.8" />
+        {/* Bun */}
+        <ellipse cx="110" cy="46" rx="22" ry="14" fill="url(#am-hair)" stroke="#3A2D24" strokeWidth="2.5" />
+        <path d="M95 44 Q110 38 125 44" stroke="#8C7567" strokeWidth="1" fill="none" opacity="0.8" />
         {/* Salt streaks */}
         <path d="M70 75 Q90 70 92 80" stroke="#D9D2CC" strokeWidth="2" fill="none" />
         <path d="M135 70 Q145 75 150 82" stroke="#D9D2CC" strokeWidth="2" fill="none" />
+        <path d="M105 50 q 8 -1 14 0" stroke="#D9D2CC" strokeWidth="1.2" fill="none" opacity="0.6" />
         {/* Jade pin */}
         <circle cx="110" cy="46" r="3" fill={mood === 'dish_perfect' ? '#A8E6A0' : '#6FB552'} stroke="#3A2D24" strokeWidth="1.5" />
         {/* Glasses */}
