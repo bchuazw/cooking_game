@@ -1,6 +1,6 @@
 // HUD: timer ring, current step name, mini Auntie May portrait, gesture hint.
 
-import { AuntieMay } from '../../art/AuntieMay';
+import { PixelAuntie } from '../../art/PixelAuntie';
 import { useT } from '../../i18n/useT';
 import type { AuntieMood, DishId } from '../../types';
 import { useApp } from '../../state/store';
@@ -36,11 +36,11 @@ export function HUD({ dishId, stepKeyTitle, stepKeyHint, remaining = 0, total = 
 
   return (
     <div className="absolute top-0 left-0 right-0 z-10 pointer-events-none">
-      <div className="flex items-start justify-between p-3">
+      <div className="flex items-start justify-between p-2.5">
         {/* Timer + step title */}
-        <div className="flex items-center gap-3 surface px-3 py-2 pointer-events-auto">
+        <div className="surface hud-step-card pointer-events-auto">
           {total > 0 ? (
-            <svg width="48" height="48" viewBox="0 0 48 48" aria-hidden style={danger ? { animation: 'pulse 0.8s ease-in-out infinite' } : undefined}>
+            <svg className="hud-timer" width="44" height="44" viewBox="0 0 48 48" aria-hidden style={danger ? { animation: 'pulse 0.8s ease-in-out infinite' } : undefined}>
               <circle cx="24" cy="24" r="22" fill="none" stroke="#3A2D2422" strokeWidth="3" />
               <circle
                 cx="24"
@@ -57,8 +57,8 @@ export function HUD({ dishId, stepKeyTitle, stepKeyHint, remaining = 0, total = 
             </svg>
           ) : null}
           <div className="leading-tight">
-            <div className="text-[11px] text-outline/60">{t('hud.step')}</div>
-            <div className="font-bold">{t(stepKeyTitle)}</div>
+            <div className="text-[10px] text-outline/55">{t('hud.step')}</div>
+            <div className="font-bold text-[15px]">{t(stepKeyTitle)}</div>
           </div>
         </div>
         {onExit && (
@@ -68,11 +68,11 @@ export function HUD({ dishId, stepKeyTitle, stepKeyHint, remaining = 0, total = 
         )}
       </div>
 
-      <div className="flex items-end justify-between gap-3 px-3">
-        <div className="surface px-3 py-2 max-w-[60%] pointer-events-auto">
-          <p className="text-sm leading-snug">{t(stepKeyHint)}</p>
+      <div className="flex items-start justify-between gap-2 px-2.5">
+        <div className="surface hud-hint-card pointer-events-auto">
+          <p className="text-[13px] leading-snug">{t(stepKeyHint)}</p>
         </div>
-        <div className="opacity-95"><AuntieMay mood={mood} moodValue={moodValue} size={84} /></div>
+        <div className="hud-auntie opacity-95"><PixelAuntie mood={mood} moodValue={moodValue} size={58} /></div>
       </div>
 
       {/* Hidden context attribute for tests */}

@@ -8,7 +8,8 @@ import { HUD } from '../../engine/HUD';
 import { useStep } from '../../engine/useStep';
 import { sfx } from '../../../audio/audio';
 import { usePointer, dist, clamp } from '../../engine/gestureHelpers';
-import { FoodDefs, FoodIcon } from '../../../art/FoodIllustrations';
+import { FoodDefs } from '../../../art/FoodIllustrations';
+import { PixelIcon } from '../../../art/PixelFood';
 
 const DISH = 'prata';
 const BASE = (import.meta.env.BASE_URL as string) ?? '/';
@@ -60,9 +61,9 @@ function KneadStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
           }}
         >
           <img
-            src={`${BASE}assets/sprites/dough-ball.webp`}
+            src={`${BASE}assets/sprites/dough-ball-pixel.webp`}
             alt=""
-            className="absolute inset-0 h-full w-full object-fill select-none pointer-events-none"
+            className="pixel-art absolute inset-0 h-full w-full object-fill select-none pointer-events-none"
             draggable={false}
           />
           <div className="absolute inset-x-[18%] top-[18%] h-[18%] rounded-full bg-white/20 blur-sm" />
@@ -114,14 +115,14 @@ function SlapStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
           }}
         >
           <img
-            src={`${BASE}assets/sprites/dough-ball.webp`}
+            src={`${BASE}assets/sprites/dough-ball-pixel.webp`}
             alt=""
-            className="absolute inset-0 h-full w-full object-fill select-none pointer-events-none"
+            className="pixel-art absolute inset-0 h-full w-full object-fill select-none pointer-events-none"
             draggable={false}
           />
         </div>
         <div className="absolute bottom-28 w-44">
-          <div className="h-3 bg-white border-2 border-outline rounded-full overflow-hidden">
+          <div className="pixel-meter h-4 overflow-hidden">
             <div className="h-full bg-pandan transition-all" style={{ width: `${thinness * 100}%` }} />
           </div>
           <div className="text-center text-[10px] mt-1 text-outline/60">{Math.round(thinness * 100)}% (target 70%)</div>
@@ -220,7 +221,7 @@ function FlickStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
     <>
       <HUD dishId={DISH} stepKeyTitle="pr.step3.title" stepKeyHint="pr.step3.hint" remaining={remaining} total={14000} mood={flipsDone === flipsRequired ? 'cheering' : 'idle'} />
       <div ref={ref} className="absolute inset-0 touch-none">
-        <svg viewBox="0 0 360 460" className="w-full h-full" preserveAspectRatio="xMidYMid meet">
+        <svg viewBox="0 0 360 460" className="h-full w-full pixel-art" preserveAspectRatio="xMidYMid meet" shapeRendering="crispEdges">
           <FoodDefs />
           {/* tawa pan */}
           <ellipse cx="180" cy="320" rx="120" ry="22" fill="#3A2D24" />
@@ -230,7 +231,7 @@ function FlickStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
           {/* dough */}
           <g transform={`translate(${180 + (phase === 'flying' ? Math.sin(t * Math.PI * 4) * 10 : 0)}, ${300 + yOff})`}>
             <g transform={phase === 'flying' ? `rotate(${t * 720}) translate(-50, -50)` : 'translate(-50, -50)'}>
-              <FoodIcon kind="doughSheet" size={100} />
+              <PixelIcon kind="doughSheet" size={100} />
             </g>
           </g>
           <text x="180" y="60" fontSize="22" textAnchor="middle" fontWeight="700" fill="#3A2D24">{flipsDone}/{flipsRequired}</text>
@@ -269,11 +270,11 @@ function FoldStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
       <HUD dishId={DISH} stepKeyTitle="pr.step4.title" stepKeyHint="pr.step4.hint" mood={folded === 4 ? 'tasting' : 'idle'} />
       <div className="absolute inset-0 grid place-items-center">
         <div className="relative w-64 h-64">
-          <svg viewBox="0 0 260 260" className="absolute inset-0 w-full h-full" aria-hidden>
+        <svg viewBox="0 0 260 260" className="absolute inset-0 h-full w-full pixel-art" aria-hidden shapeRendering="crispEdges">
             <FoodDefs />
             <rect x="18" y="196" width="224" height="34" rx="14" fill="rgba(58,45,36,0.14)" />
             <g transform={`translate(130, 125) scale(${1 - folded * 0.08}) rotate(${folded * 8}) translate(-50, -50)`}>
-              <FoodIcon kind={folded >= 4 ? 'prata' : 'doughSheet'} size={100} />
+              <PixelIcon kind={folded >= 4 ? 'prata' : 'doughSheet'} size={100} />
             </g>
             {folded >= 4 && (
               <g transform="translate(164, 132)">
@@ -289,7 +290,7 @@ function FoldStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
               <button
                 key={corner}
                 disabled={folded > i}
-                className={`absolute thumb-target w-12 h-12 rounded-chip border-2 border-outline ${folded > i ? 'bg-pandan/40' : 'bg-white'} ${positions[corner]}`}
+                className={`pixel-token absolute thumb-target h-12 w-12 ${folded > i ? 'bg-pandan/40' : ''} ${positions[corner]}`}
                 onClick={() => { setFolded((f) => f + 1); sfx.snap(); }}
               >
                 {folded > i ? '✓' : '◢'}

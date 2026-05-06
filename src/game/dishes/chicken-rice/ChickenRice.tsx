@@ -10,7 +10,7 @@ import { useT } from '../../../i18n/useT';
 import { sfx } from '../../../audio/audio';
 import { usePointer, clamp, dist, clientToSvg, clientToCanvas } from '../../engine/gestureHelpers';
 import { scoreFromBands } from '../../engine/scoring';
-import { FoodIconSvg } from '../../../art/FoodIllustrations';
+import { PixelIcon, PixelIconSvg } from '../../../art/PixelFood';
 
 const DISH = 'chicken-rice';
 
@@ -95,7 +95,7 @@ function PoachStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
 
       <div className="absolute inset-0 flex items-end justify-center pb-24">
         {/* Pot */}
-        <svg viewBox="0 0 360 320" className="w-[92%] max-w-[460px]">
+        <svg viewBox="0 0 360 320" className="hidden" shapeRendering="crispEdges">
           <defs>
             <linearGradient id="pot-steel" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="#E5E5E5" />
@@ -193,9 +193,19 @@ function PoachStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
             ))}
         </svg>
 
+        <div className="pixel-dark-panel mb-20 mr-16 flex w-[220px] flex-col items-center gap-3 px-4 py-4 text-center">
+          <PixelIconSvg kind="pot" size={104} title="pot" />
+          <div className="pixel-meter w-full">
+            <span style={{ width: `${clamp((temp - 65) / 30, 0, 1) * 100}%` }} />
+          </div>
+          <div className={`text-sm font-bold ${inBand ? 'text-[#8ee06b]' : 'text-[#ffcf66]'}`}>
+            {inBand ? 'GOOD HEAT' : temp < 75 ? 'HEAT UP' : 'TOO HOT'}
+          </div>
+        </div>
+
         {/* Thermometer slider */}
         <div className="absolute right-3 top-32 bottom-28 flex flex-col items-center">
-          <div ref={ref} className="relative w-12 h-full bg-white border-2 border-outline rounded-chip touch-none">
+          <div ref={ref} className="relative w-12 h-full bg-white border-[4px] border-outline touch-none">
             {/* green band 75–85 in our 65–95 range */}
             <div className="absolute left-0 right-0" style={{
               top: `${((95 - 85) / 30) * 100}%`,
@@ -204,12 +214,12 @@ function PoachStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
               border: '2px dashed #6FB552',
             }} />
             {/* mercury */}
-            <div className="absolute left-1/2 -translate-x-1/2 bottom-0 w-3 bg-sambal rounded-t" style={{
+            <div className="absolute left-1/2 -translate-x-1/2 bottom-0 w-4 bg-sambal" style={{
               height: `${((temp - 60) / 40) * 100}%`,
               transition: 'height 80ms linear',
             }} />
             {/* knob */}
-            <div className="absolute -left-2 -right-2 h-3 bg-outline rounded" style={{
+            <div className="absolute -left-2 -right-2 h-4 bg-outline" style={{
               top: `${(1 - knob) * 100}%`,
               transition: 'top 80ms linear',
             }} />
@@ -304,8 +314,8 @@ function IceBathStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
             <rect key={i} x={bowlX - 30 + i * 14} y={bowlY - 8} width="10" height="10" rx="2" fill="#fff" stroke="#3A2D24" strokeWidth="1.5" />
           ))}
           {/* chicken */}
-          <g transform={`translate(${pos.x - 30}, ${pos.y - 14})`}>
-            <ellipse cx="30" cy="14" rx="30" ry="12" fill="#F1C9A4" stroke="#3A2D24" strokeWidth="2" />
+          <g transform={`translate(${pos.x - 32}, ${pos.y - 28})`}>
+            <PixelIcon kind="chicken" size={64} />
           </g>
           {/* hint */}
           <text x="180" y="350" textAnchor="middle" fontSize="14" fill="#3A2D24" opacity="0.6">
@@ -380,7 +390,7 @@ function AromaticsStep({ onComplete }: { onComplete: (r: StepResult) => void }) 
           {beatTimes.map((_, i) => (
             <div
               key={i}
-              className={`w-3 h-3 rounded-full ${activeBeat === i ? 'bg-sambal scale-150' : hits[i] ? 'bg-pandan' : 'bg-outline/30'} transition-all`}
+              className={`h-4 w-4 border-2 border-outline ${activeBeat === i ? 'bg-sambal scale-125' : hits[i] ? 'bg-pandan' : 'bg-marble'} transition-all`}
             />
           ))}
         </div>
@@ -389,14 +399,14 @@ function AromaticsStep({ onComplete }: { onComplete: (r: StepResult) => void }) 
           {ingredients.map((it, i) => (
             <button
               key={i}
-              className={`thumb-target w-32 h-32 rounded-[24px] font-bold border-4 shadow-soft grid place-items-center ${hits[i] ? 'bg-pandan/25 border-pandan-shade' : 'bg-white border-outline'}`}
+              className={`pixel-token thumb-target w-32 h-32 font-bold ${hits[i] ? 'bg-pandan/25 border-pandan-shade' : ''}`}
               onClick={() => tap(i)}
               aria-label={`${it.label} beat ${i + 1}`}
             >
               {hits[i] ? (
                 <span className="text-4xl text-pandan-shade">✓</span>
               ) : (
-                <FoodIconSvg kind={it.kind} size={82} title={it.label} />
+                <PixelIconSvg kind={it.kind} size={82} title={it.label} />
               )}
             </button>
           ))}
@@ -448,7 +458,7 @@ function PestleStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
         moodValue={pct * 60}
       />
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <svg viewBox="0 0 220 200" className="w-[80%] max-w-[420px]">
+        <svg viewBox="0 0 220 200" className="w-[80%] max-w-[420px] pixel-art" shapeRendering="crispEdges">
           {/* pestle */}
           <rect x="100" y="20" width="20" height="80" rx="8" fill="#5A4A42" stroke="#3A2D24" strokeWidth="2" />
           <ellipse cx="110" cy="20" rx="16" ry="8" fill="#5A4A42" stroke="#3A2D24" strokeWidth="2" />
@@ -461,14 +471,14 @@ function PestleStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
         <div className="text-3xl font-display font-bold mt-2">{count}</div>
         <div className="flex gap-3 mt-3">
           <button
-            className={`thumb-target w-32 h-32 rounded-full text-2xl font-bold border-4 ${last === 'L' ? 'bg-kaya border-kaya-shade' : 'bg-white border-outline'}`}
+            className={`pixel-token thumb-target w-32 h-32 text-2xl font-bold ${last === 'L' ? 'bg-kaya border-kaya-shade' : ''}`}
             onClick={() => onTap('L')}
             aria-label="left tap"
           >
             ←
           </button>
           <button
-            className={`thumb-target w-32 h-32 rounded-full text-2xl font-bold border-4 ${last === 'R' ? 'bg-kaya border-kaya-shade' : 'bg-white border-outline'}`}
+            className={`pixel-token thumb-target w-32 h-32 text-2xl font-bold ${last === 'R' ? 'bg-kaya border-kaya-shade' : ''}`}
             onClick={() => onTap('R')}
             aria-label="right tap"
           >

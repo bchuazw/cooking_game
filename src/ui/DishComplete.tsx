@@ -1,10 +1,11 @@
 import { useEffect, useRef } from 'react';
-import { AuntieMay } from '../art/AuntieMay';
+import { PixelAuntie } from '../art/PixelAuntie';
 import { useT } from '../i18n/useT';
 import type { DishResult } from '../types';
 import { say } from '../audio/animalese';
 import { sfx } from '../audio/audio';
 import { track } from '../telemetry';
+import { DishBackplate } from '../art/Backplates';
 
 export function DishComplete({
   result,
@@ -123,9 +124,11 @@ export function DishComplete({
   };
 
   return (
-    <div className="absolute inset-0 bg-marble flex flex-col">
-      <div className="flex-1 flex flex-col items-center justify-center px-6 text-center">
-        <AuntieMay mood={mood} size={180} />
+    <div className="absolute inset-0 flex flex-col overflow-hidden pixel-art">
+      <DishBackplate dishId={result.dishId} wash={0.42} />
+      <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 text-center">
+        <div className="pixel-panel w-full max-w-sm px-4 py-5">
+        <PixelAuntie mood={mood} size={170} />
         <h2 className="text-2xl font-display font-bold mt-3">{t('complete.title')}</h2>
         <p className="text-3xl font-display font-bold mt-2 text-kaya-shade">
           {t(`complete.stars_${Math.max(1, result.stars)}`)}
@@ -148,9 +151,10 @@ export function DishComplete({
           )}
         </div>
         <canvas ref={shareRef} width={800} height={800} className="hidden" />
+        </div>
       </div>
 
-      <div className="px-5 pb-6 space-y-2">
+      <div className="relative z-10 px-5 pb-6 space-y-2">
         <button className="btn-primary w-full" onClick={onReadCulture}>{t('menu.read_culture')}</button>
         <div className="grid grid-cols-2 gap-2">
           <button className="btn-ghost" onClick={onReplay}>{t('menu.replay')}</button>

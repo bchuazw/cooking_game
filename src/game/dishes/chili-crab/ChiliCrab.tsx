@@ -8,7 +8,8 @@ import { HUD } from '../../engine/HUD';
 import { useStep } from '../../engine/useStep';
 import { sfx } from '../../../audio/audio';
 import { usePointer, dist, clamp, clientToSvg } from '../../engine/gestureHelpers';
-import { FoodDefs, FoodIcon, FoodIconSvg, IllustratedPlate, type FoodKind } from '../../../art/FoodIllustrations';
+import { FoodDefs, IllustratedPlate, type FoodKind } from '../../../art/FoodIllustrations';
+import { PixelIcon, PixelIconSvg } from '../../../art/PixelFood';
 
 const DISH = 'chili-crab';
 
@@ -34,7 +35,7 @@ function SambalStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
     <>
       <HUD dishId={DISH} stepKeyTitle="cc.step1.title" stepKeyHint="cc.step1.hint" remaining={remaining} total={9000} mood={count > 28 ? 'cheering' : 'idle'} moodValue={heat * 60} />
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <svg viewBox="0 0 220 200" className="w-[80%] max-w-[420px]">
+        <svg viewBox="0 0 220 200" className="w-[80%] max-w-[420px] pixel-art" shapeRendering="crispEdges">
           <FoodDefs />
           <ellipse cx="110" cy="164" rx="86" ry="16" fill="rgba(58,45,36,0.24)" />
           <path d="M34 104 Q30 156 110 170 Q190 156 186 104 Z" fill="#7C6857" stroke="#3A2D24" strokeWidth="3" />
@@ -50,8 +51,8 @@ function SambalStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
         </svg>
         <div className="text-3xl font-display font-bold mt-2">{count}</div>
         <div className="flex gap-3 mt-3">
-          <button className={`thumb-target w-32 h-32 rounded-full text-2xl font-bold border-4 ${last === 'L' ? 'bg-sambal text-white' : 'bg-white border-outline'}`} onClick={() => tap('L')}>←</button>
-          <button className={`thumb-target w-32 h-32 rounded-full text-2xl font-bold border-4 ${last === 'R' ? 'bg-sambal text-white' : 'bg-white border-outline'}`} onClick={() => tap('R')}>→</button>
+          <button className={`pixel-token thumb-target h-32 w-32 text-2xl font-bold ${last === 'L' ? 'bg-sambal text-white' : ''}`} onClick={() => tap('L')}>←</button>
+          <button className={`pixel-token thumb-target h-32 w-32 text-2xl font-bold ${last === 'R' ? 'bg-sambal text-white' : ''}`} onClick={() => tap('R')}>→</button>
         </div>
       </div>
     </>
@@ -96,11 +97,11 @@ function SearStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
     <>
       <HUD dishId={DISH} stepKeyTitle="cc.step2.title" stepKeyHint="cc.step2.hint" remaining={remaining} total={8000} mood="tutorial_pointing" />
       <div className="absolute inset-0 touch-none">
-        <svg viewBox="0 0 360 460" className="w-full h-full" preserveAspectRatio="xMidYMid meet">
+        <svg viewBox="0 0 360 460" className="h-full w-full pixel-art" preserveAspectRatio="xMidYMid meet" shapeRendering="crispEdges">
           <FoodDefs />
           <IllustratedPlate x={180} y={270} rx={130} ry={42} />
           <g transform="translate(125, 180) scale(1.1)">
-            <FoodIcon kind="crab" size={100} />
+            <PixelIcon kind="crab" size={100} />
           </g>
           {/* joints */}
           {joints.map((j, i) => (
@@ -167,7 +168,7 @@ function EggRibbonStep({ onComplete }: { onComplete: (r: StepResult) => void }) 
       <HUD dishId={DISH} stepKeyTitle="cc.step3.title" stepKeyHint="cc.step3.hint" remaining={remaining} total={7000} mood={inBand ? 'tasting' : 'worried'} moodValue={inBand ? 40 : -30} />
       <div className="absolute inset-0 grid place-items-center pt-28 pb-20 px-2">
         <div ref={ref} className="relative w-full max-w-full max-h-full aspect-[360/460] touch-none">
-          <svg ref={svgRef} viewBox="0 0 360 460" className="absolute inset-0 w-full h-full" preserveAspectRatio="xMidYMid meet">
+          <svg ref={svgRef} viewBox="0 0 360 460" className="absolute inset-0 h-full w-full pixel-art" preserveAspectRatio="xMidYMid meet" shapeRendering="crispEdges">
             <FoodDefs />
             <ellipse cx={center.x} cy={center.y + 84} rx="148" ry="18" fill="rgba(58,45,36,0.25)" />
             <path d={`M ${center.x - 138} ${center.y - 4} Q ${center.x - 154} ${center.y + 74} ${center.x} ${center.y + 86} Q ${center.x + 154} ${center.y + 74} ${center.x + 138} ${center.y - 4} Z`} fill="url(#fi-wok)" stroke="#1B1A1A" strokeWidth="3" />
@@ -235,23 +236,23 @@ function PlateCrab({ onComplete }: { onComplete: (r: StepResult) => void }) {
       <HUD dishId={DISH} stepKeyTitle="cc.step4.title" stepKeyHint="cc.step4.hint" mood={placed.every(Boolean) ? 'tasting' : 'idle'} />
       <div className="absolute inset-0 grid place-items-center pt-28 pb-24 px-2">
         <div ref={ref} className="relative w-full max-w-full max-h-full aspect-[360/460] touch-none">
-          <svg ref={svgRef} viewBox="0 0 360 460" className="absolute inset-0 w-full h-full" preserveAspectRatio="xMidYMid meet">
+          <svg ref={svgRef} viewBox="0 0 360 460" className="absolute inset-0 h-full w-full pixel-art" preserveAspectRatio="xMidYMid meet" shapeRendering="crispEdges">
             <FoodDefs />
             <IllustratedPlate x={target.x} y={target.y} rx={124} ry={38} />
             <ellipse cx={target.x} cy={target.y - 7} rx="88" ry="24" fill="#D8432B" opacity="0.2" />
-            {placed.map((p, i) => p && <FoodIcon key={i} kind={items[i].kind} x={items[i].x - items[i].size / 2} y={items[i].y - items[i].size / 2} size={items[i].size} />)}
+            {placed.map((p, i) => p && <PixelIcon key={i} kind={items[i].kind} x={items[i].x - items[i].size / 2} y={items[i].y - items[i].size / 2} size={items[i].size} />)}
           </svg>
           {pos.idx !== null && (
             <div className="absolute pointer-events-none" style={{ left: pos.x - 30, top: pos.y - 30 }}>
-              <FoodIconSvg kind={items[pos.idx].kind} size={64} title={items[pos.idx].label} />
+              <PixelIconSvg kind={items[pos.idx].kind} size={64} title={items[pos.idx].label} />
             </div>
           )}
         </div>
       </div>
       <div className="absolute bottom-12 left-0 right-0 flex justify-center gap-3 pointer-events-none">
         {items.map((it, i) => (
-          <div key={i} className={`w-14 h-14 rounded-[16px] border-2 border-outline grid place-items-center shadow-soft ${placed[i] ? 'opacity-30 bg-pandan/20' : 'bg-white'}`}>
-            <FoodIconSvg kind={it.kind} size={44} title={it.label} />
+          <div key={i} className={`pixel-token h-14 w-14 ${placed[i] ? 'opacity-40' : ''}`}>
+            <PixelIconSvg kind={it.kind} size={44} title={it.label} />
           </div>
         ))}
       </div>

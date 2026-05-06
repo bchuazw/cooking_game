@@ -1,6 +1,6 @@
 import { useApp } from '../state/store';
 import { useT } from '../i18n/useT';
-import { AuntieMay } from '../art/AuntieMay';
+import { PixelAuntie } from '../art/PixelAuntie';
 import { say } from '../audio/animalese';
 import { useEffect, useState } from 'react';
 
@@ -19,7 +19,7 @@ export function FirstLaunch({ onDone }: { onDone: () => void }) {
 
   return (
     <div className="absolute inset-0 z-50 bg-marble flex flex-col items-center justify-center p-6 text-center">
-      <AuntieMay mood="tutorial_pointing" size={180} />
+      <PixelAuntie mood="tutorial_pointing" size={180} />
       {stage === 'lang' ? (
         <>
           <h2 className="text-2xl font-display font-bold mt-4 mb-2 text-outline">Choose / 言語</h2>

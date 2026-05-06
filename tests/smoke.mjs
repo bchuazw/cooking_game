@@ -62,7 +62,7 @@ async function gotoMap(page) {
 }
 
 async function openDish(page, dish) {
-  const stall = page.locator(`g[role="button"][aria-label*="${dish.name}"]`).first();
+  const stall = page.locator(`button[aria-label*="${dish.name}"]`).first();
   await stall.waitFor({ timeout: 5000 });
   await stall.click();
   await page.waitForSelector('text=料理をはじめる', { timeout: 5000 });

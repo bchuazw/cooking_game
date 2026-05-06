@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { AuntieMay } from '../art/AuntieMay';
+import { PixelAuntie } from '../art/PixelAuntie';
 import { useT } from '../i18n/useT';
 import type { DishId } from '../types';
 import { track } from '../telemetry';
@@ -26,7 +26,7 @@ export function CultureCard({ dishId, onBack }: { dishId: DishId; onBack: () => 
 
       <div className="px-5 pb-5 flex-1 overflow-y-auto">
         <div className="flex items-center gap-3 mb-3">
-          <AuntieMay mood="culture_card" size={90} />
+          <PixelAuntie mood="culture_card" size={90} />
           <div>
             <h2 className="text-xl font-display font-bold">{t(`dish.${dishId}.name`)}</h2>
             <p className="text-xs text-outline/70">{t(`dish.${dishId}.name_en`)}</p>

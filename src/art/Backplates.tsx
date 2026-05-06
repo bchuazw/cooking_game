@@ -3,11 +3,11 @@ import type { DishId } from '../types';
 const base = (import.meta.env.BASE_URL as string) ?? '/';
 
 const filenames: Record<DishId, string> = {
-  'chicken-rice': 'chicken-rice-semi.webp',
-  laksa: 'laksa-semi.webp',
-  prata: 'prata-semi.webp',
-  'chili-crab': 'chili-crab-semi.webp',
-  'kaya-toast': 'kaya-toast-semi.webp',
+  'chicken-rice': 'chicken-rice-pixel.webp',
+  laksa: 'laksa-pixel.webp',
+  prata: 'prata-pixel.webp',
+  'chili-crab': 'chili-crab-pixel.webp',
+  'kaya-toast': 'kaya-toast-pixel.webp',
 };
 
 export function DishBackplate({
@@ -25,7 +25,7 @@ export function DishBackplate({
       <img
         src={src}
         alt=""
-        className="absolute inset-0 h-full w-full object-cover"
+        className="absolute inset-0 h-full w-full object-cover pixel-art"
         decoding="async"
         fetchPriority="high"
         draggable={false}

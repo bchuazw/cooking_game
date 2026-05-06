@@ -8,7 +8,8 @@ import { HUD } from '../../engine/HUD';
 import { useStep } from '../../engine/useStep';
 import { sfx } from '../../../audio/audio';
 import { usePointer, clamp } from '../../engine/gestureHelpers';
-import { FoodDefs, FoodIcon, FoodIconSvg } from '../../../art/FoodIllustrations';
+import { FoodDefs } from '../../../art/FoodIllustrations';
+import { PixelIcon, PixelIconSvg } from '../../../art/PixelFood';
 
 const DISH = 'kaya-toast';
 
@@ -66,7 +67,7 @@ function ToastStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
       <HUD dishId={DISH} stepKeyTitle="kt.step1.title" stepKeyHint="kt.step1.hint" mood={color > 1.2 ? 'dish_burned' : color > 0.85 && color < 1.05 ? 'cheering' : 'idle'} moodValue={color > 1.2 ? -60 : 30} />
       <div className="absolute inset-0 grid place-items-center">
         <div className="flex flex-col items-center gap-4">
-          <svg viewBox="0 0 300 260" className="w-72 max-w-[90vw]" aria-hidden>
+          <svg viewBox="0 0 300 260" className="w-72 max-w-[90vw] pixel-art" aria-hidden shapeRendering="crispEdges">
             <FoodDefs />
             <ellipse cx="150" cy="220" rx="112" ry="16" fill="rgba(58,45,36,0.2)" />
             <rect x="53" y="178" width="194" height="34" rx="8" fill="#3A2D24" />
@@ -170,7 +171,7 @@ function SpreadStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
       <div className="absolute inset-0 grid place-items-center">
         <div className="flex flex-col items-center gap-3">
           <div ref={containerRef} className="relative w-72 h-48 overflow-hidden touch-none">
-            <svg viewBox="0 0 288 192" className="absolute inset-0 w-full h-full" aria-hidden>
+            <svg viewBox="0 0 288 192" className="absolute inset-0 h-full w-full pixel-art" aria-hidden shapeRendering="crispEdges">
               <FoodDefs />
               <ellipse cx="144" cy="166" rx="108" ry="12" fill="rgba(58,45,36,0.2)" />
               <path d="M39 158 L43 55 C43 22 245 22 245 55 L249 158 Z" fill="url(#fi-bread)" stroke="#3A2D24" strokeWidth="5" />
@@ -218,12 +219,12 @@ function EggStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
       <div ref={ref} className="absolute inset-0 touch-none grid place-items-center">
         <div className="flex flex-col items-center gap-4">
           {!cracked ? (
-            <button className="thumb-target rounded-[28px] border-2 border-outline bg-white shadow-soft p-5" onClick={() => { setCracked(true); sfx.snap(); }} aria-label="crack egg">
-              <FoodIconSvg kind="egg" size={110} title="egg" />
+            <button className="pixel-token thumb-target p-5" onClick={() => { setCracked(true); sfx.snap(); }} aria-label="crack egg">
+              <PixelIconSvg kind="egg" size={110} title="egg" />
             </button>
           ) : (
             <div className="relative">
-              <FoodIconSvg kind="crackedEgg" size={132} title="soft-boiled egg" />
+              <PixelIconSvg kind="crackedEgg" size={132} title="soft-boiled egg" />
               <div className="absolute inset-0 grid place-items-center text-kaya-shade text-3xl font-bold animate-pulse">{flicks > 0 && '✓'.repeat(flicks)}</div>
             </div>
           )}
@@ -281,7 +282,7 @@ function KopiStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
     <>
       <HUD dishId={DISH} stepKeyTitle="kt.step4.title" stepKeyHint="kt.step4.hint" mood={froth > 0.6 ? 'cheering' : 'idle'} />
       <div ref={ref} className="absolute inset-0 touch-none">
-        <svg viewBox="0 0 360 460" className="w-full h-full" preserveAspectRatio="xMidYMid meet">
+        <svg viewBox="0 0 360 460" className="h-full w-full pixel-art" preserveAspectRatio="xMidYMid meet" shapeRendering="crispEdges">
           <FoodDefs />
           {/* pourer */}
           <g transform={`translate(${holding ? 100 : 50}, ${pourY - 40})`}>
@@ -297,7 +298,7 @@ function KopiStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
           )}
           {/* cup */}
           <g transform="translate(146, 300) scale(1.18)">
-            <FoodIcon kind="kopiCup" size={100} />
+            <PixelIcon kind="kopiCup" size={100} />
           </g>
           {/* froth */}
           {froth > 0 && (

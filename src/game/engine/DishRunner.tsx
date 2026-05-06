@@ -110,7 +110,7 @@ export function DishRunner({
   const cur = steps[idx];
 
   return (
-    <div className="absolute inset-0 bg-marble select-none">
+    <div className="absolute inset-0 select-none pixel-art">
       <DishBackplate dishId={dishId} />
       {cur.render({ onComplete: onStep })}
       <ComboBadge combo={combo} />

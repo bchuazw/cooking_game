@@ -10,7 +10,8 @@ import { useT } from '../../../i18n/useT';
 import { sfx } from '../../../audio/audio';
 import { usePointer, dist, clamp, clientToSvg } from '../../engine/gestureHelpers';
 import { scoreFromBands } from '../../engine/scoring';
-import { FoodDefs, FoodIcon, FoodIconSvg, IllustratedPlate, type FoodKind } from '../../../art/FoodIllustrations';
+import { FoodDefs, IllustratedPlate, type FoodKind } from '../../../art/FoodIllustrations';
+import { PixelIcon, PixelIconSvg } from '../../../art/PixelFood';
 
 const DISH = 'laksa';
 
@@ -77,7 +78,7 @@ function BloomStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
       />
       <div className="absolute inset-0 grid place-items-center pt-28 pb-20 px-2">
         <div ref={ref} className="relative w-full max-w-full max-h-full aspect-[360/460] touch-none">
-          <svg ref={svgRef} viewBox="0 0 360 460" className="absolute inset-0 w-full h-full" preserveAspectRatio="xMidYMid meet">
+          <svg ref={svgRef} viewBox="0 0 360 460" className="absolute inset-0 w-full h-full opacity-0" preserveAspectRatio="xMidYMid meet" shapeRendering="crispEdges">
             <defs>
               <radialGradient id="wok-iron" cx="0.5" cy="0.4" r="0.7">
                 <stop offset="0%" stopColor="#5A4A42" />
@@ -148,6 +149,17 @@ function BloomStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
             {/* speed ring around finger reference */}
             <circle cx={center.x} cy={center.y} r="100" fill="none" stroke={speed >= 0.6 && speed <= 1.2 ? '#6FB552' : '#3A2D2433'} strokeWidth="3" strokeDasharray="8 6" />
           </svg>
+          <div className="absolute left-1/2 top-[52%] grid h-56 w-56 -translate-x-1/2 -translate-y-1/2 place-items-center pixel-dark-panel">
+            <div
+              className="grid h-36 w-36 place-items-center border-[4px] border-outline bg-[#d86c36]"
+              style={{ boxShadow: speed >= 0.6 && speed <= 1.2 ? '0 0 0 8px #6FB552 inset' : '0 0 0 8px rgba(42,26,24,0.22) inset' }}
+            >
+              <PixelIconSvg kind="wok" size={94} title="wok" />
+            </div>
+            <div className="pixel-meter mt-3 w-40">
+              <span style={{ width: `${bloom * 100}%` }} />
+            </div>
+          </div>
         </div>
       </div>
       <div className="absolute bottom-20 left-0 right-0 text-center text-sm pointer-events-none">
@@ -195,7 +207,7 @@ function OrderStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
     <>
       <HUD dishId={DISH} stepKeyTitle="la.step2.title" stepKeyHint="la.step2.hint" remaining={remaining} total={9000} mood={split ? 'worried' : 'tutorial_pointing'} />
       <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 px-6 pt-32 pb-20">
-        <div className={`relative w-72 h-40 rounded-[28px] border-2 border-outline grid place-items-center overflow-hidden shadow-soft ${split ? 'bg-gradient-to-r from-kaya/40 to-marble' : 'bg-sambal/20'}`}>
+        <div className={`pixel-panel relative grid h-40 w-72 place-items-center overflow-hidden ${split ? 'bg-gradient-to-r from-kaya/40 to-marble' : 'bg-sambal/20'}`}>
           <svg viewBox="0 0 280 150" className="absolute inset-0 w-full h-full" aria-hidden>
             <FoodDefs />
             <ellipse cx="140" cy="90" rx="108" ry="28" fill="#3A2D24" opacity="0.3" />
@@ -211,9 +223,9 @@ function OrderStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
               key={k}
               onClick={() => tap(k)}
               disabled={i < step}
-              className={`thumb-target px-3 py-3 rounded-[18px] border-2 border-outline shadow-soft ${i < step ? 'bg-pandan/25 line-through' : 'bg-white'}`}
+              className={`pixel-token thumb-target px-3 py-3 ${i < step ? 'opacity-50 line-through' : ''}`}
             >
-              <FoodIconSvg kind={k === 'stock' ? 'stock' : k === 'coconut' ? 'coconut' : 'taupok'} size={58} title={t(`la.step2.${k}`)} />
+              <PixelIconSvg kind={k === 'stock' ? 'stock' : k === 'coconut' ? 'coconut' : 'taupok'} size={58} title={t(`la.step2.${k}`)} />
               <div className="text-[11px] mt-1">{t(`la.step2.${k}`)}</div>
             </button>
           ))}
@@ -269,11 +281,11 @@ function NoodleStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
       <HUD dishId={DISH} stepKeyTitle="la.step3.title" stepKeyHint="la.step3.hint" remaining={remaining} total={9000} mood={glow ? 'cheering' : 'idle'} />
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <div className="relative">
-          <div className="w-44 h-44 rounded-full bg-tile-teal/30 border-2 border-outline" />
+          <div className="h-44 w-44 border-[4px] border-outline bg-tile-teal/30" />
           <div
-            className={`absolute inset-6 rounded-full ${glow ? 'bg-kaya animate-pulse' : 'bg-marble'} border-2 border-outline grid place-items-center`}
+            className={`absolute inset-6 ${glow ? 'bg-kaya animate-pulse' : 'bg-marble'} grid place-items-center border-[4px] border-outline`}
           >
-            <div className="text-3xl">🍜</div>
+            <PixelIconSvg kind="noodle" size={74} title="noodles" />
           </div>
         </div>
         <div className="text-xs text-outline/60 mt-2">{(held / 1000).toFixed(1)}s {glow ? '— now!' : ''}</div>
@@ -339,18 +351,18 @@ function GarnishStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
       <HUD dishId={DISH} stepKeyTitle="la.step4.title" stepKeyHint="la.step4.hint" mood={allDone ? 'tasting' : 'idle'} />
       <div className="absolute inset-0 grid place-items-center pt-28 pb-24 px-2">
         <div ref={ref} className="relative w-full max-w-full max-h-full aspect-[360/460] touch-none">
-          <svg ref={svgRef} viewBox="0 0 360 460" className="absolute inset-0 w-full h-full" preserveAspectRatio="xMidYMid meet">
+          <svg ref={svgRef} viewBox="0 0 360 460" className="absolute inset-0 w-full h-full pixel-art" preserveAspectRatio="xMidYMid meet" shapeRendering="crispEdges">
             <FoodDefs />
             <IllustratedPlate x={target.x} y={target.y} rx={112} ry={34} />
             <ellipse cx={target.x} cy={target.y - 9} rx="82" ry="24" fill="url(#fi-laksa)" stroke="rgba(58,45,36,0.25)" strokeWidth="1.5" />
             <path d={`M ${target.x - 58} ${target.y - 12} q 16 9 32 0 t32 0 t32 0`} stroke="#FFEBC5" strokeWidth="4" fill="none" strokeLinecap="round" />
             {placed.map((p, i) => p && (
-              <FoodIcon key={i} kind={items[i].kind} x={items[i].x - 18} y={items[i].y - 18} size={36} />
+              <PixelIcon key={i} kind={items[i].kind} x={items[i].x - 18} y={items[i].y - 18} size={36} />
             ))}
           </svg>
           {pos.idx !== null && (
             <div className="absolute pointer-events-none" style={{ left: pos.x - 28, top: pos.y - 28 }}>
-              <FoodIconSvg kind={items[pos.idx].kind} size={56} title={items[pos.idx].label} />
+              <PixelIconSvg kind={items[pos.idx].kind} size={56} title={items[pos.idx].label} />
             </div>
           )}
         </div>
@@ -359,9 +371,9 @@ function GarnishStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
         {items.map((it, i) => (
           <div
             key={i}
-            className={`w-14 h-14 rounded-[16px] border-2 border-outline grid place-items-center shadow-soft ${placed[i] ? 'opacity-30 bg-pandan/20' : 'bg-white'}`}
+            className={`pixel-token h-14 w-14 ${placed[i] ? 'opacity-40' : ''}`}
           >
-            <FoodIconSvg kind={it.kind} size={44} title={it.label} />
+            <PixelIconSvg kind={it.kind} size={44} title={it.label} />
           </div>
         ))}
       </div>

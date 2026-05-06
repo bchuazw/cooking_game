@@ -82,7 +82,7 @@ async function main() {
   await shoot(page, 'hawker-map');
 
   // ------- 5. Dish intro (Chicken Rice) -------
-  await page.locator(`g[role="button"][aria-label*="海南鶏飯"]`).first().click();
+  await page.locator(`button[aria-label*="海南鶏飯"]`).first().click();
   await page.waitForSelector('text=料理をはじめる', { timeout: 5000 });
   await page.waitForTimeout(500);
   await shoot(page, 'dish-intro-chicken-rice');
@@ -220,7 +220,7 @@ async function main() {
   await shoot(page, 'hawker-map-en');
 
   // ------- 15. Bonus: Laksa step 1 (rempah bloom) -------
-  await page.locator(`g[role="button"][aria-label*="Laksa"]`).first().click();
+  await page.locator(`button[aria-label*="Laksa"]`).first().click();
   await page.waitForSelector('text=Start cooking', { timeout: 5000 });
   await page.locator('button', { hasText: 'Start cooking' }).click();
   await page.waitForSelector('text=Bloom', { timeout: 8000 });
