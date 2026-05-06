@@ -91,12 +91,22 @@ If Pages is unavailable, `dist/` from `npm run build` deploys cleanly to Netlify
 - **Telemetry** events fire to console adapter (PostHog upgrade is a single env-var swap).
 - **Accessibility**: WCAG-AA palette, ≥56 px thumb targets, `prefers-reduced-motion` honored, `aria-live` step description, JA/EN toggle, no color-only state.
 
+## Art system (v0.2 visual upgrade)
+
+All scenes are layered SVG with gradients, patterns, and subtle filters — no third-party assets. Built on the §8 palette:
+
+- **`src/art/DishIcons.tsx`** — shared `Defs` (gradients for plate / bowl / soup / dough / crab / bread / kaya / wood / awning fabric / steam, plus rice-grain and wood-grain patterns and a soft-shadow filter), and 5 reusable mini-illustrations (`ChickenRiceIcon`, `LaksaIcon`, `PrataIcon`, `CrabIcon`, `KayaToastIcon`) and a `StallCard` with awning + counter + sign + dish on counter.
+- **`src/art/AuntieMay.tsx`** — character with skin radial gradient, hair gradient + highlight strands, cheek blush, polo gradient + sleeve folds, apron stitching + pocket, ladle with wood gradient. Same `AuntieMood` input contract as a Rive file.
+- **Scene-specific upgrades** in each dish: chicken-rice plate with three-slice fan, rice-grain pattern, drizzled-stroke sauce clipped to the rice ellipse, 3-lobe coriander leaf, cucumber slice with seeds; chicken-rice pot with brushed-steel body, gradient broth that shifts with temperature, floating ginger / scallion / pandan; laksa wok with cast-iron body, season patina rings, paste blob with chili and shallot bits.
+
+Each ingredient is 5–10 illustration layers with a `#3A2D24` warm-brown outline. Style intent: "picture-book illustration meets Cooking Mama," not crude shapes.
+
 ## What's stubbed (with upgrade path)
 
 | Area | Stub | Upgrade |
 |---|---|---|
 | **Music tracks** | 32-byte silence WAV data URIs in `public/audio/music/manifest.json` | Generate via ElevenLabs Music with prompts in `public/audio/music/prompts.md`, drop `.opus` / `.m4a` files in the same dir, update `manifest.json`. The runtime needs no code change. |
-| **Auntie May `.riv`** | Procedural SVG `src/art/AuntieMay.tsx` with the same `AuntieMood` input names as the brief specifies | Author a Rive file with state machine inputs `idle / cheering / worried / tasting / dish_burned / dish_perfect / culture_card / tutorial_pointing` plus numeric `enthusiasm`, `mood`. Swap the SVG component for a Rive renderer. |
+| **Auntie May `.riv`** | Procedural SVG `src/art/AuntieMay.tsx` with the same `AuntieMood` input names as the brief specifies, now with gradient skin / hair / fabric / apron stitching | Author a Rive file with state machine inputs `idle / cheering / worried / tasting / dish_burned / dish_perfect / culture_card / tutorial_pointing` plus numeric `enthusiasm`, `mood`. Swap the SVG component for a Rive renderer. |
 | **Supabase leaderboard** | localStorage-only, top 5 per dish | If Supabase keys are set (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`), wire a sync layer in `src/persistence/storage.ts`. UI already shows a "Local scores" badge that becomes "Live scores" once wired. |
 | **Phaser** | Custom React/Canvas/SVG mini-engine sized for the 250 KB initial-JS budget | If the budget grows, port `DishRunner` to Phaser scenes; gesture, scoring, and HUD APIs are already abstracted. |
 | **Real-device Playwright** | Spec-compliant viewport CSS + responsive layout, no real-device runs | Add Playwright once it's available; smoke-test scripts in `tests/e2e/` are not yet authored. |

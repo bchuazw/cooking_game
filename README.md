@@ -11,6 +11,17 @@ client-side animalese voice synth.
 
 > Full end-to-end screenshot walkthrough: [`handover/README.md#screenshots`](./handover/README.md#screenshots--full-end-to-end). Re-capture with `npm run capture`.
 
+## Art
+
+All art is **layered SVG** with gradients, patterns and subtle filters —
+no third-party assets. Each ingredient (chicken slices, rice grains, sambal
+drizzle, cucumber-with-seeds, kaya stack with kopi cup, cast-iron wok with
+patina rings, brushed-steel pot, etc.) is built from 5–10 illustration
+layers, on a `#3A2D24` warm-brown outline with `#F4EFE6` marble background
+per the brief's §8 palette. See [`src/art/DishIcons.tsx`](./src/art/DishIcons.tsx)
+for the reusable primitive library and [`src/art/AuntieMay.tsx`](./src/art/AuntieMay.tsx)
+for the character.
+
 - **Live preview:** https://bchuazw.github.io/cooking_game/ (after first
   successful workflow run; see `DEPLOY.md`)
 - **Build decisions and substitutions:** [`DECISIONS.md`](./DECISIONS.md)
@@ -21,8 +32,10 @@ client-side animalese voice synth.
 
 ```bash
 npm install
-npm run dev      # http://localhost:5173
-npm run build    # produces dist/ (initial JS ~50 KB gz, dish bundles ≤ 21 KB gz)
+npm run dev          # http://localhost:5173
+npm run build        # produces dist/ (initial JS ~55 KB gz, dish bundles ≤ 24 KB gz)
+npm run test:smoke   # headless Chromium smoke test (5 dishes)
+npm run capture      # regenerate handover/screenshots/ end-to-end
 ```
 
 ## Project layout
@@ -38,7 +51,9 @@ src/
   state/store.ts      # Zustand persisted state
   i18n/               # JA-first i18n
   audio/              # animalese + sfx + music manifest loader
-  art/AuntieMay.tsx   # procedural SVG character (Rive shim)
+  art/
+    AuntieMay.tsx     # procedural SVG character (Rive shim)
+    DishIcons.tsx     # rich SVG primitives + reusable Defs
   game/
     engine/           # gestures, scoring, HUD, dish runner
     dishes/           # one folder per dish; each lazy-loaded
@@ -49,10 +64,17 @@ content/culture-cards/<dish>/
 public/
   audio/music/        # manifest + ElevenLabs prompt seeds
   icons/              # PWA icons
-handover/             # README, walkthrough, QR
-DECISIONS.md
-SECRETS.md
-DEPLOY.md
+handover/
+  README.md           # screenshot walkthrough, what's live vs stubbed
+  screenshots/        # 16 PNGs, regenerable via `npm run capture`
+  walkthrough.md      # script for screen-recording a demo
+  qr.png              # phone-test QR (regenerable via scripts/gen-qr.sh)
+tests/
+  smoke.mjs           # Playwright step-transition smoke test
+  capture.mjs         # Playwright end-to-end screenshot capture
+DECISIONS.md          # every non-trivial decision + rationale
+SECRETS.md            # env-var inventory
+DEPLOY.md             # GitHub Pages workflow notes
 ```
 
 ## License
