@@ -8,8 +8,10 @@ import { HUD } from '../../engine/HUD';
 import { useStep } from '../../engine/useStep';
 import { sfx } from '../../../audio/audio';
 import { usePointer, dist, clamp } from '../../engine/gestureHelpers';
+import { FoodDefs, FoodIcon } from '../../../art/FoodIllustrations';
 
 const DISH = 'prata';
+const BASE = (import.meta.env.BASE_URL as string) ?? '/';
 
 // Step 1: Knead — pinch outwards (two-finger)
 function KneadStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
@@ -47,10 +49,23 @@ function KneadStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
   return (
     <>
       <HUD dishId={DISH} stepKeyTitle="pr.step1.title" stepKeyHint="pr.step1.hint" remaining={remaining} total={9000} mood="idle" moodValue={stretch * 60 - 20} />
-      <div ref={ref} className="absolute inset-0 touch-none flex items-center justify-center">
-        <div className="relative" style={{ width: `${120 + stretch * 200}px`, height: `${120 - stretch * 30}px` }}>
-          <div className="w-full h-full rounded-full bg-[#F1C9A4] border-2 border-outline shadow-soft" />
-          <div className="absolute inset-3 rounded-full bg-[#FFE9CC] opacity-70" />
+      <div ref={ref} className="absolute inset-0 touch-none grid place-items-center pt-24 pb-20">
+        <div
+          className="relative drop-shadow-[0_18px_16px_rgba(58,45,36,0.28)]"
+          style={{
+            width: `${172 + stretch * 210}px`,
+            height: `${132 - stretch * 26}px`,
+            transform: `scaleY(${1 - stretch * 0.22})`,
+            transition: 'width 80ms linear, height 80ms linear, transform 80ms linear',
+          }}
+        >
+          <img
+            src={`${BASE}assets/sprites/dough-ball.webp`}
+            alt=""
+            className="absolute inset-0 h-full w-full object-fill select-none pointer-events-none"
+            draggable={false}
+          />
+          <div className="absolute inset-x-[18%] top-[18%] h-[18%] rounded-full bg-white/20 blur-sm" />
         </div>
         <div className="absolute bottom-28 text-xs text-outline/60">{Math.round(stretch * 100)}%</div>
       </div>
@@ -89,8 +104,21 @@ function SlapStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
     <>
       <HUD dishId={DISH} stepKeyTitle="pr.step2.title" stepKeyHint="pr.step2.hint" remaining={remaining} total={11000} mood={thinness > 0.7 ? 'cheering' : 'idle'} />
       <div ref={ref} className="absolute inset-0 touch-none flex items-center justify-center">
-        <div className="relative" style={{ width: `${200 + thinness * 100}px`, height: `${100 - thinness * 60}px`, opacity: 1 - thinness * 0.4 }}>
-          <div className="w-full h-full rounded-full bg-[#F1C9A4] border-2 border-outline shadow-soft" />
+        <div
+          className="relative drop-shadow-[0_18px_16px_rgba(58,45,36,0.24)]"
+          style={{
+            width: `${230 + thinness * 150}px`,
+            height: `${104 - thinness * 58}px`,
+            opacity: 1 - thinness * 0.24,
+            transition: 'width 80ms linear, height 80ms linear, opacity 80ms linear',
+          }}
+        >
+          <img
+            src={`${BASE}assets/sprites/dough-ball.webp`}
+            alt=""
+            className="absolute inset-0 h-full w-full object-fill select-none pointer-events-none"
+            draggable={false}
+          />
         </div>
         <div className="absolute bottom-28 w-44">
           <div className="h-3 bg-white border-2 border-outline rounded-full overflow-hidden">
@@ -193,6 +221,7 @@ function FlickStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
       <HUD dishId={DISH} stepKeyTitle="pr.step3.title" stepKeyHint="pr.step3.hint" remaining={remaining} total={14000} mood={flipsDone === flipsRequired ? 'cheering' : 'idle'} />
       <div ref={ref} className="absolute inset-0 touch-none">
         <svg viewBox="0 0 360 460" className="w-full h-full" preserveAspectRatio="xMidYMid meet">
+          <FoodDefs />
           {/* tawa pan */}
           <ellipse cx="180" cy="320" rx="120" ry="22" fill="#3A2D24" />
           <ellipse cx="180" cy="316" rx="115" ry="20" fill="#5A4A42" />
@@ -200,7 +229,9 @@ function FlickStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
           <ellipse cx="180" cy="316" rx={50 * shadowScale} ry={10 * shadowScale} fill="rgba(0,0,0,0.35)" />
           {/* dough */}
           <g transform={`translate(${180 + (phase === 'flying' ? Math.sin(t * Math.PI * 4) * 10 : 0)}, ${300 + yOff})`}>
-            <ellipse cx="0" cy="0" rx="50" ry="10" fill="#FFE9CC" stroke="#3A2D24" strokeWidth="2" transform={phase === 'flying' ? `rotate(${t * 720})` : ''} />
+            <g transform={phase === 'flying' ? `rotate(${t * 720}) translate(-50, -50)` : 'translate(-50, -50)'}>
+              <FoodIcon kind="doughSheet" size={100} />
+            </g>
           </g>
           <text x="180" y="60" fontSize="22" textAnchor="middle" fontWeight="700" fill="#3A2D24">{flipsDone}/{flipsRequired}</text>
         </svg>
@@ -237,8 +268,21 @@ function FoldStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
     <>
       <HUD dishId={DISH} stepKeyTitle="pr.step4.title" stepKeyHint="pr.step4.hint" mood={folded === 4 ? 'tasting' : 'idle'} />
       <div className="absolute inset-0 grid place-items-center">
-        <div className="relative w-60 h-60">
-          <div className="absolute inset-0 rounded-2xl bg-[#FFE9CC] border-2 border-outline" style={{ transform: `scale(${1 - folded * 0.1}) rotate(${folded * 8}deg)` }} />
+        <div className="relative w-64 h-64">
+          <svg viewBox="0 0 260 260" className="absolute inset-0 w-full h-full" aria-hidden>
+            <FoodDefs />
+            <rect x="18" y="196" width="224" height="34" rx="14" fill="rgba(58,45,36,0.14)" />
+            <g transform={`translate(130, 125) scale(${1 - folded * 0.08}) rotate(${folded * 8}) translate(-50, -50)`}>
+              <FoodIcon kind={folded >= 4 ? 'prata' : 'doughSheet'} size={100} />
+            </g>
+            {folded >= 4 && (
+              <g transform="translate(164, 132)">
+                <ellipse cx="0" cy="18" rx="34" ry="8" fill="#3A2D24" opacity="0.22" />
+                <path d="M-26 16 q26 -20 52 0" stroke="#9F4520" strokeWidth="10" fill="none" strokeLinecap="round" />
+                <path d="M-26 16 q26 -20 52 0" stroke="#E8B83A" strokeWidth="5" fill="none" strokeLinecap="round" opacity="0.9" />
+              </g>
+            )}
+          </svg>
           {(['tl', 'tr', 'bl', 'br'] as const).map((corner, i) => {
             const positions: Record<string, string> = { tl: 'top-0 left-0', tr: 'top-0 right-0', bl: 'bottom-0 left-0', br: 'bottom-0 right-0' };
             return (

@@ -8,6 +8,7 @@ import { HUD } from '../../engine/HUD';
 import { useStep } from '../../engine/useStep';
 import { sfx } from '../../../audio/audio';
 import { usePointer, clamp } from '../../engine/gestureHelpers';
+import { FoodDefs, FoodIcon, FoodIconSvg } from '../../../art/FoodIllustrations';
 
 const DISH = 'kaya-toast';
 
@@ -65,11 +66,18 @@ function ToastStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
       <HUD dishId={DISH} stepKeyTitle="kt.step1.title" stepKeyHint="kt.step1.hint" mood={color > 1.2 ? 'dish_burned' : color > 0.85 && color < 1.05 ? 'cheering' : 'idle'} moodValue={color > 1.2 ? -60 : 30} />
       <div className="absolute inset-0 grid place-items-center">
         <div className="flex flex-col items-center gap-4">
-          {/* grill */}
-          <div className="w-56 h-8 bg-outline rounded-md grid grid-cols-6 gap-1 p-1">
-            {Array.from({ length: 6 }).map((_, i) => <div key={i} className="bg-sambal/70 rounded" />)}
-          </div>
-          <div className="w-56 h-32 rounded-md border-2 border-outline shadow-soft" style={{ background: `rgb(${r},${g},${b})` }} />
+          <svg viewBox="0 0 300 260" className="w-72 max-w-[90vw]" aria-hidden>
+            <FoodDefs />
+            <ellipse cx="150" cy="220" rx="112" ry="16" fill="rgba(58,45,36,0.2)" />
+            <rect x="53" y="178" width="194" height="34" rx="8" fill="#3A2D24" />
+            {Array.from({ length: 7 }).map((_, i) => <rect key={i} x={68 + i * 24} y="184" width="12" height="22" rx="4" fill="#D8432B" opacity="0.8" />)}
+            <g transform="translate(70, 42)">
+              <path d="M18 128 L22 54 C22 18 138 18 138 54 L142 128 Z" fill={`rgb(${r},${g},${b})`} stroke="#3A2D24" strokeWidth="5" />
+              <path d="M40 118 L43 58 C43 38 117 38 117 58 L120 118 Z" fill="rgba(255,230,175,0.34)" />
+              <path d="M42 50 C58 36 102 36 118 50" stroke="#FFF2D4" strokeWidth="4" fill="none" opacity="0.55" />
+              {color > 1.15 && <path d="M28 126 Q80 96 135 126" stroke="#17110E" strokeWidth="8" opacity="0.45" fill="none" />}
+            </g>
+          </svg>
           <button
             className="btn-primary thumb-target"
             onPointerDown={() => setHolding(true)}
@@ -161,8 +169,14 @@ function SpreadStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
       <HUD dishId={DISH} stepKeyTitle="kt.step2.title" stepKeyHint="kt.step2.hint" mood={coverage > 0.5 ? 'tasting' : 'idle'} />
       <div className="absolute inset-0 grid place-items-center">
         <div className="flex flex-col items-center gap-3">
-          <div ref={containerRef} className="relative w-72 h-44 rounded-md border-2 border-outline overflow-hidden shadow-soft touch-none" style={{ background: '#5A3F26' }}>
-            <canvas ref={ref} width={288} height={176} className="absolute inset-0 w-full h-full" />
+          <div ref={containerRef} className="relative w-72 h-48 overflow-hidden touch-none">
+            <svg viewBox="0 0 288 192" className="absolute inset-0 w-full h-full" aria-hidden>
+              <FoodDefs />
+              <ellipse cx="144" cy="166" rx="108" ry="12" fill="rgba(58,45,36,0.2)" />
+              <path d="M39 158 L43 55 C43 22 245 22 245 55 L249 158 Z" fill="url(#fi-bread)" stroke="#3A2D24" strokeWidth="5" />
+              <path d="M63 144 L66 61 C66 42 222 42 222 61 L225 144 Z" fill="#FFE0A7" opacity="0.78" />
+            </svg>
+            <canvas ref={ref} width={288} height={176} className="absolute left-0 top-2 w-full h-[176px] [clip-path:polygon(15%_18%,85%_18%,88%_88%,12%_88%)]" />
           </div>
           <div className="text-xs text-outline/70">cov {Math.round(coverage * 100)}% · evenness {Math.round((1 - variance * 3) * 100)}%</div>
           <button className="btn-primary" onClick={onDone}>done</button>
@@ -204,11 +218,13 @@ function EggStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
       <div ref={ref} className="absolute inset-0 touch-none grid place-items-center">
         <div className="flex flex-col items-center gap-4">
           {!cracked ? (
-            <button className="text-7xl" onClick={() => { setCracked(true); sfx.snap(); }}>🥚</button>
+            <button className="thumb-target rounded-[28px] border-2 border-outline bg-white shadow-soft p-5" onClick={() => { setCracked(true); sfx.snap(); }} aria-label="crack egg">
+              <FoodIconSvg kind="egg" size={110} title="egg" />
+            </button>
           ) : (
             <div className="relative">
-              <div className="text-7xl">🍳</div>
-              <div className="absolute inset-0 grid place-items-center text-yellow-300 animate-pulse">{flicks > 0 && '✓'.repeat(flicks)}</div>
+              <FoodIconSvg kind="crackedEgg" size={132} title="soft-boiled egg" />
+              <div className="absolute inset-0 grid place-items-center text-kaya-shade text-3xl font-bold animate-pulse">{flicks > 0 && '✓'.repeat(flicks)}</div>
             </div>
           )}
           <div className="text-xs text-outline/60">{cracked ? `flick: soy → pepper (${flicks}/2)` : 'tap to crack'}</div>
@@ -266,24 +282,26 @@ function KopiStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
       <HUD dishId={DISH} stepKeyTitle="kt.step4.title" stepKeyHint="kt.step4.hint" mood={froth > 0.6 ? 'cheering' : 'idle'} />
       <div ref={ref} className="absolute inset-0 touch-none">
         <svg viewBox="0 0 360 460" className="w-full h-full" preserveAspectRatio="xMidYMid meet">
+          <FoodDefs />
           {/* pourer */}
           <g transform={`translate(${holding ? 100 : 50}, ${pourY - 40})`}>
-            <rect x="0" y="0" width="60" height="36" rx="6" fill="#3A2D24" />
-            <ellipse cx="30" cy="36" rx="16" ry="6" fill="#5A4A42" />
+            <rect x="0" y="0" width="62" height="38" rx="8" fill="#3A2D24" />
+            <rect x="6" y="5" width="50" height="23" rx="5" fill="#6B5A50" opacity="0.75" />
+            <ellipse cx="31" cy="38" rx="17" ry="7" fill="#5A4A42" />
             {/* spout */}
             <path d="M55 18 L80 12 L80 24 Z" fill="#3A2D24" />
           </g>
           {/* stream */}
           {holding && (
-            <line x1="180" y1={pourY} x2="190" y2="320" stroke="#3A2D24" strokeWidth="3" opacity="0.6" />
+            <path d={`M180 ${pourY} C178 ${pourY + 70} 196 242 190 320`} stroke="#5A3F26" strokeWidth="5" opacity="0.75" fill="none" strokeLinecap="round" />
           )}
           {/* cup */}
-          <ellipse cx="200" cy="350" rx="60" ry="14" fill="#3A2D24" />
-          <ellipse cx="200" cy="346" rx="56" ry="12" fill="#fff" />
-          <ellipse cx="200" cy="346" rx="50" ry={8 + froth * 4} fill="#5A3F26" />
+          <g transform="translate(146, 300) scale(1.18)">
+            <FoodIcon kind="kopiCup" size={100} />
+          </g>
           {/* froth */}
           {froth > 0 && (
-            <ellipse cx="200" cy="338" rx={40 + froth * 8} ry={3 + froth * 4} fill="#FFF7E8" opacity={0.8} />
+            <ellipse cx="205" cy="342" rx={38 + froth * 9} ry={4 + froth * 5} fill="#FFF7E8" opacity={0.88} />
           )}
         </svg>
         <div className="absolute bottom-24 left-0 right-0 text-center text-xs">

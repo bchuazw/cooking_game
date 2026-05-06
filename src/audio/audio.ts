@@ -150,13 +150,15 @@ let ambienceCtx: { stop: () => void } | null = null;
 
 export function startAmbience(): void {
   if (ambienceCtx) return;
+  const sfxVol = useApp.getState().sfx;
+  if (sfxVol <= 0.02) return;
   const c = audio();
   if (c.state === 'closed') return;
   const master = c.createGain();
   master.gain.value = 0;
   master.connect(c.destination);
   master.gain.setValueAtTime(0.0001, c.currentTime);
-  master.gain.exponentialRampToValueAtTime(0.18 * Math.max(0.1, useApp.getState().sfx), c.currentTime + 1.5);
+  master.gain.exponentialRampToValueAtTime(Math.max(0.0002, 0.18 * sfxVol), c.currentTime + 1.5);
 
   // chatter: pink noise → bandpass around 800Hz
   const noiseBuf = c.createBuffer(1, c.sampleRate * 4, c.sampleRate);

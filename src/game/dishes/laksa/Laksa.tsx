@@ -10,6 +10,7 @@ import { useT } from '../../../i18n/useT';
 import { sfx } from '../../../audio/audio';
 import { usePointer, dist, clamp, clientToSvg } from '../../engine/gestureHelpers';
 import { scoreFromBands } from '../../engine/scoring';
+import { FoodDefs, FoodIcon, FoodIconSvg, IllustratedPlate, type FoodKind } from '../../../art/FoodIllustrations';
 
 const DISH = 'laksa';
 
@@ -194,8 +195,15 @@ function OrderStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
     <>
       <HUD dishId={DISH} stepKeyTitle="la.step2.title" stepKeyHint="la.step2.hint" remaining={remaining} total={9000} mood={split ? 'worried' : 'tutorial_pointing'} />
       <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 px-6 pt-32 pb-20">
-        <div className={`w-64 h-32 rounded-3xl border-2 border-outline grid place-items-center ${split ? 'bg-gradient-to-r from-kaya/40 to-marble' : 'bg-sambal/30'}`}>
-          <div className="text-center text-xs px-3">{split ? t('la.step2.broth_split') : t('la.step2.broth_stable')}</div>
+        <div className={`relative w-72 h-40 rounded-[28px] border-2 border-outline grid place-items-center overflow-hidden shadow-soft ${split ? 'bg-gradient-to-r from-kaya/40 to-marble' : 'bg-sambal/20'}`}>
+          <svg viewBox="0 0 280 150" className="absolute inset-0 w-full h-full" aria-hidden>
+            <FoodDefs />
+            <ellipse cx="140" cy="90" rx="108" ry="28" fill="#3A2D24" opacity="0.3" />
+            <ellipse cx="140" cy="82" rx="104" ry="44" fill="url(#fi-laksa)" stroke="#3A2D24" strokeWidth="3" />
+            <path d="M65 78 Q110 60 156 78 T224 76" stroke={split ? '#FFF7E8' : '#FFE4C0'} strokeWidth="6" fill="none" opacity={split ? 0.35 : 0.7} strokeLinecap="round" />
+            {split && <path d="M50 62 Q110 100 228 61" stroke="#F4EFE6" strokeWidth="5" strokeDasharray="10 8" fill="none" opacity="0.9" />}
+          </svg>
+          <div className="relative text-center text-xs px-3 font-bold text-outline">{split ? t('la.step2.broth_split') : t('la.step2.broth_stable')}</div>
         </div>
         <div className="grid grid-cols-3 gap-3">
           {(['stock', 'coconut', 'taupok'] as const).map((k, i) => (
@@ -203,13 +211,9 @@ function OrderStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
               key={k}
               onClick={() => tap(k)}
               disabled={i < step}
-              className={`thumb-target px-3 py-3 rounded-chip border-2 border-outline ${i < step ? 'bg-pandan/40 line-through' : 'bg-white'}`}
+              className={`thumb-target px-3 py-3 rounded-[18px] border-2 border-outline shadow-soft ${i < step ? 'bg-pandan/25 line-through' : 'bg-white'}`}
             >
-              <div className="text-2xl">
-                {k === 'stock' && '🍲'}
-                {k === 'coconut' && '🥥'}
-                {k === 'taupok' && '🟤'}
-              </div>
+              <FoodIconSvg kind={k === 'stock' ? 'stock' : k === 'coconut' ? 'coconut' : 'taupok'} size={58} title={t(`la.step2.${k}`)} />
               <div className="text-[11px] mt-1">{t(`la.step2.${k}`)}</div>
             </button>
           ))}
@@ -289,7 +293,12 @@ function NoodleStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
 // Step 4: Garnish — drag-snap items
 function GarnishStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
   const t = useT();
-  const items = ['🦐', '🥚', '🌿', '🌶'];
+  const items: { kind: FoodKind; label: string; x: number; y: number }[] = [
+    { kind: 'prawn', label: 'prawn', x: 133, y: 178 },
+    { kind: 'fishcake', label: 'fishcake', x: 169, y: 184 },
+    { kind: 'sprouts', label: 'sprouts', x: 199, y: 174 },
+    { kind: 'sambal', label: 'sambal', x: 228, y: 185 },
+  ];
   const [placed, setPlaced] = useState<boolean[]>([false, false, false, false]);
   // pos.x/y in container px (for the dragged emoji follow), pos.vbX/vbY in viewBox px (for snap distance check).
   const [pos, setPos] = useState<{ x: number; y: number; vbX: number; vbY: number; idx: number | null }>({ x: 0, y: 0, vbX: 0, vbY: 0, idx: null });
@@ -331,16 +340,17 @@ function GarnishStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
       <div className="absolute inset-0 grid place-items-center pt-28 pb-24 px-2">
         <div ref={ref} className="relative w-full max-w-full max-h-full aspect-[360/460] touch-none">
           <svg ref={svgRef} viewBox="0 0 360 460" className="absolute inset-0 w-full h-full" preserveAspectRatio="xMidYMid meet">
-            <ellipse cx={target.x} cy={target.y} rx="100" ry="30" fill="#3A2D24" />
-            <ellipse cx={target.x} cy={target.y - 4} rx="96" ry="28" fill="#D8432B" opacity="0.7" />
-            <ellipse cx={target.x} cy={target.y - 8} rx="80" ry="20" fill="#E89B8B" />
+            <FoodDefs />
+            <IllustratedPlate x={target.x} y={target.y} rx={112} ry={34} />
+            <ellipse cx={target.x} cy={target.y - 9} rx="82" ry="24" fill="url(#fi-laksa)" stroke="rgba(58,45,36,0.25)" strokeWidth="1.5" />
+            <path d={`M ${target.x - 58} ${target.y - 12} q 16 9 32 0 t32 0 t32 0`} stroke="#FFEBC5" strokeWidth="4" fill="none" strokeLinecap="round" />
             {placed.map((p, i) => p && (
-              <text key={i} x={target.x - 30 + i * 18} y={target.y - 6} fontSize="22">{items[i]}</text>
+              <FoodIcon key={i} kind={items[i].kind} x={items[i].x - 18} y={items[i].y - 18} size={36} />
             ))}
           </svg>
           {pos.idx !== null && (
-            <div className="absolute pointer-events-none text-3xl" style={{ left: pos.x - 16, top: pos.y - 16 }}>
-              {items[pos.idx]}
+            <div className="absolute pointer-events-none" style={{ left: pos.x - 28, top: pos.y - 28 }}>
+              <FoodIconSvg kind={items[pos.idx].kind} size={56} title={items[pos.idx].label} />
             </div>
           )}
         </div>
@@ -349,9 +359,9 @@ function GarnishStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
         {items.map((it, i) => (
           <div
             key={i}
-            className={`w-12 h-12 rounded-chip border-2 border-outline grid place-items-center text-2xl ${placed[i] ? 'opacity-30' : 'bg-white'}`}
+            className={`w-14 h-14 rounded-[16px] border-2 border-outline grid place-items-center shadow-soft ${placed[i] ? 'opacity-30 bg-pandan/20' : 'bg-white'}`}
           >
-            {it}
+            <FoodIconSvg kind={it.kind} size={44} title={it.label} />
           </div>
         ))}
       </div>

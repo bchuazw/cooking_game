@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useApp } from '../state/store';
 import { useT } from '../i18n/useT';
 import { track } from '../telemetry';
+import { setMusicVolume, stopAmbience } from '../audio/audio';
 
 export function Settings({ onBack }: { onBack: () => void }) {
   const t = useT();
@@ -28,10 +29,10 @@ export function Settings({ onBack }: { onBack: () => void }) {
         </Row>
 
         <Row label={t('settings.music')}>
-          <Slider value={s.music} onChange={s.setMusic} />
+          <Slider value={s.music} onChange={(v) => { s.setMusic(v); setMusicVolume(v); }} />
         </Row>
         <Row label={t('settings.sfx')}>
-          <Slider value={s.sfx} onChange={s.setSfx} />
+          <Slider value={s.sfx} onChange={(v) => { s.setSfx(v); if (v <= 0.02) stopAmbience(); }} />
         </Row>
         <Row label={t('settings.voice')}>
           <Slider value={s.voice} onChange={s.setVoice} />

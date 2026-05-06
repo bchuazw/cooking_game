@@ -10,6 +10,7 @@ import { useT } from '../../../i18n/useT';
 import { sfx } from '../../../audio/audio';
 import { usePointer, clamp, dist, clientToSvg, clientToCanvas } from '../../engine/gestureHelpers';
 import { scoreFromBands } from '../../engine/scoring';
+import { FoodIconSvg } from '../../../art/FoodIllustrations';
 
 const DISH = 'chicken-rice';
 
@@ -355,7 +356,12 @@ function AromaticsStep({ onComplete }: { onComplete: (r: StepResult) => void }) 
     }
   };
 
-  const labels = ['🧅', '🧄', '🌿', '🌱']; // shallot, garlic, ginger, pandan
+  const ingredients = [
+    { kind: 'shallot' as const, label: 'shallot' },
+    { kind: 'garlic' as const, label: 'garlic' },
+    { kind: 'ginger' as const, label: 'ginger' },
+    { kind: 'pandan' as const, label: 'pandan' },
+  ];
   const t = useT();
 
   return (
@@ -380,14 +386,18 @@ function AromaticsStep({ onComplete }: { onComplete: (r: StepResult) => void }) 
         </div>
         {/* pan with 4 ingredient tap zones */}
         <div className="grid grid-cols-2 gap-3">
-          {labels.map((lab, i) => (
+          {ingredients.map((it, i) => (
             <button
               key={i}
-              className={`thumb-target w-32 h-32 rounded-full text-4xl font-bold border-4 ${hits[i] ? 'bg-pandan border-pandan-shade' : 'bg-white border-outline'}`}
+              className={`thumb-target w-32 h-32 rounded-[24px] font-bold border-4 shadow-soft grid place-items-center ${hits[i] ? 'bg-pandan/25 border-pandan-shade' : 'bg-white border-outline'}`}
               onClick={() => tap(i)}
-              aria-label={`beat ${i + 1}`}
+              aria-label={`${it.label} beat ${i + 1}`}
             >
-              {hits[i] ? '✓' : lab}
+              {hits[i] ? (
+                <span className="text-4xl text-pandan-shade">✓</span>
+              ) : (
+                <FoodIconSvg kind={it.kind} size={82} title={it.label} />
+              )}
             </button>
           ))}
         </div>
@@ -751,7 +761,7 @@ function PlateStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
 
           <div className="absolute bottom-2 left-0 right-0 text-center pointer-events-none">
             <div className="text-xs text-outline/70">
-              {t('hud.score')}: 🍗 {chicken.placed ? '✓' : '–'} 🥒 {cucumber.placed ? '✓' : '–'} 🌿 {coriander.placed ? '✓' : '–'}
+              {t('hud.score')}: chicken {chicken.placed ? '✓' : '-'} · cucumber {cucumber.placed ? '✓' : '-'} · coriander {coriander.placed ? '✓' : '-'}
             </div>
             <div className="text-xs text-outline/70">{t('cr.step5.sauce_label', { coverage: String(coverage) })}</div>
           </div>

@@ -18,7 +18,10 @@ html, body, #root {
 
 body {
   margin: 0;
-  background: var(--c-marble);
+  background:
+    radial-gradient(circle at 18% 12%, rgba(232, 184, 58, 0.14), transparent 24%),
+    radial-gradient(circle at 85% 8%, rgba(43, 165, 157, 0.12), transparent 26%),
+    linear-gradient(180deg, #fff7e8 0%, var(--c-marble) 55%, #ead7b8 100%);
   color: var(--c-ink);
   -webkit-font-smoothing: antialiased;
   text-size-adjust: 100%;
@@ -37,6 +40,12 @@ body {
 button {
   font-family: inherit;
   cursor: pointer;
+}
+
+button:focus-visible,
+[role="button"]:focus-visible {
+  outline: 3px solid rgba(43, 165, 157, 0.65);
+  outline-offset: 3px;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -74,6 +83,15 @@ button {
   50% { transform: scale(1.08); }
 }
 
+@keyframes auntie-breath {
+  0%, 100% { translate: 0 0; }
+  50% { translate: 0 1.5px; }
+}
+
+.auntie-breath {
+  animation: auntie-breath 3.5s ease-in-out infinite;
+}
+
 @keyframes shine {
   0% { transform: translateX(-100%); }
   100% { transform: translateX(200%); }
@@ -109,32 +127,42 @@ button {
 }
 
 .btn-primary {
-  background: var(--c-sambal);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.18), rgba(255,255,255,0) 32%),
+    linear-gradient(180deg, #E36F5C 0%, var(--c-sambal) 58%, var(--c-sambal-shade) 100%);
   color: white;
   padding: 14px 22px;
-  border-radius: 14px;
+  border-radius: 10px;
   border: 2px solid var(--c-outline);
-  box-shadow: 0 3px 0 0 var(--c-outline);
+  box-shadow:
+    0 3px 0 0 var(--c-outline),
+    0 10px 22px -16px rgba(58,45,36,0.9);
   font-weight: 700;
-  letter-spacing: 0.02em;
+  letter-spacing: 0;
   transition: transform 80ms ease;
 }
 .btn-primary:active { transform: translateY(2px); box-shadow: 0 1px 0 0 var(--c-outline); }
 
 .btn-ghost {
-  background: transparent;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.86), rgba(244,239,230,0.88));
   color: var(--c-outline);
   padding: 12px 18px;
-  border-radius: 14px;
+  border-radius: 10px;
   border: 2px solid var(--c-outline);
   font-weight: 600;
+  box-shadow: 0 2px 0 0 rgba(58,45,36,0.18), 0 9px 18px -17px rgba(58,45,36,0.9);
 }
 
 .surface {
-  background: white;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.94), rgba(255,247,232,0.9)),
+    radial-gradient(circle at 18% 0%, rgba(232,184,58,0.13), transparent 32%);
   border: 2px solid var(--c-outline);
-  border-radius: 18px;
-  box-shadow: 0 6px 18px -8px rgba(58, 45, 36, 0.35);
+  border-radius: 10px;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.62),
+    0 8px 22px -13px rgba(58, 45, 36, 0.55);
 }
 
 /* Peranakan tile divider used at section boundaries */

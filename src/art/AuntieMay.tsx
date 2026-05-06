@@ -2,7 +2,7 @@
 // the same input names; ours is a TS state machine with SVG. Same surface so a
 // future .riv is a one-component swap.
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { AuntieMood } from '../types';
 import { useApp } from '../state/store';
 import { onLip } from '../audio/animalese';
@@ -48,26 +48,9 @@ function expressionFor(mood: AuntieMood): {
 
 export function AuntieMay({ mood, size = 220, className = '', moodValue = 0 }: AuntieMayProps) {
   const reduced = useApp((s) => s.reducedMotion);
-  const ref = useRef<SVGSVGElement>(null);
   const exp = expressionFor(mood);
   const [blink, setBlink] = useState(false);
   const [lip, setLip] = useState(false);
-
-  // breath
-  useEffect(() => {
-    if (reduced) return;
-    let raf = 0;
-    const t0 = performance.now();
-    const loop = (now: number) => {
-      const t = (now - t0) / 1000;
-      if (ref.current) {
-        ref.current.style.setProperty('--breath', `${Math.sin(t * 1.8) * 1.5}px`);
-      }
-      raf = requestAnimationFrame(loop);
-    };
-    raf = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(raf);
-  }, [reduced]);
 
   // blink — every 3-7s, eyes shut for 100ms
   useEffect(() => {
@@ -95,7 +78,6 @@ export function AuntieMay({ mood, size = 220, className = '', moodValue = 0 }: A
 
   return (
     <svg
-      ref={ref}
       viewBox="0 0 220 240"
       width={size}
       height={size}
@@ -133,7 +115,10 @@ export function AuntieMay({ mood, size = 220, className = '', moodValue = 0 }: A
           <path d="M 5 0 L 7 3 L 5 6 L 3 3 Z" fill="#FFD9A0" opacity="0.7" />
         </pattern>
       </defs>
-      <g style={{ transform: `translate(0, var(--breath, 0px)) translateX(${exp.lean}px)` }}>
+      <g
+        className={reduced ? undefined : 'auntie-breath'}
+        style={{ transform: `translateX(${exp.lean}px)` }}
+      >
         {/* Polo body */}
         <path
           d="M30 220 C30 170, 60 150, 110 150 C160 150, 190 170, 190 220 Z"

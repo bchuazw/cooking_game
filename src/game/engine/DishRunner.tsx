@@ -8,6 +8,7 @@ import { sfx } from '../../audio/audio';
 import { emitBurst, emitFloat, shake } from '../../feel/feel';
 import { haptics } from '../../feel/haptics';
 import { ComboBadge } from './Combo';
+import { DishBackplate } from '../../art/Backplates';
 
 export interface StepProps {
   onComplete: (r: StepResult) => void;
@@ -110,6 +111,7 @@ export function DishRunner({
 
   return (
     <div className="absolute inset-0 bg-marble select-none">
+      <DishBackplate dishId={dishId} />
       {cur.render({ onComplete: onStep })}
       <ComboBadge combo={combo} />
       <button

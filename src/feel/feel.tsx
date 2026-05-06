@@ -35,6 +35,12 @@ const state = {
   shake: { amount: 0, until: 0 } as ShakeState,
 };
 
+let wakeRenderer: (() => void) | null = null;
+
+function wake() {
+  wakeRenderer?.();
+}
+
 export function emitBurst(x: number, y: number, opts: Partial<{ color: string; count: number; speed: number; gravity: number; size: number; life: number; spread: number }> = {}) {
   if (useApp.getState().reducedMotion) return;
   const { color = '#E8B83A', count = 18, speed = 4, gravity = 0.18, size = 4, life = 800, spread = Math.PI * 2 } = opts;
@@ -53,6 +59,7 @@ export function emitBurst(x: number, y: number, opts: Partial<{ color: string; c
       fade: 1,
     });
   }
+  wake();
 }
 
 export function emitFloat(x: number, y: number, text: string, color = '#E8B83A', size = 24) {
@@ -66,6 +73,7 @@ export function emitFloat(x: number, y: number, text: string, color = '#E8B83A',
     life: 900,
     maxLife: 900,
   });
+  wake();
 }
 
 export function shake(amount = 6, duration = 200) {
@@ -73,6 +81,7 @@ export function shake(amount = 6, duration = 200) {
   const now = performance.now();
   state.shake.amount = Math.max(state.shake.amount, amount);
   state.shake.until = Math.max(state.shake.until, now + duration);
+  wake();
 }
 
 export function FeelLayer() {
@@ -88,6 +97,7 @@ export function FeelLayer() {
     if (!ctx) return;
     let raf = 0;
     let last = performance.now();
+    const parent = container.parentElement;
 
     const resize = () => {
       const r = container.getBoundingClientRect();
@@ -102,6 +112,7 @@ export function FeelLayer() {
     ro.observe(container);
 
     const loop = (now: number) => {
+      raf = 0;
       const dt = Math.min(50, now - last);
       last = now;
       const r = container.getBoundingClientRect();
@@ -162,15 +173,29 @@ export function FeelLayer() {
       } else {
         state.shake.amount = 0;
       }
-      container.parentElement!.style.transform = `translate(${dx}px, ${dy}px)`;
+      if (parent) parent.style.transform = dx || dy ? `translate(${dx}px, ${dy}px)` : '';
 
+      if (state.particles.length > 0 || state.floats.length > 0 || state.shake.until > now) {
+        raf = requestAnimationFrame(loop);
+      }
+    };
+
+    const requestLoop = () => {
+      if (raf) return;
+      last = performance.now();
       raf = requestAnimationFrame(loop);
     };
-    raf = requestAnimationFrame(loop);
+
+    wakeRenderer = requestLoop;
+    if (state.particles.length > 0 || state.floats.length > 0 || state.shake.until > performance.now()) {
+      requestLoop();
+    }
+
     return () => {
       cancelAnimationFrame(raf);
+      if (wakeRenderer === requestLoop) wakeRenderer = null;
       ro.disconnect();
-      container.parentElement!.style.transform = '';
+      if (parent) parent.style.transform = '';
     };
   }, []);
 
