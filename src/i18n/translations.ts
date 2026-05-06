@@ -429,7 +429,7 @@ export function t(locale: Locale, key: string, vars?: Record<string, string>): s
   let str = dict[key] ?? fallback;
   if (vars) {
     for (const k of Object.keys(vars)) {
-      str = str.replaceAll(`{{${k}}}`, vars[k]);
+      str = str.split(`{{${k}}}`).join(vars[k]);
     }
   }
   return str;
