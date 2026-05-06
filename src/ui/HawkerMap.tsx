@@ -2,6 +2,7 @@ import { useT } from '../i18n/useT';
 import { useApp, UNLOCK_ORDER } from '../state/store';
 import type { DishId } from '../types';
 import { Defs, StallCard } from '../art/DishIcons';
+import { pickDaily } from '../game/engine/dailyChallenge';
 
 interface StallSpec {
   id: DishId;
@@ -30,6 +31,9 @@ export function HawkerMap({
   const t = useT();
   const isUnlocked = useApp((s) => s.isUnlocked);
   const bestStarFor = useApp((s) => s.bestStarFor);
+  const dailyDone = useApp((s) => s.dailyDone);
+  const daily = pickDaily();
+  const isDailyDone = !!dailyDone[daily.key];
 
   return (
     <div className="absolute inset-0 flex flex-col bg-[#FFF7E8]">
@@ -45,6 +49,26 @@ export function HawkerMap({
       </header>
 
       <div className="tile-divider" />
+
+      {/* Daily challenge banner */}
+      <button
+        className="mx-3 mt-2 mb-1 px-3 py-2 rounded-chip border-2 border-outline text-left flex items-center gap-2 thumb-target shadow-soft"
+        style={{
+          background: isDailyDone
+            ? 'linear-gradient(180deg, #6FB552 0%, #558D40 100%)'
+            : 'linear-gradient(180deg, #E8B83A 0%, #B58E27 100%)',
+          color: '#3A2D24',
+        }}
+        onClick={() => isUnlocked(daily.dish) && onPickDish(daily.dish)}
+        aria-label={`${t('daily.title')} — ${t(`dish.${daily.dish}.name`)}`}
+      >
+        <div className="text-xl">{isDailyDone ? '🌟' : '🔥'}</div>
+        <div className="flex-1 min-w-0">
+          <div className="text-[10px] uppercase tracking-wider font-bold">{t('daily.title')}</div>
+          <div className="text-sm font-display font-bold truncate">{t(`dish.${daily.dish}.name`)} · {t(`daily.mod_${daily.modifier}`)}</div>
+        </div>
+        <div className="text-[10px] font-bold opacity-70">{isDailyDone ? '✓' : '→'}</div>
+      </button>
 
       <div className="relative flex-1 overflow-hidden">
         <svg viewBox="0 0 540 460" className="w-full h-full" preserveAspectRatio="xMidYMid meet">

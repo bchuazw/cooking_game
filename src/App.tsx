@@ -9,8 +9,10 @@ import { CultureCard } from './ui/CultureCard';
 import { DishComplete } from './ui/DishComplete';
 import { FirstLaunch } from './ui/FirstLaunch';
 import type { DishId, DishResult } from './types';
-import { unlockAudio, playMusic } from './audio/audio';
+import { unlockAudio, playMusic, startAmbience, stopAmbience } from './audio/audio';
 import { track } from './telemetry';
+import { FeelLayer } from './feel/feel';
+import { ScreenTransition } from './feel/transitions';
 
 type Screen =
   | { kind: 'title' }
@@ -60,95 +62,113 @@ export default function App() {
     return () => window.removeEventListener('pointerdown', onFirst);
   }, []);
 
-  // Music pickers per screen.
+  // Music + ambient bed per screen.
   useEffect(() => {
     if (screen.kind === 'title') playMusic('title_theme');
     else if (screen.kind === 'map') playMusic('hawker_map_bed');
     else if (screen.kind === 'culture') playMusic('culture_card_calm');
     else if (screen.kind === 'intro') playMusic('tutorial_bed');
-    // dish + complete keep whatever is playing or use stings
+    // ambient hawker chatter on map / intro / dish; off elsewhere
+    if (screen.kind === 'map' || screen.kind === 'intro' || screen.kind === 'dish') {
+      startAmbience();
+    } else {
+      stopAmbience();
+    }
   }, [screen.kind]);
 
   const goMap = () => setScreen({ kind: 'map' });
 
+  // Build a screen key so transitions cross-fade correctly between distinct states.
+  const screenKey =
+    screen.kind === 'intro' ? `intro:${screen.dishId}` :
+    screen.kind === 'culture' ? `culture:${screen.dishId}` :
+    screen.kind === 'dish' ? `dish:${screen.dishId}` :
+    screen.kind === 'complete' ? `complete:${screen.result.completedAt}` :
+    screen.kind;
+
   return (
-    <div className="h-full w-full max-w-[480px] mx-auto relative">
+    <div className="h-full w-full max-w-[480px] mx-auto relative" style={{ willChange: 'transform' }}>
       {!firstLaunchSeen && <FirstLaunch onDone={() => setScreen({ kind: 'title' })} />}
 
-      {screen.kind === 'title' && (
-        <TitleScreen
-          onStart={goMap}
-          onSettings={() => setScreen({ kind: 'settings', from: 'title' })}
-          onLeaderboard={() => setScreen({ kind: 'leaderboard', from: 'title' })}
-        />
-      )}
+      <ScreenTransition screenKey={screenKey}>
+        {screen.kind === 'title' && (
+          <TitleScreen
+            onStart={goMap}
+            onSettings={() => setScreen({ kind: 'settings', from: 'title' })}
+            onLeaderboard={() => setScreen({ kind: 'leaderboard', from: 'title' })}
+          />
+        )}
 
-      {screen.kind === 'map' && (
-        <HawkerMap
-          onPickDish={(id) => {
-            track('dish_started', { dish_id: id });
-            setScreen({ kind: 'intro', dishId: id });
-          }}
-          onSettings={() => setScreen({ kind: 'settings', from: 'map' })}
-          onLeaderboard={() => setScreen({ kind: 'leaderboard', from: 'map' })}
-        />
-      )}
+        {screen.kind === 'map' && (
+          <HawkerMap
+            onPickDish={(id) => {
+              track('dish_started', { dish_id: id });
+              setScreen({ kind: 'intro', dishId: id });
+            }}
+            onSettings={() => setScreen({ kind: 'settings', from: 'map' })}
+            onLeaderboard={() => setScreen({ kind: 'leaderboard', from: 'map' })}
+          />
+        )}
 
-      {screen.kind === 'settings' && (
-        <Settings onBack={() => setScreen({ kind: screen.from })} />
-      )}
-      {screen.kind === 'leaderboard' && (
-        <Leaderboard onBack={() => setScreen({ kind: screen.from })} />
-      )}
+        {screen.kind === 'settings' && (
+          <Settings onBack={() => setScreen({ kind: screen.from })} />
+        )}
+        {screen.kind === 'leaderboard' && (
+          <Leaderboard onBack={() => setScreen({ kind: screen.from })} />
+        )}
 
-      {screen.kind === 'intro' && (
-        <DishIntro
-          dishId={screen.dishId}
-          onStart={() => setScreen({ kind: 'dish', dishId: screen.dishId })}
-          onCulture={() => setScreen({ kind: 'culture', dishId: screen.dishId })}
-          onBack={goMap}
-        />
-      )}
+        {screen.kind === 'intro' && (
+          <DishIntro
+            dishId={screen.dishId}
+            onStart={() => setScreen({ kind: 'dish', dishId: screen.dishId })}
+            onCulture={() => setScreen({ kind: 'culture', dishId: screen.dishId })}
+            onBack={goMap}
+          />
+        )}
 
-      {screen.kind === 'culture' && (
-        <CultureCard
-          dishId={screen.dishId}
-          onBack={() =>
-            screen.afterDish
-              ? setScreen({ kind: 'map' })
-              : setScreen({ kind: 'intro', dishId: screen.dishId })
-          }
-        />
-      )}
+        {screen.kind === 'culture' && (
+          <CultureCard
+            dishId={screen.dishId}
+            onBack={() =>
+              screen.afterDish
+                ? setScreen({ kind: 'map' })
+                : setScreen({ kind: 'intro', dishId: screen.dishId })
+            }
+          />
+        )}
 
-      {screen.kind === 'dish' && (
-        <DishPlayer
-          dishId={screen.dishId}
-          onExit={goMap}
-          onComplete={(r) => {
-            recordDishResult(r);
-            track('dish_completed', { dish_id: r.dishId, total_score: r.totalScore, stars: r.stars });
-            setScreen({ kind: 'complete', result: r });
-          }}
-        />
-      )}
+        {screen.kind === 'dish' && (
+          <DishPlayer
+            dishId={screen.dishId}
+            onExit={goMap}
+            onComplete={(r) => {
+              recordDishResult(r);
+              track('dish_completed', { dish_id: r.dishId, total_score: r.totalScore, stars: r.stars });
+              setScreen({ kind: 'complete', result: r });
+            }}
+          />
+        )}
 
-      {screen.kind === 'complete' && (
-        <DishComplete
-          result={screen.result}
-          onReadCulture={() =>
-            setScreen({ kind: 'culture', dishId: screen.result.dishId, afterDish: true })
-          }
-          onNext={goMap}
-          onReplay={() => setScreen({ kind: 'dish', dishId: screen.result.dishId })}
-        />
-      )}
+        {screen.kind === 'complete' && (
+          <DishComplete
+            result={screen.result}
+            onReadCulture={() =>
+              setScreen({ kind: 'culture', dishId: screen.result.dishId, afterDish: true })
+            }
+            onNext={goMap}
+            onReplay={() => setScreen({ kind: 'dish', dishId: screen.result.dishId })}
+          />
+        )}
+      </ScreenTransition>
+
+      {/* Particles + floating text + screen shake render on top of everything. */}
+      <FeelLayer />
 
       {/* Aria live region for "describe current step" — populated by step components */}
       <div id="aria-live" aria-live="polite" className="sr-only" />
 
       <div className="absolute bottom-1 right-2 text-[9px] text-outline/30 pointer-events-none select-none">
-        v0.1
+        v0.3
       </div>
     </div>
   );

@@ -79,26 +79,139 @@ function playTone(t: Tone, duckTo = 1): void {
 }
 
 export const sfx = {
-  tap: () => playTone({ freq: 660, type: 'triangle', ms: 70, gain: 0.14 }),
-  snap: () => playTone({ freq: 880, type: 'square', ms: 90, gain: 0.12 }),
+  tap: () => {
+    playTone({ freq: 700, type: 'triangle', ms: 50, gain: 0.10 });
+    playTone({ freq: 1400, type: 'sine', ms: 70, gain: 0.06 });
+  },
+  snap: () => {
+    playTone({ freq: 880, type: 'square', ms: 60, gain: 0.10, slide: 200 });
+    playTone({ freq: 1760, type: 'sine', ms: 90, gain: 0.06 });
+    playTone({ freq: 2400, ms: 30, gain: 0.04, noise: true });
+  },
   chime: () => {
-    playTone({ freq: 880, type: 'sine', ms: 220, gain: 0.16 });
-    setTimeout(() => playTone({ freq: 1320, type: 'sine', ms: 220, gain: 0.12 }), 90);
+    // bell-like attack + decaying harmonics
+    playTone({ freq: 880, type: 'sine', ms: 320, gain: 0.16 });
+    setTimeout(() => playTone({ freq: 1320, type: 'sine', ms: 280, gain: 0.12 }), 60);
+    setTimeout(() => playTone({ freq: 1760, type: 'sine', ms: 240, gain: 0.08 }), 110);
   },
   star: (tier: 1 | 2 | 3) => {
-    const base = [660, 990, 1320][tier - 1];
-    playTone({ freq: base, type: 'triangle', ms: 240, gain: 0.18 });
-    setTimeout(() => playTone({ freq: base * 1.5, type: 'sine', ms: 280, gain: 0.16 }), 120);
+    const notes = tier === 3 ? [523.25, 659.25, 783.99, 1046.5] : tier === 2 ? [523.25, 659.25, 783.99] : [523.25, 659.25];
+    notes.forEach((f, i) =>
+      setTimeout(() => {
+        playTone({ freq: f, type: 'triangle', ms: 220, gain: 0.18 });
+        playTone({ freq: f * 2, type: 'sine', ms: 220, gain: 0.10 });
+      }, i * 90),
+    );
   },
-  error: () => playTone({ freq: 220, type: 'sawtooth', ms: 220, gain: 0.1, slide: -100 }),
-  sizzle: () => playTone({ freq: 1800, ms: 240, gain: 0.08, noise: true }),
-  thud: () => playTone({ freq: 90, type: 'sine', ms: 140, gain: 0.22, slide: -40 }),
-  bubble: () => playTone({ freq: 320 + Math.random() * 60, type: 'sine', ms: 90, gain: 0.06 }),
+  error: () => {
+    playTone({ freq: 220, type: 'sawtooth', ms: 180, gain: 0.10, slide: -120 });
+    playTone({ freq: 440, type: 'sine', ms: 140, gain: 0.06, slide: -100 });
+  },
+  sizzle: () => {
+    // longer band-passed noise for a real sizzle feel
+    playTone({ freq: 2400, ms: 360, gain: 0.10, noise: true });
+    setTimeout(() => playTone({ freq: 1800, ms: 220, gain: 0.06, noise: true }), 80);
+  },
+  thud: () => {
+    // wood-on-stone — body + click + tail
+    playTone({ freq: 80, type: 'sine', ms: 180, gain: 0.22, slide: -30 });
+    playTone({ freq: 240, type: 'triangle', ms: 50, gain: 0.10 });
+    playTone({ freq: 600, ms: 30, gain: 0.04, noise: true });
+  },
+  bubble: () => {
+    const f = 280 + Math.random() * 120;
+    playTone({ freq: f, type: 'sine', ms: 100, gain: 0.06, slide: 80 });
+  },
   toastpop: () => {
-    playTone({ freq: 110, type: 'square', ms: 80, gain: 0.16, slide: 220 });
+    playTone({ freq: 110, type: 'square', ms: 70, gain: 0.16, slide: 240 });
+    playTone({ freq: 80, type: 'sine', ms: 100, gain: 0.08, slide: -20 });
   },
-  pour: () => playTone({ freq: 700, ms: 320, gain: 0.06, noise: true }),
+  pour: () => {
+    // continuous-ish pour — short noise bursts
+    playTone({ freq: 700, ms: 280, gain: 0.06, noise: true });
+    setTimeout(() => playTone({ freq: 800, ms: 200, gain: 0.05, noise: true }), 80);
+  },
+  whoosh: () => {
+    // for screen transitions
+    playTone({ freq: 800, ms: 220, gain: 0.05, noise: true, slide: -400 });
+  },
+  combo: (level: number) => {
+    // 5 short rising tones, level scales pitch up
+    const base = 660 + level * 60;
+    playTone({ freq: base, type: 'triangle', ms: 80, gain: 0.10 });
+    setTimeout(() => playTone({ freq: base * 1.5, type: 'sine', ms: 80, gain: 0.08 }), 50);
+  },
 };
+
+// ----- Ambient bed for the hawker centre — generative kopitiam soundscape.
+// Distant chatter (filtered noise), occasional plate clinks, low cooker rumble.
+
+let ambienceCtx: { stop: () => void } | null = null;
+
+export function startAmbience(): void {
+  if (ambienceCtx) return;
+  const c = audio();
+  if (c.state === 'closed') return;
+  const master = c.createGain();
+  master.gain.value = 0;
+  master.connect(c.destination);
+  master.gain.setValueAtTime(0.0001, c.currentTime);
+  master.gain.exponentialRampToValueAtTime(0.18 * Math.max(0.1, useApp.getState().sfx), c.currentTime + 1.5);
+
+  // chatter: pink noise → bandpass around 800Hz
+  const noiseBuf = c.createBuffer(1, c.sampleRate * 4, c.sampleRate);
+  const data = noiseBuf.getChannelData(0);
+  for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * 0.5;
+  const noise = c.createBufferSource();
+  noise.buffer = noiseBuf;
+  noise.loop = true;
+  const bp = c.createBiquadFilter();
+  bp.type = 'bandpass';
+  bp.frequency.value = 850;
+  bp.Q.value = 0.6;
+  const noiseGain = c.createGain();
+  noiseGain.gain.value = 0.6;
+  noise.connect(bp);
+  bp.connect(noiseGain);
+  noiseGain.connect(master);
+  noise.start();
+
+  // low rumble
+  const rumble = c.createOscillator();
+  rumble.type = 'sine';
+  rumble.frequency.value = 60;
+  const rumbleGain = c.createGain();
+  rumbleGain.gain.value = 0.2;
+  rumble.connect(rumbleGain);
+  rumbleGain.connect(master);
+  rumble.start();
+
+  // sparse plate clinks
+  let clinkInterval: ReturnType<typeof setInterval> | null = null;
+  clinkInterval = setInterval(() => {
+    if (Math.random() < 0.4) {
+      playTone({ freq: 1800 + Math.random() * 600, type: 'sine', ms: 90, gain: 0.05 });
+    }
+  }, 2400);
+
+  ambienceCtx = {
+    stop() {
+      try {
+        master.gain.cancelScheduledValues(c.currentTime);
+        master.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + 0.6);
+        setTimeout(() => {
+          try { noise.stop(); rumble.stop(); } catch {/* */}
+        }, 800);
+      } catch {/* */}
+      if (clinkInterval) clearInterval(clinkInterval);
+      ambienceCtx = null;
+    },
+  };
+}
+
+export function stopAmbience(): void {
+  ambienceCtx?.stop();
+}
 
 // ----- Music: manifest-backed audio element loop -----
 

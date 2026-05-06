@@ -26,6 +26,8 @@ export interface DishResult {
   steps: StepResult[];
   totalScore: number;
   completedAt: number; // epoch ms
+  maxCombo?: number;
+  challengeKey?: string; // e.g. "daily-2026-05-06"
 }
 
 export interface DishSpec {

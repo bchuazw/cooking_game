@@ -32,6 +32,7 @@ export function HUD({ dishId, stepKeyTitle, stepKeyHint, remaining = 0, total = 
 
   const pct = total > 0 ? Math.max(0, Math.min(1, remaining / total)) : 0;
   const C = 2 * Math.PI * 22;
+  const danger = total > 0 && pct > 0 && pct < 0.3;
 
   return (
     <div className="absolute top-0 left-0 right-0 z-10 pointer-events-none">
@@ -39,15 +40,15 @@ export function HUD({ dishId, stepKeyTitle, stepKeyHint, remaining = 0, total = 
         {/* Timer + step title */}
         <div className="flex items-center gap-3 surface px-3 py-2 pointer-events-auto">
           {total > 0 ? (
-            <svg width="48" height="48" viewBox="0 0 48 48" aria-hidden>
+            <svg width="48" height="48" viewBox="0 0 48 48" aria-hidden style={danger ? { animation: 'pulse 0.8s ease-in-out infinite' } : undefined}>
               <circle cx="24" cy="24" r="22" fill="none" stroke="#3A2D2422" strokeWidth="3" />
               <circle
                 cx="24"
                 cy="24"
                 r="22"
                 fill="none"
-                stroke="#D8432B"
-                strokeWidth="3"
+                stroke={danger ? '#A93521' : '#D8432B'}
+                strokeWidth={danger ? 4 : 3}
                 strokeLinecap="round"
                 strokeDasharray={C}
                 strokeDashoffset={C * (1 - pct)}

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { AuntieMay } from '../art/AuntieMay';
 import { useT } from '../i18n/useT';
 import type { DishResult } from '../types';
@@ -18,23 +18,104 @@ export function DishComplete({
   onReplay: () => void;
 }) {
   const t = useT();
+  const shareRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     sfx.star(result.stars === 0 ? 1 : (result.stars as 1 | 2 | 3));
-    void say(t(`auntie.complete_${Math.max(1, result.stars)}`));
+    const id = setTimeout(() => void say(t(`auntie.complete_${Math.max(1, result.stars)}`)), 600);
+    return () => clearTimeout(id);
   }, [result.stars, t]);
 
   const mood = result.stars >= 3 ? 'dish_perfect' : 'cheering';
 
+  // Build a share-card image from canvas: title + dish + stars + score
+  const buildShareCard = (): string | null => {
+    const cv = shareRef.current ?? document.createElement('canvas');
+    cv.width = 800; cv.height = 800;
+    const ctx = cv.getContext('2d');
+    if (!ctx) return null;
+    // background gradient
+    const bg = ctx.createLinearGradient(0, 0, 0, 800);
+    bg.addColorStop(0, '#FFE7BD');
+    bg.addColorStop(1, '#F4EFE6');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, 800, 800);
+    // tile divider
+    ctx.fillStyle = '#2BA59D';
+    ctx.fillRect(0, 130, 800, 16);
+    // sambal sign
+    ctx.fillStyle = '#7E2113';
+    ctx.fillRect(120, 30, 560, 88);
+    ctx.fillStyle = '#D8432B';
+    ctx.fillRect(124, 34, 552, 80);
+    ctx.font = '700 56px "M PLUS Rounded 1c", sans-serif';
+    ctx.fillStyle = '#FFF7E8';
+    ctx.textAlign = 'center';
+    ctx.fillText('Hawker Mama', 400, 92);
+    // dish title
+    ctx.font = '700 48px "Noto Sans JP", sans-serif';
+    ctx.fillStyle = '#3A2D24';
+    ctx.fillText(t(`dish.${result.dishId}.name`), 400, 220);
+    // stars (large)
+    const stars = Math.max(1, result.stars);
+    ctx.font = '700 96px "M PLUS Rounded 1c", sans-serif';
+    ctx.fillStyle = '#E8B83A';
+    ctx.fillText('★'.repeat(stars) + '☆'.repeat(3 - stars), 400, 360);
+    // tagline
+    ctx.font = '500 28px "Noto Sans JP", sans-serif';
+    ctx.fillStyle = '#3A2D24';
+    ctx.fillText(t(`auntie.complete_${stars}`), 400, 440);
+    // score breakdown
+    ctx.font = '500 24px "Noto Sans JP", sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#3A2D24';
+    result.steps.forEach((s, i) => {
+      ctx.fillText(s.stepId.replace(/_/g, ' '), 200, 520 + i * 36);
+      ctx.textAlign = 'right';
+      ctx.fillStyle = ({ gold: '#A8772D', silver: '#777', bronze: '#A65A2D', miss: '#999' } as Record<string, string>)[s.tier] || '#3A2D24';
+      ctx.fillText(t(`hud.${s.tier}`), 600, 520 + i * 36);
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#3A2D24';
+    });
+    // combo
+    if (result.maxCombo && result.maxCombo >= 2) {
+      ctx.textAlign = 'center';
+      ctx.font = '700 32px "M PLUS Rounded 1c", sans-serif';
+      ctx.fillStyle = '#D8432B';
+      ctx.fillText(`MAX COMBO ${result.maxCombo}×`, 400, 720);
+    }
+    // footer
+    ctx.textAlign = 'center';
+    ctx.font = '400 18px "Noto Sans JP", sans-serif';
+    ctx.fillStyle = '#3A2D24';
+    ctx.fillText('bchuazw.github.io/cooking_game', 400, 770);
+    return cv.toDataURL('image/png');
+  };
+
   const onShare = async () => {
     const text = t('complete.share_text', { dish: t(`dish.${result.dishId}.name`) });
     track('share_card_generated', { dish_id: result.dishId });
-    if (navigator.share) {
+    const dataUrl = buildShareCard();
+    // Try Web Share API with file
+    if (dataUrl && navigator.canShare && (window as Window & typeof globalThis).fetch) {
       try {
-        await navigator.share({ title: t('app.title'), text });
-        return;
-      } catch {/* cancelled */}
+        const blob = await (await fetch(dataUrl)).blob();
+        const file = new File([blob], `hawker-mama-${result.dishId}.png`, { type: 'image/png' });
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({ title: t('app.title'), text, files: [file] });
+          return;
+        }
+      } catch {/* */}
     }
+    // Fallback: download the image
+    if (dataUrl) {
+      const a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = `hawker-mama-${result.dishId}.png`;
+      a.click();
+      return;
+    }
+    // Final fallback: clipboard
     try {
       await navigator.clipboard.writeText(text);
       alert(t('menu.share') + ' ✓');
@@ -55,12 +136,18 @@ export function DishComplete({
           <ul className="text-sm space-y-1">
             {result.steps.map((s) => (
               <li key={s.stepId} className="flex justify-between">
-                <span>{s.stepId}</span>
+                <span>{s.stepId.replace(/_/g, ' ')}</span>
                 <span className="text-outline/70">{t(`hud.${s.tier}`)}</span>
               </li>
             ))}
           </ul>
+          {result.maxCombo && result.maxCombo >= 2 && (
+            <div className="mt-2 text-center text-sm font-display font-bold text-sambal">
+              {result.maxCombo}× COMBO
+            </div>
+          )}
         </div>
+        <canvas ref={shareRef} width={800} height={800} className="hidden" />
       </div>
 
       <div className="px-5 pb-6 space-y-2">

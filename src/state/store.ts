@@ -63,7 +63,11 @@ export const useApp = create<AppState>((set, get) => ({
     const stars = (r.stars > prevBest ? r.stars : prevBest) as Stars;
     const bestStars = { ...get().bestStars, [r.dishId]: stars };
     const results = [...get().results, r].slice(-100);
-    set({ bestStars, results });
+    const bestCombo = Math.max(get().bestCombo, r.maxCombo ?? 0);
+    const dailyDone = r.challengeKey
+      ? { ...get().dailyDone, [r.challengeKey]: true as const }
+      : get().dailyDone;
+    set({ bestStars, results, bestCombo, dailyDone });
     saveState({ ...get() });
   },
   markFirstLaunchSeen() {

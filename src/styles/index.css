@@ -69,6 +69,28 @@ button {
 }
 .animate-shimmer { animation: shimmer 800ms ease-out forwards; }
 
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+
+@keyframes shine {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+
+.btn-primary, .btn-ghost {
+  position: relative;
+  overflow: hidden;
+}
+.btn-primary:active {
+  transform: translateY(3px) scale(0.98);
+  box-shadow: 0 0 0 0 var(--c-outline);
+}
+.btn-ghost:active {
+  transform: translateY(1px) scale(0.98);
+}
+
 /* "PH" watermark for placeholder assets in dev (per §16). */
 .placeholder::after {
   content: 'PH';

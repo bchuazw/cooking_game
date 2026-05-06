@@ -2,9 +2,10 @@
 // the same input names; ours is a TS state machine with SVG. Same surface so a
 // future .riv is a one-component swap.
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { AuntieMood } from '../types';
 import { useApp } from '../state/store';
+import { onLip } from '../audio/animalese';
 
 export interface AuntieMayProps {
   mood: AuntieMood;
@@ -49,23 +50,45 @@ export function AuntieMay({ mood, size = 220, className = '', moodValue = 0 }: A
   const reduced = useApp((s) => s.reducedMotion);
   const ref = useRef<SVGSVGElement>(null);
   const exp = expressionFor(mood);
+  const [blink, setBlink] = useState(false);
+  const [lip, setLip] = useState(false);
 
-  // simple breath / blink loop
+  // breath
   useEffect(() => {
     if (reduced) return;
     let raf = 0;
-    let t0 = performance.now();
+    const t0 = performance.now();
     const loop = (now: number) => {
       const t = (now - t0) / 1000;
       if (ref.current) {
-        const breathe = Math.sin(t * 1.8) * 1.5;
-        ref.current.style.setProperty('--breath', `${breathe}px`);
+        ref.current.style.setProperty('--breath', `${Math.sin(t * 1.8) * 1.5}px`);
       }
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
   }, [reduced]);
+
+  // blink — every 3-7s, eyes shut for 100ms
+  useEffect(() => {
+    if (reduced) return;
+    let id: ReturnType<typeof setTimeout> | null = null;
+    const schedule = () => {
+      const wait = 3000 + Math.random() * 4000;
+      id = setTimeout(() => {
+        setBlink(true);
+        setTimeout(() => {
+          setBlink(false);
+          schedule();
+        }, 110);
+      }, wait);
+    };
+    schedule();
+    return () => { if (id) clearTimeout(id); };
+  }, [reduced]);
+
+  // lip-sync — animalese opens the mouth
+  useEffect(() => onLip(setLip), []);
 
   // Brow tilt comes from the numeric mood value too (brief §6 inputs).
   const browTilt = Math.max(-6, Math.min(6, -moodValue / 20));
@@ -214,9 +237,9 @@ export function AuntieMay({ mood, size = 220, className = '', moodValue = 0 }: A
           <circle cx="134" cy="100" r="14" />
           <line x1="100" y1="100" x2="120" y2="100" />
         </g>
-        {/* Eyes */}
+        {/* Eyes — blink overrides the mood eyes */}
         <g style={{ transform: `translateY(0)` }}>
-          {exp.eyes === 'closed' ? (
+          {(blink || exp.eyes === 'closed') ? (
             <>
               <path d="M78 100 Q86 105 94 100" stroke="#3A2D24" strokeWidth="2.5" fill="none" />
               <path d="M126 100 Q134 105 142 100" stroke="#3A2D24" strokeWidth="2.5" fill="none" />
@@ -274,26 +297,32 @@ export function AuntieMay({ mood, size = 220, className = '', moodValue = 0 }: A
             <ellipse cx="146" cy="118" rx="8" ry="5" fill="#E89B8B" opacity="0.6" />
           </>
         )}
-        {/* Mouth */}
-        {exp.mouth === 'smile' && (
-          <path d="M96 128 Q110 138 124 128" stroke="#3A2D24" strokeWidth="3" fill="none" strokeLinecap="round" />
-        )}
-        {exp.mouth === 'grin' && (
-          <path
-            d="M88 128 Q110 148 132 128 Q110 142 88 128 Z"
-            fill="#A93521"
-            stroke="#3A2D24"
-            strokeWidth="2.5"
-          />
-        )}
-        {exp.mouth === 'flat' && (
-          <line x1="100" y1="130" x2="120" y2="130" stroke="#3A2D24" strokeWidth="3" strokeLinecap="round" />
-        )}
-        {exp.mouth === 'oh' && (
-          <ellipse cx="110" cy="130" rx="6" ry="8" fill="#A93521" stroke="#3A2D24" strokeWidth="2.5" />
-        )}
-        {exp.mouth === 'open' && (
-          <ellipse cx="110" cy="132" rx="10" ry="6" fill="#A93521" stroke="#3A2D24" strokeWidth="2.5" />
+        {/* Mouth — lip-sync (animalese) overrides the mood mouth with an open shape */}
+        {lip ? (
+          <ellipse cx="110" cy="131" rx="7" ry="5" fill="#A93521" stroke="#3A2D24" strokeWidth="2.5" />
+        ) : (
+          <>
+            {exp.mouth === 'smile' && (
+              <path d="M96 128 Q110 138 124 128" stroke="#3A2D24" strokeWidth="3" fill="none" strokeLinecap="round" />
+            )}
+            {exp.mouth === 'grin' && (
+              <path
+                d="M88 128 Q110 148 132 128 Q110 142 88 128 Z"
+                fill="#A93521"
+                stroke="#3A2D24"
+                strokeWidth="2.5"
+              />
+            )}
+            {exp.mouth === 'flat' && (
+              <line x1="100" y1="130" x2="120" y2="130" stroke="#3A2D24" strokeWidth="3" strokeLinecap="round" />
+            )}
+            {exp.mouth === 'oh' && (
+              <ellipse cx="110" cy="130" rx="6" ry="8" fill="#A93521" stroke="#3A2D24" strokeWidth="2.5" />
+            )}
+            {exp.mouth === 'open' && (
+              <ellipse cx="110" cy="132" rx="10" ry="6" fill="#A93521" stroke="#3A2D24" strokeWidth="2.5" />
+            )}
+          </>
         )}
       </g>
     </svg>

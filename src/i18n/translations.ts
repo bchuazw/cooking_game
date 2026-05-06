@@ -35,6 +35,11 @@ const ja: Dict = {
 
   // hawker map
   'map.title': 'ホーカーセンター',
+  'daily.title': '今日のチャレンジ',
+  'daily.mod_speed': 'スピードラン',
+  'daily.mod_no-hints': 'ヒントなし',
+  'daily.mod_silent-auntie': '無言メイ',
+  'daily.mod_tight-windows': 'タイトな採点',
   'map.unesco_note': 'シンガポールのホーカー文化はUNESCO無形文化遺産（2020年登録）',
 
   // dishes — names
@@ -243,6 +248,11 @@ const en: Dict = {
   'first.continue': 'Begin',
 
   'map.title': 'Hawker Centre',
+  'daily.title': "Today's challenge",
+  'daily.mod_speed': 'Speedrun',
+  'daily.mod_no-hints': 'No hints',
+  'daily.mod_silent-auntie': 'Silent Auntie',
+  'daily.mod_tight-windows': 'Tight scoring',
   'map.unesco_note':
     "Singapore's Hawker Culture is on UNESCO's Intangible Cultural Heritage list (2020).",
 

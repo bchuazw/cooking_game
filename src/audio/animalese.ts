@@ -79,6 +79,17 @@ interface SayOptions {
 
 let speakingToken = 0;
 
+// Lip-sync subscribers — Auntie May listens and toggles mouth open/closed.
+type LipListener = (open: boolean) => void;
+const lipListeners = new Set<LipListener>();
+export function onLip(fn: LipListener): () => void {
+  lipListeners.add(fn);
+  return () => lipListeners.delete(fn);
+}
+function setLip(open: boolean) {
+  for (const l of lipListeners) l(open);
+}
+
 export async function say(line: string, opts: SayOptions = {}): Promise<void> {
   const myToken = ++speakingToken;
   if (opts.duckBackground !== false) duckMusic(0.5);
@@ -107,7 +118,10 @@ export async function say(line: string, opts: SayOptions = {}): Promise<void> {
       const stride = isJP ? 1 : 3;
       for (let s = 0; s < sylsPerChar; s++) {
         if (myToken !== speakingToken) break;
+        setLip(true);
         await speakSyllable(`${seed}-${s}`, baseFreq * inflect);
+        setLip(false);
+        await new Promise((r) => setTimeout(r, 30));
       }
       i += stride;
       counter++;
@@ -126,5 +140,6 @@ export async function say(line: string, opts: SayOptions = {}): Promise<void> {
 
 export function stopSpeaking(): void {
   speakingToken++;
+  setLip(false);
   unduckMusic();
 }

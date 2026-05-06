@@ -18,6 +18,8 @@ interface Persisted {
   results: DishResult[]; // local leaderboard
   firstLaunchSeen: boolean;
   acceptedNoticeSeen: boolean;
+  dailyDone: Record<string, true>; // challengeKey -> done
+  bestCombo: number;
 }
 
 const DEFAULTS: Persisted = {
@@ -33,6 +35,8 @@ const DEFAULTS: Persisted = {
   results: [],
   firstLaunchSeen: false,
   acceptedNoticeSeen: false,
+  dailyDone: {},
+  bestCombo: 0,
 };
 
 export function loadState(): Persisted {
