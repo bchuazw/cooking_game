@@ -10,7 +10,6 @@ import { useT } from '../../../i18n/useT';
 import { sfx } from '../../../audio/audio';
 import { usePointer, clamp, dist, clientToSvg, clientToCanvas } from '../../engine/gestureHelpers';
 import { scoreFromBands } from '../../engine/scoring';
-import { PixelIcon, PixelIconSvg } from '../../../art/PixelFood';
 
 const DISH = 'chicken-rice';
 const ASSET_BASE = (import.meta.env.BASE_URL as string) ?? '/';
@@ -23,7 +22,7 @@ function PoachStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
     onComplete,
     dishId: DISH,
   });
-  const [temp, setTemp] = useState(80); // °C, target 75–85
+  const [temp, setTemp] = useState(80); // C, target 75-85
   const [knob, setKnob] = useState(0.5); // 0..1
   const [holdPct, setHoldPct] = useState(0);
   const drift = useRef(0);
@@ -47,7 +46,7 @@ function PoachStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
     const loop = (now: number) => {
       const dt = now - lastT.current;
       lastT.current = now;
-      // knob 0..1 maps to 65..95 °C
+      // knob 0..1 maps to 65..95 C
       const target = 65 + knob * 30;
       const next = clamp(target - drift.current, 60, 100);
       setTemp(next);
@@ -108,122 +107,30 @@ function PoachStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
       />
 
       <div className="absolute inset-0 flex items-end justify-center pb-24">
-        {/* Pot */}
-        <svg viewBox="0 0 360 320" className="hidden" shapeRendering="crispEdges">
-          <defs>
-            <linearGradient id="pot-steel" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#E5E5E5" />
-              <stop offset="50%" stopColor="#A8A8A8" />
-              <stop offset="100%" stopColor="#5C5C5C" />
-            </linearGradient>
-            <linearGradient id="pot-inside" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#3A2D24" />
-              <stop offset="100%" stopColor="#1B1A1A" />
-            </linearGradient>
-            <radialGradient id="broth-gradient" cx="0.5" cy="0.45" r="0.6">
-              <stop offset="0%" stopColor={inBand ? '#FFE9B0' : temp < 72 ? '#D8E8FF' : '#F2C9A0'} />
-              <stop offset="70%" stopColor={inBand ? '#E8B83A' : temp < 72 ? '#8DA9D6' : '#C9925A'} />
-              <stop offset="100%" stopColor={inBand ? '#A8772D' : temp < 72 ? '#5A7CA8' : '#7E5022'} />
-            </radialGradient>
-            <linearGradient id="pot-handle" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#5A4A42" />
-              <stop offset="100%" stopColor="#2D1F18" />
-            </linearGradient>
-            <radialGradient id="bubble-grad" cx="0.5" cy="0.4" r="0.5">
-              <stop offset="0%" stopColor="#FFFFFF" />
-              <stop offset="100%" stopColor="rgba(255,255,255,0.3)" />
-            </radialGradient>
-          </defs>
-
-          {/* table shadow */}
-          <ellipse cx="180" cy="240" rx="160" ry="14" fill="rgba(58,45,36,0.22)" />
-          {/* steam wisps */}
-          <g opacity="0.55">
-            <path d="M 120 80 Q 110 50 130 30 Q 140 10 130 -10" stroke="#fff" strokeWidth="6" fill="none" strokeLinecap="round" />
-            <path d="M 180 70 Q 190 40 175 20 Q 160 0 180 -20" stroke="#fff" strokeWidth="7" fill="none" strokeLinecap="round" />
-            <path d="M 240 80 Q 250 50 230 30 Q 220 10 240 -10" stroke="#fff" strokeWidth="6" fill="none" strokeLinecap="round" />
-          </g>
-          <g opacity="0.35" stroke="#3A2D24" strokeWidth="1.5" fill="none">
-            <path d="M 110 84 q -2 -16 6 -28" />
-            <path d="M 175 76 q 2 -16 -2 -28" />
-            <path d="M 246 84 q 2 -16 -6 -28" />
-          </g>
-
-          {/* handles (sides) */}
-          <g transform="translate(40, 145)">
-            <ellipse cx="0" cy="0" rx="18" ry="10" fill="url(#pot-handle)" stroke="#1B1A1A" strokeWidth="2" />
-            <ellipse cx="-2" cy="-2" rx="13" ry="6" fill="rgba(255,255,255,0.15)" />
-          </g>
-          <g transform="translate(320, 145)">
-            <ellipse cx="0" cy="0" rx="18" ry="10" fill="url(#pot-handle)" stroke="#1B1A1A" strokeWidth="2" />
-            <ellipse cx="-2" cy="-2" rx="13" ry="6" fill="rgba(255,255,255,0.15)" />
-          </g>
-
-          {/* pot body (sides curving down) */}
-          <path d="M 50 120 Q 40 200 80 220 L 280 220 Q 320 200 310 120 Z" fill="url(#pot-steel)" stroke="#1B1A1A" strokeWidth="2" />
-          {/* pot vertical brushed-steel hint */}
-          {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
-            <line key={i} x1={70 + i * 32} y1={130} x2={72 + i * 32} y2={210} stroke="rgba(255,255,255,0.12)" strokeWidth="1" />
-          ))}
-          {/* pot rim front */}
-          <ellipse cx="180" cy="120" rx="125" ry="20" fill="url(#pot-inside)" stroke="#1B1A1A" strokeWidth="2" />
-          <ellipse cx="180" cy="116" rx="120" ry="16" fill="url(#broth-gradient)" />
-          {/* broth surface highlight */}
-          <ellipse cx="160" cy="110" rx="60" ry="3" fill="rgba(255,255,255,0.45)" />
-          {/* aromatics floating: ginger slice */}
-          <g transform="translate(105, 116)">
-            <ellipse cx="0" cy="0" rx="9" ry="5" fill="#F1C9A4" stroke="#7E5022" strokeWidth="0.6" />
-            <path d="M -5 0 q 5 -2 10 0 M -5 1 q 5 -2 10 0" stroke="#7E5022" strokeWidth="0.4" fill="none" />
-          </g>
-          <g transform="translate(245, 117)">
-            <ellipse cx="0" cy="0" rx="7" ry="4" fill="#F1C9A4" stroke="#7E5022" strokeWidth="0.6" />
-            <path d="M -4 0 q 4 -1.5 8 0" stroke="#7E5022" strokeWidth="0.4" fill="none" />
-          </g>
-          {/* scallion strands */}
-          <path d="M 90 113 q 6 -1 12 0" stroke="#558D40" strokeWidth="1.5" fill="none" strokeLinecap="round" />
-          <path d="M 230 115 q 6 -1 14 0" stroke="#558D40" strokeWidth="1.5" fill="none" strokeLinecap="round" />
-          {/* pandan knot */}
-          <path d="M 200 110 q -8 -4 0 -10 q 8 -4 0 -10" stroke="#3A6A22" strokeWidth="1.6" fill="none" />
-
-          {/* chicken (whole) submerged */}
-          <g transform="translate(180, 117)">
-            <ellipse cx="0" cy="0" rx="50" ry="11" fill={temp > 90 ? '#B8A88A' : temp < 72 ? '#F8C5C0' : '#F1C9A4'} stroke="#7B5A3D" strokeWidth="1.5" opacity="0.92" />
-            <ellipse cx="0" cy="-2" rx="44" ry="6" fill={temp > 90 ? '#A89F8A' : temp < 72 ? '#FFD8D5' : '#FFE5C8'} opacity="0.7" />
-            <path d="M -36 -2 Q 0 -6 36 -2" stroke="#FFE9B0" strokeWidth="2" fill="none" opacity="0.6" />
-          </g>
-
-          {/* bubbles */}
-          {inBand &&
-            [0, 1, 2, 3, 4, 5].map((i) => (
-              <circle
-                key={i}
-                cx={90 + ((Date.now() / 80 + i * 45) % 180)}
-                cy={108 + Math.sin((Date.now() / 200 + i) * 0.5) * 4}
-                r={3 + (i % 3)}
-                fill="url(#bubble-grad)"
-                stroke="rgba(255,255,255,0.6)"
-                strokeWidth="0.5"
-              />
-            ))}
-        </svg>
-
-        <div className="pixel-dark-panel mb-20 mr-16 flex w-[220px] flex-col items-center gap-3 px-4 py-4 text-center">
-          <PixelIconSvg kind="pot" size={104} title="pot" />
-          <div className="pixel-meter w-full">
-            <span style={{ width: `${clamp((temp - 65) / 30, 0, 1) * 100}%` }} />
-          </div>
-          <div className="pixel-meter h-[10px] w-full">
-            <span style={{ width: `${holdPct * 100}%` }} />
-          </div>
-          <div className={`text-sm font-bold ${inBand ? 'text-[#8ee06b]' : 'text-[#ffcf66]'}`}>
-            {inBand ? 'GOOD HEAT' : temp < 75 ? 'HEAT UP' : 'TOO HOT'}
+        <div className="relative mb-16 mr-12 grid w-[260px] place-items-center">
+          <div className={`absolute -inset-4 rounded-full ${inBand ? 'bg-[#e8b83a]/25' : temp < 75 ? 'bg-[#7cc7ff]/18' : 'bg-[#d8432b]/18'}`} />
+          <img
+            src={`${ASSET_BASE}assets/gameplay/poach-pot-620.webp`}
+            alt=""
+            className={`relative w-full select-none pointer-events-none ${inBand ? 'target-flash' : ''}`}
+            draggable={false}
+            style={{ imageRendering: 'auto' }}
+          />
+          <div className="surface absolute -bottom-9 left-1/2 w-56 -translate-x-1/2 px-3 py-2">
+            <div className="mb-1 flex items-center justify-between text-[11px] font-bold text-outline/70">
+              <span>{Math.round(temp)}C</span>
+              <span>{inBand ? 'PERFECT' : temp < 75 ? 'LOW' : 'HOT'}</span>
+            </div>
+            <div className="pixel-meter h-[12px] w-full">
+              <span style={{ width: `${holdPct * 100}%` }} />
+            </div>
           </div>
         </div>
 
         {/* Thermometer slider */}
         <div className="absolute right-3 top-32 bottom-28 flex flex-col items-center">
           <div ref={ref} className="relative w-12 h-full bg-white border-[4px] border-outline touch-none">
-            {/* green band 75–85 in our 65–95 range */}
+            {/* green band 75-85 in our 65-95 range */}
             <div className="absolute left-0 right-0" style={{
               top: `${((95 - 85) / 30) * 100}%`,
               height: `${(10 / 30) * 100}%`,
@@ -242,9 +149,9 @@ function PoachStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
             }} />
           </div>
           <div className="mt-1 text-[11px] font-bold" style={{ color: inBand ? '#558D40' : '#A93521' }}>
-            {Math.round(temp)}°C
+            {Math.round(temp)}C
           </div>
-          <div className="text-[10px] text-outline/70">{t('hud.gold').slice(0, 1)}: 75–85</div>
+          <div className="text-[10px] text-outline/70">{t('hud.gold').slice(0, 1)}: 75-85</div>
         </div>
       </div>
     </>
@@ -254,7 +161,7 @@ function PoachStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
 // ---------- Step 2: Ice bath (drag chicken) ----------
 function IceBathStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
   const { remaining, finish } = useStep({ stepId: 'ice_bath', onComplete, dishId: DISH, durationMs: 5500 });
-  const [pos, setPos] = useState({ x: 100, y: 220 });
+  const [pos, setPos] = useState({ x: 112, y: 255 });
   const [held, setHeld] = useState(0); // ms held in bowl
   const [done, setDone] = useState(false);
   const startRef = useRef(performance.now());
@@ -320,49 +227,56 @@ function IceBathStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
         mood={overBowl ? 'cheering' : 'idle'}
       />
       <div ref={ref} className="absolute inset-0 touch-none">
-        <svg ref={svgRef} viewBox="0 0 360 380" className="w-full h-full" preserveAspectRatio="xMidYMid meet" shapeRendering="crispEdges">
-          <defs>
-            <pattern id="ice-sparkle" width="10" height="10" patternUnits="userSpaceOnUse">
-              <rect x="1" y="1" width="3" height="3" fill="#ffffff" opacity="0.85" />
-              <rect x="7" y="5" width="2" height="2" fill="#7bd1ef" opacity="0.55" />
-            </pattern>
-          </defs>
-          <rect x="28" y="265" width="304" height="18" fill="rgba(42,26,24,0.18)" />
+        <svg ref={svgRef} viewBox="0 0 360 380" className="w-full h-full" preserveAspectRatio="xMidYMid meet">
+          <rect x="28" y="286" width="304" height="18" fill="rgba(42,26,24,0.16)" />
 
-          <g transform="translate(42, 156)">
-            <rect x="4" y="68" width="114" height="16" fill="#2a1a18" opacity="0.22" />
-            <rect x="16" y="30" width="88" height="58" fill="#2a1a18" />
-            <rect x="23" y="37" width="74" height="43" fill="#8a8f8f" />
-            <rect x="30" y="37" width="15" height="43" fill="#c7cfcc" opacity="0.72" />
-            <rect x="20" y="24" width="80" height="14" fill="#2a1a18" />
-            <rect x="26" y="20" width="68" height="13" fill="#5fbfb8" />
-            <rect x="36" y="17" width="34" height="5" fill="#d7fff6" opacity="0.72" />
-            <rect x="2" y="44" width="18" height="16" fill="#2a1a18" />
-            <rect x="100" y="44" width="18" height="16" fill="#2a1a18" />
-            {[0, 1, 2].map((i) => (
-              <rect key={i} x={44 + i * 16} y={2 + (i % 2) * 6} width="7" height="18" fill="#fff7d7" opacity="0.38" />
-            ))}
+          <image
+            href={`${ASSET_BASE}assets/gameplay/poach-pot-620.webp`}
+            x="28"
+            y="166"
+            width="150"
+            height="126"
+            preserveAspectRatio="xMidYMid meet"
+            style={{ imageRendering: 'auto' }}
+          />
+
+          <g className={overBowl ? 'target-flash' : ''}>
+            <ellipse cx={bowlX} cy={bowlY + 62} rx="74" ry="14" fill="rgba(42,26,24,0.18)" />
+            <image
+              href={`${ASSET_BASE}assets/gameplay/ice-bath-bowl-620.webp`}
+              x={bowlX - 88}
+              y={bowlY - 56}
+              width="176"
+              height="110"
+              preserveAspectRatio="xMidYMid meet"
+              style={{ imageRendering: 'auto' }}
+            />
+            <ellipse
+              cx={bowlX}
+              cy={bowlY}
+              rx="68"
+              ry="45"
+              fill="none"
+              stroke={overBowl ? '#6FB552' : '#3A2D24'}
+              strokeDasharray="7 6"
+              strokeWidth="3"
+              opacity={overBowl ? 0.9 : 0.32}
+            />
           </g>
 
-          <g className={overBowl ? 'target-flash' : ''} transform={`translate(${bowlX - 78}, ${bowlY - 64})`}>
-            <rect x="9" y="77" width="142" height="16" fill="#2a1a18" opacity="0.24" />
-            <rect x="14" y="25" width="132" height="65" fill="#2a1a18" />
-            <rect x="22" y="30" width="116" height="47" fill={overBowl ? '#d8fbff' : '#bfeaff'} />
-            <rect x="30" y="38" width="100" height="28" fill="url(#ice-sparkle)" />
-            <rect x="34" y="34" width="25" height="21" fill="#fffef0" />
-            <rect x="68" y="30" width="24" height="22" fill="#e9fbff" />
-            <rect x="102" y="38" width="18" height="17" fill="#fffef0" />
-            <rect x="22" y="72" width="116" height="14" fill="#7bc9e4" />
-            <rect x="7" y="20" width="146" height="10" fill="#2a1a18" />
-            <rect x="16" y="14" width="128" height="11" fill={overBowl ? '#fff7d7' : '#dff9ff'} />
-            <rect x="33" y="15" width="42" height="4" fill="#ffffff" opacity="0.9" />
-            {overBowl && <rect x="6" y="8" width="148" height="7" fill="#6fb552" />}
+          <g transform={`translate(${pos.x - 52}, ${pos.y - 38})`} className={overBowl ? 'target-flash' : 'tap-pop'}>
+            <ellipse cx="52" cy="57" rx="52" ry="11" fill="rgba(42,26,24,0.18)" />
+            <image
+              href={`${ASSET_BASE}assets/gameplay/chicken-slices-512.webp`}
+              x="0"
+              y="0"
+              width="104"
+              height="74"
+              preserveAspectRatio="xMidYMid meet"
+              style={{ imageRendering: 'auto' }}
+            />
           </g>
-          <g transform={`translate(${pos.x - 44}, ${pos.y - 44})`} className={overBowl ? 'target-flash' : ''}>
-            <rect x="8" y="72" width="74" height="10" fill="#2a1a18" opacity="0.22" />
-            <PixelIcon kind="wholeChicken" size={88} />
-          </g>
-          <g transform="translate(110, 326)" opacity="0.72">
+          <g transform="translate(110, 326)" opacity="0.78">
             <rect x="0" y="0" width="140" height="24" fill="#fff7d7" stroke="#2a1a18" strokeWidth="3" />
             <rect x="4" y="4" width={Math.min(132, held / 500 * 132)} height="16" fill={overBowl ? '#6fb552' : '#e8b83a'} />
             <text x="70" y="17" textAnchor="middle" fontSize="12" fontWeight="700" fill="#2a1a18">
@@ -421,12 +335,13 @@ function AromaticsStep({ onComplete }: { onComplete: (r: StepResult) => void }) 
   };
 
   const ingredients = [
-    { kind: 'shallot' as const, label: 'shallot' },
-    { kind: 'garlic' as const, label: 'garlic' },
-    { kind: 'ginger' as const, label: 'ginger' },
-    { kind: 'pandan' as const, label: 'pandan' },
+    { label: 'shallot', asset: 'aromatic-shallot-360.webp', accent: '#c8468c' },
+    { label: 'garlic', asset: 'aromatic-garlic-360.webp', accent: '#e6bb52' },
+    { label: 'ginger', asset: 'aromatic-ginger-360.webp', accent: '#d88b32' },
+    { label: 'pandan', asset: 'aromatic-pandan-360.webp', accent: '#4b9a31' },
   ];
   const t = useT();
+  const progress = hits.filter(Boolean).length;
 
   return (
     <>
@@ -438,30 +353,72 @@ function AromaticsStep({ onComplete }: { onComplete: (r: StepResult) => void }) 
         total={5500}
         mood="tutorial_pointing"
       />
-      <div className="absolute inset-0 flex flex-col items-center justify-center gap-6">
-        {/* beat dots */}
-        <div className="flex gap-3">
+      <div className="absolute inset-0 flex flex-col items-center justify-end gap-4 px-4 pb-16 pt-28">
+        <div className="relative grid h-28 w-[min(88vw,360px)] place-items-center">
+          <div className="absolute bottom-2 h-16 w-72 rounded-full border-[4px] border-outline bg-[#3f332d]" />
+          <div className="absolute bottom-5 h-14 w-64 rounded-full bg-gradient-to-b from-[#f7d981] to-[#cf8f35]" />
+          <div className="absolute bottom-7 h-9 w-52 rounded-full bg-gradient-to-b from-[#fff2a6] to-[#e3b24a]" />
+          {ingredients.map((it, i) => hits[i] && (
+            <img
+              key={it.label}
+              src={`${ASSET_BASE}assets/gameplay/${it.asset}`}
+              alt=""
+              draggable={false}
+              className="absolute select-none pointer-events-none tap-pop"
+              style={{
+                left: `${72 + i * 58}px`,
+                bottom: `${26 + (i % 2) * 8}px`,
+                width: i === 3 ? 64 : 58,
+                imageRendering: 'auto',
+                transform: `rotate(${[-14, 10, -4, 15][i]}deg)`,
+              }}
+            />
+          ))}
+          <div className="surface absolute -bottom-4 left-1/2 w-48 -translate-x-1/2 px-3 py-2">
+            <div className="mb-1 flex justify-between text-[11px] font-bold text-outline/70">
+              <span>BEAT</span>
+              <span>{progress}/4</span>
+            </div>
+            <div className="pixel-meter h-[11px] w-full">
+              <span style={{ width: `${progress * 25}%` }} />
+            </div>
+          </div>
+        </div>
+
+        <div className="flex h-6 items-center gap-3">
           {beatTimes.map((_, i) => (
             <div
               key={i}
-              className={`h-4 w-4 border-2 border-outline ${activeBeat === i ? 'bg-sambal scale-125' : hits[i] ? 'bg-pandan' : 'bg-marble'} transition-all`}
+              className={`h-4 w-4 rounded-full border-2 border-outline transition-transform ${activeBeat === i ? 'scale-125 bg-sambal' : hits[i] ? 'bg-pandan' : 'bg-marble'}`}
+              style={{ boxShadow: activeBeat === i ? '0 0 0 5px rgba(216,67,43,0.18)' : 'none' }}
             />
           ))}
         </div>
-        {/* pan with 4 ingredient tap zones */}
-        <div className="grid grid-cols-2 gap-3">
+
+        <div className="grid w-full max-w-[390px] grid-cols-2 gap-3">
           {ingredients.map((it, i) => (
             <button
-              key={i}
-              className={`pixel-token thumb-target w-32 h-32 font-bold ${activeBeat === i ? 'target-flash bg-kaya' : ''} ${hits[i] ? 'bg-pandan/25 border-pandan-shade' : ''}`}
+              key={it.label}
+              className={`surface thumb-target relative h-32 overflow-hidden px-2 pb-2 pt-1 font-bold transition-transform ${activeBeat === i ? 'target-flash -translate-y-1' : ''} ${hits[i] ? 'border-pandan-shade' : ''}`}
               onClick={() => tap(i)}
               aria-label={`${it.label} beat ${i + 1}`}
+              aria-pressed={hits[i]}
             >
-              {hits[i] ? (
-                <span className="text-4xl text-pandan-shade">✓</span>
-              ) : (
-                <PixelIconSvg kind={it.kind} size={82} title={it.label} />
-              )}
+              <div
+                className="absolute left-0 right-0 top-0 h-2"
+                style={{ background: activeBeat === i || hits[i] ? it.accent : 'rgba(58,45,36,0.16)' }}
+              />
+              <img
+                src={`${ASSET_BASE}assets/gameplay/${it.asset}`}
+                alt=""
+                draggable={false}
+                className={`mx-auto h-[82px] w-full select-none object-contain ${hits[i] ? 'scale-90 opacity-65' : ''}`}
+                style={{ imageRendering: 'auto' }}
+              />
+              <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between text-[11px] font-black uppercase text-outline/75">
+                <span>{it.label}</span>
+                <span>{hits[i] ? 'OK' : i + 1}</span>
+              </div>
             </button>
           ))}
         </div>
@@ -496,15 +453,12 @@ function PestleStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
       return;
     }
     sfx.thud();
-    setCount((c) => c + 1);
+    setCount((c) => Math.min(28, c + 1));
     setLast(side);
   };
 
-  // paste color shift white -> pale green
   const pct = clamp(count / 28, 0, 1);
-  const r = Math.round(255 - (255 - 165) * pct);
-  const g = Math.round(255 - (255 - 200) * pct);
-  const b = Math.round(255 - (255 - 130) * pct);
+  const nextSide = last === 'L' ? 'R' : last === 'R' ? 'L' : null;
 
   return (
     <>
@@ -517,35 +471,57 @@ function PestleStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
         mood={count > 24 ? 'cheering' : 'idle'}
         moodValue={pct * 60}
       />
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <svg viewBox="0 0 220 200" className="w-[80%] max-w-[420px] pixel-art" shapeRendering="crispEdges">
-          {/* pestle */}
-          <rect x="100" y="20" width="20" height="80" rx="8" fill="#5A4A42" stroke="#3A2D24" strokeWidth="2" />
-          <ellipse cx="110" cy="20" rx="16" ry="8" fill="#5A4A42" stroke="#3A2D24" strokeWidth="2" />
-          {/* mortar */}
-          <ellipse cx="110" cy="160" rx="80" ry="14" fill="#3A2D24" />
-          <ellipse cx="110" cy="156" rx="76" ry="12" fill="#7C6857" />
-          {/* paste */}
-          <ellipse cx="110" cy="156" rx="60" ry="8" fill={`rgb(${r},${g},${b})`} />
-        </svg>
-        <div className="text-3xl font-display font-bold mt-2">{count}</div>
-        <div className="flex gap-3 mt-3">
+      <div className="absolute inset-0 flex flex-col items-center justify-end px-4 pb-16 pt-28">
+        <div className="relative grid w-[min(82vw,360px)] place-items-center">
+          <div className="absolute bottom-4 h-7 w-64 rounded-full bg-outline/20" />
+          <img
+            key={count}
+            src={`${ASSET_BASE}assets/gameplay/mortar-chili-620.webp`}
+            alt=""
+            draggable={false}
+            className={`relative w-full max-w-[330px] select-none pointer-events-none ${count > 0 ? 'tap-pop' : ''}`}
+            style={{
+              imageRendering: 'auto',
+              transform: last === 'L' ? 'rotate(-1.8deg)' : last === 'R' ? 'rotate(1.8deg)' : 'none',
+              transformOrigin: '50% 76%',
+            }}
+          />
+          {count > 0 && count % 4 === 0 && (
+            <div className="absolute top-10 rounded-full border-2 border-white/80 bg-sambal/80 px-3 py-1 text-[11px] font-black text-white">
+              MIX!
+            </div>
+          )}
+        </div>
+
+        <div className="surface mt-1 w-full max-w-[320px] px-4 py-3">
+          <div className="mb-2 flex items-center justify-between text-xs font-black text-outline/75">
+            <span>SAUCE</span>
+            <span>{count}/28</span>
+          </div>
+          <div className="pixel-meter h-[13px] w-full">
+            <span style={{ width: `${pct * 100}%` }} />
+          </div>
+        </div>
+
+        <div className="mt-4 grid w-full max-w-[360px] grid-cols-2 gap-3">
           <button
-            className={`pixel-token thumb-target w-32 h-32 text-2xl font-bold ${last === 'L' ? 'bg-kaya border-kaya-shade' : ''}`}
+            className={`surface thumb-target h-24 text-center font-black transition-transform ${nextSide === 'L' ? 'target-flash -translate-y-1' : ''} ${last === 'L' ? 'opacity-65' : ''}`}
             onClick={() => onTap('L')}
             aria-label="left tap"
           >
-            ←
+            <span className="block text-3xl leading-none">L</span>
+            <span className="text-[10px] uppercase text-outline/65">left</span>
           </button>
           <button
-            className={`pixel-token thumb-target w-32 h-32 text-2xl font-bold ${last === 'R' ? 'bg-kaya border-kaya-shade' : ''}`}
+            className={`surface thumb-target h-24 text-center font-black transition-transform ${nextSide === 'R' ? 'target-flash -translate-y-1' : ''} ${last === 'R' ? 'opacity-65' : ''}`}
             onClick={() => onTap('R')}
             aria-label="right tap"
           >
-            →
+            <span className="block text-3xl leading-none">R</span>
+            <span className="text-[10px] uppercase text-outline/65">right</span>
           </button>
         </div>
-        <div className="text-[11px] text-outline/60 mt-2">{t('cr.step4.hint')}</div>
+        <div className="mt-2 text-[11px] text-outline/60">{t('cr.step4.hint')}</div>
       </div>
     </>
   );
@@ -784,12 +760,11 @@ function PlateStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
           </div>
         </div>
       </div>
-      <button
-        className="btn-primary absolute bottom-3 left-1/2 -translate-x-1/2"
-        onClick={onDone}
-      >
-        {t('menu.done')}
-      </button>
+      <div className="absolute bottom-3 left-0 right-0 z-30 flex justify-center px-4">
+        <button className="btn-primary" onClick={onDone}>
+          {t('menu.done')}
+        </button>
+      </div>
     </>
   );
 }
