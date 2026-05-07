@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Hawker Mama — a mobile-first browser cooking game teaching Singaporean cuisine to a Japanese audience.",
+  "description": "Hawker Mama - a mobile-first Three.js voxel cooking game about Singapore hawker dishes.",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
@@ -13,8 +13,10 @@
     "capture": "node tests/capture.mjs"
   },
   "dependencies": {
+    "@types/three": "^0.184.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "three": "^0.184.0",
     "zustand": "^4.5.5"
   },
   "devDependencies": {

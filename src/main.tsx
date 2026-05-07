@@ -1,18 +1,10 @@
-import { StrictMode } from 'react';
-import { createRoot } from 'react-dom/client';
+import React from 'react';
+import ReactDOM from 'react-dom/client';
 import App from './App';
-import './styles/index.css';
-import { loadMusicManifest } from './audio/audio';
-import { track } from './telemetry';
-import { cleanupLegacyServiceWorker } from './pwaCleanup';
+import './styles.css';
 
-const base = (import.meta.env.BASE_URL as string) ?? '/';
-cleanupLegacyServiceWorker(base);
-void loadMusicManifest(base);
-track('session_start');
-
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
     <App />
-  </StrictMode>,
+  </React.StrictMode>,
 );

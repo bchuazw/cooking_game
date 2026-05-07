@@ -13,6 +13,8 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
+          if (id.includes('node_modules/three')) return 'three';
+          if (id.includes('node_modules/react') || id.includes('node_modules/scheduler')) return 'react';
           if (id.includes('/dishes/')) {
             const m = id.match(/dishes\/([^/]+)/);
             if (m) return `dish-${m[1]}`;
