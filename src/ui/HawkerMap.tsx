@@ -3,6 +3,7 @@ import { useApp } from '../state/store';
 import type { DishId } from '../types';
 import { ChickenRiceHero } from '../art/ChickenRiceHero';
 import { LaksaHero } from '../art/LaksaHero';
+import { PrataHero } from '../art/PrataHero';
 import { pickDaily } from '../game/engine/dailyChallenge';
 
 const base = (import.meta.env.BASE_URL as string) ?? '/';
@@ -25,6 +26,7 @@ export function HawkerMap({
   const isDailyDone = !!dailyDone[daily.key];
   const spotlightDish: DishId = dailyUnlocked ? daily.dish : 'chicken-rice';
   const laksaUnlocked = isUnlocked('laksa');
+  const prataUnlocked = isUnlocked('prata');
 
   return (
     <div className="absolute inset-0 overflow-hidden pixel-art">
@@ -73,7 +75,7 @@ export function HawkerMap({
 
       <div className="absolute bottom-16 left-3 right-3 top-[190px] z-10 overflow-hidden">
         {laksaUnlocked ? (
-          <div className="grid h-full grid-rows-2 gap-3">
+          <div className={prataUnlocked ? 'grid h-full grid-rows-3 gap-2' : 'grid h-full grid-rows-2 gap-3'}>
             <button
               className="surface thumb-target relative flex min-h-0 items-center gap-3 overflow-hidden px-3 py-3 text-left transition-transform active:translate-y-1"
               onClick={() => onPickDish('chicken-rice')}
@@ -108,6 +110,25 @@ export function HawkerMap({
                 </div>
               </div>
             </button>
+            {prataUnlocked && (
+              <button
+                className="surface thumb-target relative flex min-h-0 items-center gap-3 overflow-hidden px-3 py-3 text-left transition-transform active:translate-y-1"
+                onClick={() => onPickDish('prata')}
+                aria-label={t('dish.prata.name')}
+              >
+                <div className="w-[42%] shrink-0">
+                  <PrataHero compact />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-[10px] font-black uppercase text-sambal">{t('menu.start_cooking')}</div>
+                  <div className="mt-1 text-xl font-display font-black leading-tight text-outline">{t('dish.prata.name')}</div>
+                  <p className="mt-2 max-h-[2.7em] overflow-hidden text-[11px] font-bold leading-snug text-outline/70">{t('dish.prata.hook')}</p>
+                  <div className="mt-2 text-[10px] font-black text-outline/55">
+                    {'*'.repeat(bestStarFor('prata'))}{'-'.repeat(3 - bestStarFor('prata'))}
+                  </div>
+                </div>
+              </button>
+            )}
           </div>
         ) : (
           <>
@@ -143,7 +164,7 @@ export function HawkerMap({
       </div>
 
       <div className="absolute bottom-4 left-3 right-3 z-10 pixel-panel px-3 py-2 text-center text-[11px] text-outline/75">
-        {laksaUnlocked ? 'Two dish beta build' : `${t('dish.chicken-rice.name')} polish build`}
+        {prataUnlocked ? 'Three dish beta build' : laksaUnlocked ? 'Two dish beta build' : `${t('dish.chicken-rice.name')} polish build`}
       </div>
     </div>
   );

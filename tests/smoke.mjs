@@ -1,6 +1,6 @@
 // Headless mobile smoke tests for the currently polished dishes.
-// They verify that Hainanese Chicken Rice and Laksa can be opened, played
-// through, and completed without fatal console/page errors.
+// They verify that the polished dishes can be opened, played through, and
+// completed without fatal console/page errors.
 
 import { chromium } from 'playwright';
 import os from 'node:os';
@@ -54,6 +54,17 @@ async function dragMouse(page, from, to, steps = 14) {
   await page.mouse.move(from.x, from.y);
   await page.mouse.down();
   await page.mouse.move(to.x, to.y, { steps });
+  await page.mouse.up();
+}
+
+async function circleMouse(page, cx, cy, radius, loops, delay = 6) {
+  await page.mouse.move(cx + radius, cy);
+  await page.mouse.down();
+  for (let i = 1; i <= loops * 72; i++) {
+    const a = (i / 72) * Math.PI * 2;
+    await page.mouse.move(cx + Math.cos(a) * radius, cy + Math.sin(a) * radius);
+    await page.waitForTimeout(delay);
+  }
   await page.mouse.up();
 }
 
@@ -179,6 +190,46 @@ async function playLaksa(page) {
   await page.getByText('All done!').waitFor({ timeout: 12000 });
 }
 
+async function openPrata(page) {
+  await page.getByRole('button', { name: /Tap to start/i }).click();
+  await page.getByText('Three dish beta build').waitFor({ timeout: 10000 });
+  await page.getByRole('button', { name: /^Roti Prata$/i }).last().evaluate((el) => el.click());
+  await page.getByRole('button', { name: /Start cooking/i }).waitFor({ timeout: 10000 });
+  await page.getByRole('button', { name: /Start cooking/i }).first().evaluate((el) => el.click());
+  await page.getByText('Knead the dough').waitFor({ timeout: 10000 });
+}
+
+async function playPrata(page) {
+  await page.waitForTimeout(700);
+  await circleMouse(page, 195, 455, 84, 5);
+
+  await page.getByText('Slap-stretch').waitFor({ timeout: 12000 });
+  await page.waitForTimeout(500);
+  await page.mouse.move(70, 430);
+  await page.mouse.down();
+  for (let i = 0; i < 10; i++) {
+    await page.mouse.move(i % 2 ? 70 : 320, 430 + (i % 2 ? -8 : 8), { steps: 10 });
+    await page.waitForTimeout(55);
+  }
+  await page.mouse.up();
+
+  await page.getByText('Flick-flip').waitFor({ timeout: 12000 });
+  await page.waitForTimeout(500);
+  for (let i = 0; i < 3; i++) {
+    await page.getByRole('button', { name: /^Flick$/i }).click({ force: true });
+    await page.waitForTimeout(1040);
+    await page.getByRole('button', { name: /^Catch$/i }).click({ force: true });
+    await page.waitForTimeout(560);
+  }
+
+  await page.getByText('Fold', { exact: true }).waitFor({ timeout: 12000 });
+  for (let i = 1; i <= 4; i++) {
+    await page.getByRole('button', { name: new RegExp(`fold corner ${i}`, 'i') }).click({ force: true });
+    await page.waitForTimeout(280);
+  }
+  await page.getByText('All done!').waitFor({ timeout: 12000 });
+}
+
 async function runDish(browser, spec) {
   const errs = [];
   const ctx = await browser.newContext({
@@ -223,6 +274,7 @@ async function main() {
   const specs = [
     { id: 'chicken-rice', bestStars: {}, open: openChickenRice, play: playChickenRice },
     { id: 'laksa', bestStars: { 'chicken-rice': 3 }, open: openLaksa, play: playLaksa },
+    { id: 'prata', bestStars: { 'chicken-rice': 3, laksa: 3 }, open: openPrata, play: playPrata },
   ];
 
   const results = [];

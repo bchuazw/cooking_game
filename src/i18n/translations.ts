@@ -94,13 +94,13 @@ const ja: Dict = {
 
   // prata
   'pr.step1.title': '生地をこねる',
-  'pr.step1.hint': '指でつまんで広げる',
+  'pr.step1.hint': '指でぐるぐるこねて、なめらかになったら離す',
   'pr.step2.title': '叩いて伸ばす',
-  'pr.step2.hint': '左右にスワイプして、薄さメーターを70%以上に',
+  'pr.step2.hint': '左右にスワイプして、薄く伸ばす',
   'pr.step3.title': '宙で回す',
-  'pr.step3.hint': '上にスワイプ、影が重なった瞬間にタップ（3回）',
+  'pr.step3.hint': '上にスワイプして投げ、メーターが緑の時にキャッチ',
   'pr.step4.title': 'たたむ',
-  'pr.step4.hint': '四隅を中央へドラッグ',
+  'pr.step4.hint': '四隅をタップして中央へ折る',
 
   // chili crab
   'cc.step1.title': 'サンバルを叩く',
@@ -305,13 +305,13 @@ const en: Dict = {
   'la.step4.hint': 'Drag the toppings onto the laksa bowl',
 
   'pr.step1.title': 'Knead the dough',
-  'pr.step1.hint': 'Pinch outwards with two fingers',
+  'pr.step1.hint': 'Rub circles over the dough, release when smooth',
   'pr.step2.title': 'Slap-stretch',
-  'pr.step2.hint': 'Swipe left-right to build the thinness meter past 70%',
+  'pr.step2.hint': 'Swipe left-right to stretch it thin',
   'pr.step3.title': 'Flick-flip',
-  'pr.step3.hint': 'Swipe up to flick, tap when shadow aligns (3 flips)',
+  'pr.step3.hint': 'Swipe up to toss, catch when the meter hits green',
   'pr.step4.title': 'Fold',
-  'pr.step4.hint': 'Drag the corners inward',
+  'pr.step4.hint': 'Tap the four corners into the center',
 
   'cc.step1.title': 'Pound sambal',
   'cc.step1.hint': 'Alternate taps: chilies, shallots, belacan',

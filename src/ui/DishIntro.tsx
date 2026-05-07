@@ -3,6 +3,7 @@ import { DishBackplate } from '../art/Backplates';
 import { PixelAuntie } from '../art/PixelAuntie';
 import { ChickenRiceHero } from '../art/ChickenRiceHero';
 import { LaksaHero } from '../art/LaksaHero';
+import { PrataHero } from '../art/PrataHero';
 import { say } from '../audio/animalese';
 import { useT } from '../i18n/useT';
 import type { DishId } from '../types';
@@ -21,6 +22,7 @@ export function DishIntro({
   const t = useT();
   const isChickenRice = dishId === 'chicken-rice';
   const isLaksa = dishId === 'laksa';
+  const isPrata = dishId === 'prata';
   const dishName = t(`dish.${dishId}.name`);
   const dishNameEn = t(`dish.${dishId}.name_en`);
   useEffect(() => {
@@ -40,6 +42,8 @@ export function DishIntro({
             <ChickenRiceHero className="mb-2" />
           ) : isLaksa ? (
             <LaksaHero className="mb-2" />
+          ) : isPrata ? (
+            <PrataHero className="mb-2" />
           ) : (
             <PixelAuntie mood="tutorial_pointing" size={128} className="mx-auto" />
           )}
