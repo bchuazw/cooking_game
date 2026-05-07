@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { DishBackplate } from '../art/Backplates';
 import { PixelAuntie } from '../art/PixelAuntie';
+import { ChickenRiceHero } from '../art/ChickenRiceHero';
 import { say } from '../audio/animalese';
 import { useT } from '../i18n/useT';
 import type { DishId } from '../types';
@@ -17,6 +18,9 @@ export function DishIntro({
   onBack: () => void;
 }) {
   const t = useT();
+  const isChickenRice = dishId === 'chicken-rice';
+  const dishName = t(`dish.${dishId}.name`);
+  const dishNameEn = t(`dish.${dishId}.name_en`);
   useEffect(() => {
     void say(t(`dish.${dishId}.hook`));
   }, [dishId, t]);
@@ -29,14 +33,20 @@ export function DishIntro({
       </header>
 
       <div className="relative z-10 flex-1 px-6 flex flex-col items-center justify-center text-center">
-        <div className="pixel-panel px-5 py-5">
-          <PixelAuntie mood="tutorial_pointing" size={156} />
+        <div className="surface w-full max-w-sm px-5 py-5">
+          {isChickenRice ? (
+            <ChickenRiceHero className="mb-2" />
+          ) : (
+            <PixelAuntie mood="tutorial_pointing" size={128} className="mx-auto" />
+          )}
           <h2 className="text-2xl font-display font-bold text-outline mt-3">
-            {t(`dish.${dishId}.name`)}
+            {dishName}
           </h2>
-          <p className="text-sm text-outline/70 mb-4">
-            {t(`dish.${dishId}.name_en`)}
-          </p>
+          {dishNameEn !== dishName && (
+            <p className="text-sm text-outline/70 mb-4">
+              {dishNameEn}
+            </p>
+          )}
           <p className="text-base leading-relaxed max-w-xs">
             {t(`dish.${dishId}.hook`)}
           </p>

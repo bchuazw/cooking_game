@@ -143,11 +143,11 @@ export function DishRunner({
       )}
       <ComboBadge combo={combo} />
       <button
-        className="btn-ghost text-xs absolute bottom-2 right-2 z-30 px-2 py-1 opacity-50"
+        className="dish-exit-button"
         onClick={onExit}
         aria-label="exit"
       >
-        X
+        EXIT
       </button>
     </div>
   );

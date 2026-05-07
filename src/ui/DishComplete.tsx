@@ -160,7 +160,7 @@ export function DishComplete({
           <button className="btn-ghost" onClick={onReplay}>{t('menu.replay')}</button>
           <button className="btn-ghost" onClick={onShare}>{t('menu.share')}</button>
         </div>
-        <button className="btn-ghost w-full" onClick={onNext}>{t('menu.next_dish')}</button>
+        <button className="btn-ghost w-full" onClick={onNext}>{t('menu.back')}</button>
       </div>
     </div>
   );

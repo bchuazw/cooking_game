@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { PixelAuntie } from '../art/PixelAuntie';
+import { ChickenRiceHero } from '../art/ChickenRiceHero';
 import { say } from '../audio/animalese';
 import { useT } from '../i18n/useT';
 import { useApp } from '../state/store';
@@ -32,18 +32,21 @@ export function TitleScreen({
         className="absolute inset-0 h-full w-full object-cover"
         draggable={false}
       />
-      <div className="absolute inset-0 bg-gradient-to-b from-[#162b33]/25 via-transparent to-[#2a1a18]/30" />
+      <div className="absolute inset-0 bg-gradient-to-b from-[#162b33]/20 via-[#fff7d7]/8 to-[#2a1a18]/34" />
 
-      <div className="absolute inset-x-4 top-8 pixel-dark-panel px-4 py-4 text-center">
-        <h1 className="text-[34px] leading-none font-display font-bold text-[#fff7d7]">
+      <div className="absolute inset-x-4 top-7 pixel-dark-panel px-4 py-4 text-center">
+        <h1 className="text-[38px] leading-none font-display font-bold text-[#fff7d7]">
           {t('app.title')}
         </h1>
         <p className="mt-2 text-xs font-bold text-[#f5d98e]">{t('app.tagline')}</p>
       </div>
 
       <div className="absolute inset-x-0 bottom-7 flex flex-col items-center px-6">
-        <div className="mb-3 pixel-panel px-3 pt-3 pb-1">
-          <PixelAuntie mood="cheering" size={132} />
+        <div className="surface mb-4 w-full max-w-sm px-4 py-4">
+          <ChickenRiceHero />
+          <p className="mt-1 text-center text-[13px] font-bold text-outline/70">
+            {t('dish.chicken-rice.hook')}
+          </p>
         </div>
 
         <button className="btn-primary thumb-target w-full max-w-xs text-lg animate-pop" onClick={onStart}>

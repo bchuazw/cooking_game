@@ -18,13 +18,15 @@ const ASSET_BASE = (import.meta.env.BASE_URL as string) ?? '/';
 function PoachStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
   const { remaining, finish } = useStep({
     stepId: 'poach',
-    durationMs: 12000,
+    durationMs: 15000,
     onComplete,
     dishId: DISH,
   });
-  const [temp, setTemp] = useState(80); // C, target 75-85
-  const [knob, setKnob] = useState(0.5); // 0..1
+  const [temp, setTemp] = useState(68); // C, target 75-85
+  const [knob, setKnob] = useState(0.12); // 0..1
   const [holdPct, setHoldPct] = useState(0);
+  const [hasTouched, setHasTouched] = useState(false);
+  const touched = useRef(false);
   const drift = useRef(0);
   const inGreen = useRef(0);
   const steady = useRef(0);
@@ -34,8 +36,8 @@ function PoachStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
   // pseudorandom drift
   useEffect(() => {
     const id = setInterval(() => {
-      drift.current += (Math.random() - 0.5) * 1.4;
-      drift.current = clamp(drift.current, -8, 8);
+      drift.current += (Math.random() - 0.5) * 0.7;
+      drift.current = clamp(drift.current, -4, 4);
     }, 220);
     return () => clearInterval(id);
   }, []);
@@ -52,14 +54,16 @@ function PoachStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
       setTemp(next);
       total.current += dt;
       const inTarget = next >= 75 && next <= 85;
-      if (inTarget) {
+      if (inTarget && touched.current) {
         inGreen.current += dt;
         steady.current += dt;
-      } else {
+      } else if (touched.current) {
         steady.current = Math.max(0, steady.current - dt * 1.2);
+      } else {
+        steady.current = 0;
       }
-      setHoldPct(clamp(steady.current / 2600, 0, 1));
-      if (steady.current >= 2600 && total.current > 3200) {
+      setHoldPct(touched.current ? clamp(steady.current / 1600, 0, 1) : 0);
+      if (touched.current && steady.current >= 1600 && total.current > 1800) {
         const ratio = total.current > 0 ? inGreen.current / total.current : 0;
         finish(ratio >= 0.75 ? 'gold' : 'silver', ratio);
       }
@@ -87,7 +91,11 @@ function PoachStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
       const y = clamp(e.y, 0, r.height);
       const v = 1 - y / r.height;
       setKnob(v);
-      sfx.bubble();
+      if (!touched.current) {
+        touched.current = true;
+        setHasTouched(true);
+        sfx.bubble();
+      }
     }
   });
 
@@ -101,9 +109,9 @@ function PoachStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
         stepKeyTitle="cr.step1.title"
         stepKeyHint="cr.step1.hint"
         remaining={remaining}
-        total={12000}
-        mood={inBand ? 'idle' : 'worried'}
-        moodValue={inBand ? 30 : -40}
+        total={15000}
+        mood={hasTouched && inBand ? 'idle' : 'worried'}
+        moodValue={hasTouched && inBand ? 30 : -40}
       />
 
       <div className="absolute inset-0 flex items-end justify-center pb-24">
@@ -119,7 +127,7 @@ function PoachStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
           <div className="surface absolute -bottom-9 left-1/2 w-56 -translate-x-1/2 px-3 py-2">
             <div className="mb-1 flex items-center justify-between text-[11px] font-bold text-outline/70">
               <span>{Math.round(temp)}C</span>
-              <span>{inBand ? 'PERFECT' : temp < 75 ? 'LOW' : 'HOT'}</span>
+              <span>{!hasTouched ? 'DRAG' : inBand ? 'PERFECT' : temp < 75 ? 'LOW' : 'HOT'}</span>
             </div>
             <div className="pixel-meter h-[12px] w-full">
               <span style={{ width: `${holdPct * 100}%` }} />
@@ -147,6 +155,9 @@ function PoachStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
               top: `${(1 - knob) * 100}%`,
               transition: 'top 80ms linear',
             }} />
+            {!hasTouched && (
+              <div className="absolute -left-4 -right-4 h-8 border-4 border-[#e8b83a] target-flash" style={{ top: `${(1 - knob) * 100 - 2}%` }} />
+            )}
           </div>
           <div className="mt-1 text-[11px] font-bold" style={{ color: inBand ? '#558D40' : '#A93521' }}>
             {Math.round(temp)}C
@@ -160,7 +171,7 @@ function PoachStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
 
 // ---------- Step 2: Ice bath (drag chicken) ----------
 function IceBathStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
-  const { remaining, finish } = useStep({ stepId: 'ice_bath', onComplete, dishId: DISH, durationMs: 5500 });
+  const { remaining, finish } = useStep({ stepId: 'ice_bath', onComplete, dishId: DISH, durationMs: 7000 });
   const [pos, setPos] = useState({ x: 112, y: 255 });
   const [held, setHeld] = useState(0); // ms held in bowl
   const [done, setDone] = useState(false);
@@ -169,7 +180,7 @@ function IceBathStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
   const svgRef = useRef<SVGSVGElement>(null);
 
   // viewBox: 0 0 360 380 (see render below)
-  const bowlX = 260, bowlY = 200, bowlR = 60;
+  const bowlX = 260, bowlY = 200, bowlR = 96;
   const overBowl = dist(pos.x, pos.y, bowlX, bowlY) < bowlR;
 
   useEffect(() => {
@@ -181,7 +192,7 @@ function IceBathStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
       if (overBowl && !done) {
         setHeld((h) => {
           const nh = h + dt;
-          if (nh >= 500) {
+          if (nh >= 300) {
             setDone(true);
             sfx.sizzle();
             const total = performance.now() - startRef.current;
@@ -223,7 +234,7 @@ function IceBathStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
         stepKeyTitle="cr.step2.title"
         stepKeyHint="cr.step2.hint"
         remaining={remaining}
-        total={5500}
+        total={7000}
         mood={overBowl ? 'cheering' : 'idle'}
       />
       <div ref={ref} className="absolute inset-0 touch-none">
@@ -278,9 +289,9 @@ function IceBathStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
           </g>
           <g transform="translate(110, 326)" opacity="0.78">
             <rect x="0" y="0" width="140" height="24" fill="#fff7d7" stroke="#2a1a18" strokeWidth="3" />
-            <rect x="4" y="4" width={Math.min(132, held / 500 * 132)} height="16" fill={overBowl ? '#6fb552' : '#e8b83a'} />
+            <rect x="4" y="4" width={Math.min(132, held / 300 * 132)} height="16" fill={overBowl ? '#6fb552' : '#e8b83a'} />
             <text x="70" y="17" textAnchor="middle" fontSize="12" fontWeight="700" fill="#2a1a18">
-              {Math.round(held)}/500 ms
+              {Math.round(held)}/300 ms
             </text>
           </g>
         </svg>
@@ -291,28 +302,21 @@ function IceBathStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
 
 // ---------- Step 3: Rice aromatics (rhythm tap) ----------
 function AromaticsStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
-  const { remaining, finish } = useStep({ stepId: 'aromatics', durationMs: 5500, onComplete, dishId: DISH });
+  const { remaining, finish } = useStep({ stepId: 'aromatics', durationMs: 9000, onComplete, dishId: DISH });
   const [hits, setHits] = useState<boolean[]>([false, false, false, false]);
-  const [activeBeat, setActiveBeat] = useState(-1);
+  const [activeBeat, setActiveBeat] = useState(0);
+  const [mistakes, setMistakes] = useState(0);
   const startRef = useRef(performance.now());
-  const beatTimes = [800, 1800, 2800, 3800]; // ms from start
-  const tolerance = 280; // brief says ±150ms gold; we softer it (forgiving)
-
-  // metronome beat indicator
-  useEffect(() => {
-    const id = setInterval(() => {
-      const t = performance.now() - startRef.current;
-      const idx = beatTimes.findIndex((bt) => Math.abs(t - bt) < 150);
-      setActiveBeat(idx);
-    }, 60);
-    return () => clearInterval(id);
-  }, []);
 
   useEffect(() => {
     if (!hits.every(Boolean)) return;
-    const id = setTimeout(() => finish('gold', 1), 180);
+    const id = setTimeout(() => {
+      const elapsed = performance.now() - startRef.current;
+      const tier: ScoreTier = mistakes === 0 && elapsed < 7000 ? 'gold' : mistakes <= 1 ? 'silver' : 'bronze';
+      finish(tier, clamp(1 - mistakes * 0.18, 0.35, 1));
+    }, 180);
     return () => clearTimeout(id);
-  }, [hits, finish]);
+  }, [hits, mistakes, finish]);
 
   useEffect(() => {
     if (remaining > 0) return;
@@ -324,14 +328,14 @@ function AromaticsStep({ onComplete }: { onComplete: (r: StepResult) => void }) 
 
   const tap = (idx: number) => {
     if (hits[idx]) return;
-    const t = performance.now() - startRef.current;
-    const expected = beatTimes[idx];
-    if (Math.abs(t - expected) < tolerance) {
-      sfx.snap();
-      setHits((h) => h.map((v, i) => (i === idx ? true : v)));
-    } else {
+    if (idx !== activeBeat) {
       sfx.error();
+      setMistakes((n) => n + 1);
+      return;
     }
+    sfx.snap();
+    setHits((h) => h.map((v, i) => (i === idx ? true : v)));
+    setActiveBeat((n) => Math.min(3, n + 1));
   };
 
   const ingredients = [
@@ -350,7 +354,7 @@ function AromaticsStep({ onComplete }: { onComplete: (r: StepResult) => void }) 
         stepKeyTitle="cr.step3.title"
         stepKeyHint="cr.step3.hint"
         remaining={remaining}
-        total={5500}
+        total={9000}
         mood="tutorial_pointing"
       />
       <div className="absolute inset-0 flex flex-col items-center justify-end gap-4 px-4 pb-16 pt-28">
@@ -383,12 +387,18 @@ function AromaticsStep({ onComplete }: { onComplete: (r: StepResult) => void }) 
               <span style={{ width: `${progress * 25}%` }} />
             </div>
           </div>
+          {!hits[activeBeat] && (
+            <div className="pixel-dark-panel absolute -top-2 left-1/2 -translate-x-1/2 px-5 py-2 text-center target-flash">
+              <div className="text-[10px] font-black text-[#f5d98e]">TAP</div>
+              <div className="text-2xl font-display font-black leading-none">{activeBeat + 1}</div>
+            </div>
+          )}
         </div>
 
         <div className="flex h-6 items-center gap-3">
-          {beatTimes.map((_, i) => (
+          {ingredients.map((it, i) => (
             <div
-              key={i}
+              key={it.label}
               className={`h-4 w-4 rounded-full border-2 border-outline transition-transform ${activeBeat === i ? 'scale-125 bg-sambal' : hits[i] ? 'bg-pandan' : 'bg-marble'}`}
               style={{ boxShadow: activeBeat === i ? '0 0 0 5px rgba(216,67,43,0.18)' : 'none' }}
             />
@@ -434,17 +444,18 @@ function PestleStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
   const [count, setCount] = useState(0);
   const [last, setLast] = useState<'L' | 'R' | null>(null);
   const t = useT();
+  const targetTaps = 20;
 
   useEffect(() => {
-    if (count >= 28) {
+    if (count >= targetTaps) {
       finish('gold', 1);
     }
   }, [count, finish]);
 
   useEffect(() => {
     if (remaining > 0) return;
-    const tier: ScoreTier = count >= 28 ? 'gold' : count >= 20 ? 'silver' : count >= 10 ? 'bronze' : 'miss';
-    finish(tier, count / 28);
+    const tier: ScoreTier = count >= targetTaps ? 'gold' : count >= 14 ? 'silver' : count >= 8 ? 'bronze' : 'miss';
+    finish(tier, count / targetTaps);
   }, [remaining, count, finish]);
 
   const onTap = (side: 'L' | 'R') => {
@@ -453,11 +464,11 @@ function PestleStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
       return;
     }
     sfx.thud();
-    setCount((c) => Math.min(28, c + 1));
+    setCount((c) => Math.min(targetTaps, c + 1));
     setLast(side);
   };
 
-  const pct = clamp(count / 28, 0, 1);
+  const pct = clamp(count / targetTaps, 0, 1);
   const nextSide = last === 'L' ? 'R' : last === 'R' ? 'L' : null;
 
   return (
@@ -496,7 +507,7 @@ function PestleStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
         <div className="surface mt-1 w-full max-w-[320px] px-4 py-3">
           <div className="mb-2 flex items-center justify-between text-xs font-black text-outline/75">
             <span>SAUCE</span>
-            <span>{count}/28</span>
+            <span>{count}/{targetTaps}</span>
           </div>
           <div className="pixel-meter h-[13px] w-full">
             <span style={{ width: `${pct * 100}%` }} />
@@ -635,6 +646,8 @@ function PlateStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
   }, []);
 
   const allPlaced = chicken.placed && garnish.placed;
+  const sauceState = !chicken.placed ? 'PLACE CHICKEN' : !garnish.placed ? 'PLACE GARNISH' : coverage < 35 ? 'DRIZZLE SAUCE' : coverage <= 85 ? 'READY' : 'TOO MUCH';
+  const canFinish = allPlaced && coverage >= 35;
 
   const onDone = () => {
     if (finishedRef.current) return;
@@ -679,6 +692,21 @@ function PlateStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
             />
             {!chicken.placed && (
               <ellipse cx={target.x} cy={target.y - 4} rx="56" ry="17" fill="none" stroke="#3A2D24" strokeDasharray="6 5" strokeWidth="2" opacity="0.42" />
+            )}
+            {chicken.placed && !garnish.placed && (
+              <ellipse cx={target.x + 50} cy={target.y + 26} rx="44" ry="18" fill="none" stroke="#3A2D24" strokeDasharray="6 5" strokeWidth="2" opacity="0.42" />
+            )}
+            {allPlaced && (
+              <ellipse cx="180" cy="174" rx="86" ry="24" fill="none" stroke={coverage >= 60 && coverage <= 85 ? '#6FB552' : '#D8432B'} strokeDasharray="7 6" strokeWidth="3" opacity="0.55" />
+            )}
+            {allPlaced && coverage < 35 && (
+              <g className="target-flash" opacity="0.86">
+                <path d="M112 174 C142 156 178 192 213 170 C232 158 242 166 250 174" fill="none" stroke="#A82616" strokeWidth="7" strokeLinecap="round" strokeDasharray="12 10" />
+                <path d="M238 160 l24 14 l-26 10" fill="none" stroke="#A82616" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
+                <text x="180" y="134" textAnchor="middle" fontSize="13" fontWeight="900" fill="#A82616" stroke="#fff7d7" strokeWidth="3" paintOrder="stroke">
+                  SWIPE SAUCE
+                </text>
+              </g>
             )}
           </svg>
 
@@ -752,17 +780,22 @@ function PlateStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
             )}
           </svg>
 
-          <div className="absolute bottom-2 left-0 right-0 text-center pointer-events-none">
-            <div className="text-xs text-outline/70">
-              {t('hud.score')}: chicken {chicken.placed ? '✓' : '-'} · garnish {garnish.placed ? '✓' : '-'}
+          <div className="absolute bottom-2 left-4 right-4 pointer-events-none">
+            <div className="surface px-3 py-2">
+              <div className="flex items-center justify-between text-[11px] font-black text-outline/70">
+                <span>{sauceState}</span>
+                <span>{allPlaced ? (coverage >= 60 && coverage <= 85 ? 'GOOD' : coverage > 85 ? 'HEAVY' : 'LIGHT') : `${chicken.placed ? 'OK' : '-'} / ${garnish.placed ? 'OK' : '-'}`}</span>
+              </div>
+              <div className="pixel-meter mt-1 h-[11px] w-full">
+                <span style={{ width: `${allPlaced ? Math.min(100, coverage) : (chicken.placed ? 50 : 0) + (garnish.placed ? 50 : 0)}%` }} />
+              </div>
             </div>
-            <div className="text-xs text-outline/70">{t('cr.step5.sauce_label', { coverage: String(coverage) })}</div>
           </div>
         </div>
       </div>
       <div className="absolute bottom-3 left-0 right-0 z-30 flex justify-center px-4">
-        <button className="btn-primary" onClick={onDone}>
-          {t('menu.done')}
+        <button className="btn-primary min-w-[180px]" disabled={!canFinish} onClick={onDone}>
+          {canFinish ? t('menu.done') : sauceState}
         </button>
       </div>
     </>
