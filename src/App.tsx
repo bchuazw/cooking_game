@@ -50,6 +50,7 @@ function DishPlayer({ dishId, onComplete, onExit }: { dishId: DishId; onComplete
 export default function App() {
   const firstLaunchSeen = useApp((s) => s.firstLaunchSeen);
   const recordDishResult = useApp((s) => s.recordDishResult);
+  const reducedMotion = useApp((s) => s.reducedMotion);
   const [screen, setScreen] = useState<Screen>({ kind: 'title' });
 
   useEffect(() => {
@@ -87,7 +88,11 @@ export default function App() {
     screen.kind;
 
   return (
-    <div className="h-full w-full max-w-[480px] mx-auto relative" style={{ willChange: 'transform' }}>
+    <div
+      className="h-full w-full max-w-[480px] mx-auto relative"
+      data-reduced-motion={reducedMotion ? 'true' : 'false'}
+      style={{ willChange: 'transform' }}
+    >
       {!firstLaunchSeen && <FirstLaunch onDone={() => setScreen({ kind: 'title' })} />}
 
       <ScreenTransition screenKey={screenKey}>

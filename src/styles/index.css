@@ -483,6 +483,79 @@ button:focus-visible,
   animation: tap-pop 180ms steps(2, end);
 }
 
+.food-breathe {
+  animation: food-breathe 3.8s ease-in-out infinite;
+  will-change: transform;
+}
+
+.cook-jiggle {
+  animation: cook-jiggle 760ms ease-in-out infinite;
+  will-change: transform;
+}
+
+.heat-shimmer {
+  animation: heat-shimmer 1.35s ease-in-out infinite;
+  will-change: transform, filter;
+}
+
+.steam-wisps {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.steam-wisps > span {
+  --i: 0;
+  position: absolute;
+  left: calc(40% + var(--i) * 9%);
+  bottom: calc(50% + (var(--i) % 2) * 7%);
+  width: 18px;
+  height: 58px;
+  border-left: 4px solid rgba(255, 247, 232, 0.72);
+  border-radius: 999px;
+  filter: blur(0.3px);
+  opacity: 0;
+  transform: translateY(14px) rotate(calc(-12deg + var(--i) * 9deg));
+  animation: steam-rise 1.9s ease-out infinite;
+  animation-delay: calc(var(--i) * -0.42s);
+}
+
+.bubble-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.bubble-layer > span {
+  --i: 0;
+  position: absolute;
+  left: calc(24% + var(--i) * 5%);
+  top: calc(42% + var(--i) * 1.7%);
+  width: calc(5px + (var(--i) % 3) * 2px);
+  height: calc(5px + (var(--i) % 3) * 2px);
+  border-radius: 999px;
+  background: rgba(255, 222, 135, 0.72);
+  border: 1px solid rgba(126, 33, 19, 0.36);
+  opacity: 0;
+  animation: sauce-bubble 1.15s ease-in-out infinite;
+  animation-delay: calc(var(--i) * -0.17s);
+}
+
+[data-reduced-motion="true"] .food-breathe,
+[data-reduced-motion="true"] .cook-jiggle,
+[data-reduced-motion="true"] .heat-shimmer,
+[data-reduced-motion="true"] .target-flash,
+[data-reduced-motion="true"] .steam-wisps > span,
+[data-reduced-motion="true"] .bubble-layer > span {
+  animation: none !important;
+}
+
+[data-reduced-motion="true"] .steam-wisps,
+[data-reduced-motion="true"] .bubble-layer {
+  display: none;
+}
+
 @keyframes pixel-pip {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-2px); }
@@ -526,6 +599,33 @@ button:focus-visible,
   0% { transform: scale(1); }
   50% { transform: scale(1.08); }
   100% { transform: scale(1); }
+}
+
+@keyframes food-breathe {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-2px) scale(1.012); }
+}
+
+@keyframes cook-jiggle {
+  0%, 100% { transform: rotate(0deg) translateY(0); }
+  25% { transform: rotate(-0.65deg) translateY(-1px); }
+  75% { transform: rotate(0.65deg) translateY(-1px); }
+}
+
+@keyframes heat-shimmer {
+  0%, 100% { filter: saturate(1) brightness(1); transform: translateY(0); }
+  50% { filter: saturate(1.08) brightness(1.04); transform: translateY(-1px); }
+}
+
+@keyframes steam-rise {
+  0% { opacity: 0; transform: translateY(18px) rotate(-12deg) scale(0.86); }
+  22% { opacity: 0.58; }
+  100% { opacity: 0; transform: translateY(-44px) rotate(18deg) scale(1.12); }
+}
+
+@keyframes sauce-bubble {
+  0%, 70%, 100% { opacity: 0; transform: translateY(5px) scale(0.65); }
+  28% { opacity: 0.82; transform: translateY(0) scale(1); }
 }
 
 /* Peranakan tile divider used at section boundaries */

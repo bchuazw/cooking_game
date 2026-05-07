@@ -1,8 +1,9 @@
-// Dish 2 — Katong Laksa.
-// Signature gesture: circular drag in wok (rempah bloom).
+// Dish 2 - Katong Laksa.
 
 import { useEffect, useRef, useState } from 'react';
 import type { DishResult, ScoreTier, StepResult } from '../../../types';
+import { BubbleLayer, SteamWisps } from '../../../art/GameFX';
+import { FoodIconSvg, type FoodKind } from '../../../art/FoodIllustrations';
 import { DishRunner } from '../../engine/DishRunner';
 import { HUD } from '../../engine/HUD';
 import { useStep } from '../../engine/useStep';
@@ -10,66 +11,70 @@ import { useT } from '../../../i18n/useT';
 import { sfx } from '../../../audio/audio';
 import { usePointer, dist, clamp, clientToSvg } from '../../engine/gestureHelpers';
 import { scoreFromBands } from '../../engine/scoring';
-import { FoodDefs, IllustratedPlate, type FoodKind } from '../../../art/FoodIllustrations';
-import { PixelIcon, PixelIconSvg } from '../../../art/PixelFood';
 
 const DISH = 'laksa';
+const ASSET_BASE = (import.meta.env.BASE_URL as string) ?? '/';
+const LAKSA_FINISHED = `${ASSET_BASE}assets/gameplay/laksa-bowl-700.webp`;
+const LAKSA_BASE = `${ASSET_BASE}assets/gameplay/laksa-noodle-broth-700.webp`;
 
-// Step 1: Bloom rempah — circular drag, speed in band.
 function BloomStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
   const { remaining, finish } = useStep({ stepId: 'bloom', durationMs: 9000, onComplete, dishId: DISH });
   const ref = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
-  const center = { x: 180, y: 200 };
   const lastAngle = useRef<number | null>(null);
   const lastT = useRef(performance.now());
-  const speeds = useRef<number[]>([]);
-  const [bloom, setBloom] = useState(0); // 0..1
-  const [speed, setSpeed] = useState(0); // current normalized speed
+  const touched = useRef(false);
+  const bloomRef = useRef(0);
+  const center = { x: 180, y: 230 };
+  const [bloom, setBloom] = useState(0);
+  const [speed, setSpeed] = useState(0);
 
   usePointer(ref, (e) => {
+    if (e.type === 'up' || e.type === 'cancel') {
+      const finalBloom = bloomRef.current;
+      lastAngle.current = null;
+      setSpeed(0);
+      if (finalBloom >= 0.96) finish('gold', finalBloom);
+      return;
+    }
     if (e.type !== 'down' && e.type !== 'move') return;
+    touched.current = true;
     const vb = clientToSvg(svgRef.current, e.raw.clientX, e.raw.clientY);
-    const dx = vb.x - center.x;
-    const dy = vb.y - center.y;
-    const angle = Math.atan2(dy, dx);
+    const angle = Math.atan2(vb.y - center.y, vb.x - center.x);
     const now = performance.now();
+    if (e.type === 'down') {
+      lastAngle.current = angle;
+      lastT.current = now;
+      setSpeed(0);
+      return;
+    }
     if (lastAngle.current !== null) {
       let da = angle - lastAngle.current;
       if (da > Math.PI) da -= 2 * Math.PI;
       if (da < -Math.PI) da += 2 * Math.PI;
-      const dt = Math.max(1, now - lastT.current);
-      const angularVel = Math.abs(da) / (dt / 1000); // rad/s
-      // target band: 4–8 rad/s
+      const angularVel = Math.abs(da) / (Math.max(1, now - lastT.current) / 1000);
       const norm = clamp(angularVel / 6, 0, 2);
+      const inBand = angularVel >= 2.2 && angularVel <= 11;
       setSpeed(norm);
-      speeds.current.push(norm);
-      if (speeds.current.length > 30) speeds.current.shift();
-      // bloom progress: each in-band tick adds; out-of-band slows
-      const inBand = angularVel >= 4 && angularVel <= 8;
-      setBloom((b) => clamp(b + (inBand ? 0.012 : -0.004), 0, 1));
-      if (inBand && Math.random() < 0.05) sfx.bubble();
+      setBloom((b) => {
+        const next = clamp(b + (inBand ? 0.02 : 0.006), 0, 1);
+        bloomRef.current = next;
+        return next;
+      });
+      if (inBand && Math.random() < 0.04) sfx.bubble();
     }
     lastAngle.current = angle;
     lastT.current = now;
   });
 
   useEffect(() => {
-    if (bloom < 0.92) return;
-    const id = setTimeout(() => finish('gold', bloom), 160);
-    return () => clearTimeout(id);
-  }, [bloom, finish]);
-
-  useEffect(() => {
     if (remaining > 0) return;
-    const tier: ScoreTier = scoreFromBands(bloom, 0.85, 0.55, 0.25);
+    const tier: ScoreTier = touched.current ? scoreFromBands(bloom, 0.82, 0.54, 0.25) : 'miss';
     finish(tier, bloom);
   }, [remaining, bloom, finish]);
 
-  // Color shift: dull red -> deep orange
-  const r = Math.round(170 + 50 * bloom);
-  const g = Math.round(60 + 80 * bloom);
-  const b = Math.round(40 - 10 * bloom);
+  const inBand = speed >= 0.35 && speed <= 1.85;
+  const isReady = bloom >= 0.96;
 
   return (
     <>
@@ -79,171 +84,114 @@ function BloomStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
         stepKeyHint="la.step1.hint"
         remaining={remaining}
         total={9000}
-        mood={bloom > 0.6 ? 'cheering' : 'idle'}
-        moodValue={bloom * 80 - 30}
+        mood={bloom > 0.62 ? 'cheering' : 'idle'}
+        moodValue={bloom * 80 - 25}
       />
-      <div className="absolute inset-0 grid place-items-center pt-28 pb-20 px-2">
-        <div ref={ref} className="relative w-full max-w-full max-h-full aspect-[360/460] touch-none">
-          <svg ref={svgRef} viewBox="0 0 360 460" className="absolute inset-0 w-full h-full" preserveAspectRatio="xMidYMid meet" shapeRendering="crispEdges">
-            <defs>
-              <radialGradient id="wok-iron" cx="0.5" cy="0.4" r="0.7">
-                <stop offset="0%" stopColor="#5A4A42" />
-                <stop offset="60%" stopColor="#2D1F18" />
-                <stop offset="100%" stopColor="#1B1A1A" />
-              </radialGradient>
-              <radialGradient id="wok-rim-light" cx="0.5" cy="0.5" r="0.5">
-                <stop offset="0%" stopColor="rgba(255,200,150,0.0)" />
-                <stop offset="80%" stopColor="rgba(255,200,150,0.3)" />
-              </radialGradient>
-              <radialGradient id="rempah-paste" cx="0.5" cy="0.5" r="0.6">
-                <stop offset="0%" stopColor={`rgb(${Math.min(255, r + 40)},${Math.min(255, g + 30)},${b})`} />
-                <stop offset="60%" stopColor={`rgb(${r},${g},${b})`} />
-                <stop offset="100%" stopColor={`rgb(${Math.max(0, r - 50)},${Math.max(0, g - 30)},${Math.max(0, b - 10)})`} />
-              </radialGradient>
-            </defs>
-
-            {/* table shadow */}
-            <ellipse cx={center.x} cy={center.y + 100} rx="170" ry="14" fill="rgba(58,45,36,0.25)" />
-            {/* heat glow under wok */}
-            <ellipse cx={center.x} cy={center.y + 80} rx="120" ry="28" fill="rgba(232,184,58,0.25)" />
-            {/* wok handles */}
-            <g transform={`translate(${center.x - 150}, ${center.y - 10})`}>
-              <ellipse cx="0" cy="0" rx="22" ry="9" fill="#2D1F18" stroke="#1B1A1A" strokeWidth="1.5" />
-              <ellipse cx="-2" cy="-2" rx="16" ry="5" fill="rgba(255,255,255,0.1)" />
-            </g>
-            <g transform={`translate(${center.x + 150}, ${center.y - 10})`}>
-              <ellipse cx="0" cy="0" rx="22" ry="9" fill="#2D1F18" stroke="#1B1A1A" strokeWidth="1.5" />
-              <ellipse cx="-2" cy="-2" rx="16" ry="5" fill="rgba(255,255,255,0.1)" />
-            </g>
-            {/* wok bowl outer */}
-            <ellipse cx={center.x} cy={center.y + 18} rx="150" ry="24" fill="#1B1A1A" />
-            <path d={`M ${center.x - 145} ${center.y - 10} Q ${center.x - 160} ${center.y + 60} ${center.x} ${center.y + 70} Q ${center.x + 160} ${center.y + 60} ${center.x + 145} ${center.y - 10} Z`} fill="url(#wok-iron)" stroke="#1B1A1A" strokeWidth="2" />
-            {/* wok inner */}
-            <ellipse cx={center.x} cy={center.y - 4} rx="135" ry="72" fill="#1B1A1A" />
-            <ellipse cx={center.x} cy={center.y - 4} rx="128" ry="68" fill="url(#wok-iron)" />
-            {/* rim highlight (top) */}
-            <ellipse cx={center.x} cy={center.y - 8} rx="125" ry="62" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="2" />
-            {/* season patina rings */}
-            {[55, 40, 22].map((r) => (
-              <ellipse key={r} cx={center.x} cy={center.y - 2} rx={r * 1.6} ry={r * 0.8} fill="none" stroke="rgba(255,180,120,0.08)" strokeWidth="1" />
-            ))}
-
-            {/* paste blob (rempah) — ridge and texture */}
-            <ellipse cx={center.x} cy={center.y + 4} rx={70 + bloom * 12} ry={50 + bloom * 10} fill="rgba(0,0,0,0.4)" />
-            <ellipse cx={center.x} cy={center.y} rx={70 + bloom * 10} ry={50 + bloom * 8} fill="url(#rempah-paste)" stroke={`rgb(${Math.max(0, r - 70)},${Math.max(0, g - 50)},${Math.max(0, b - 20)})`} strokeWidth="1.2" />
-            {/* paste highlight */}
-            <ellipse cx={center.x - 12} cy={center.y - 12} rx={28 + bloom * 8} ry={14 + bloom * 4} fill={`rgba(255,200,140,${0.2 + bloom * 0.3})`} />
-            {/* chili / shallot bits poking out */}
-            {[0, 1, 2, 3, 4, 5].map((i) => {
-              const a = (i / 6) * Math.PI * 2;
-              const rad = 50 + bloom * 6;
-              const cx = center.x + Math.cos(a) * rad;
-              const cy = center.y + Math.sin(a) * rad * 0.7;
-              return (
-                <g key={i}>
-                  <ellipse cx={cx} cy={cy} rx="3" ry="2" fill={i % 2 === 0 ? '#D8432B' : '#FFD9A0'} stroke={i % 2 === 0 ? '#7E2113' : '#A87A50'} strokeWidth="0.4" />
-                </g>
-              );
-            })}
-            {/* shimmer */}
-            {bloom > 0.4 && (
-              <g opacity={Math.min(0.8, bloom)}>
-                <path d={`M ${center.x - 60} ${center.y - 50} q -10 -16 0 -28`} stroke="rgba(255,237,200,0.6)" strokeWidth="2" fill="none" />
-                <path d={`M ${center.x + 60} ${center.y - 50} q 10 -16 0 -28`} stroke="rgba(255,237,200,0.6)" strokeWidth="2" fill="none" />
-              </g>
-            )}
-            {/* speed ring around finger reference */}
-            <circle cx={center.x} cy={center.y} r="100" fill="none" stroke={speed >= 0.6 && speed <= 1.2 ? '#6FB552' : '#3A2D2433'} strokeWidth="3" strokeDasharray="8 6" />
+      <div className="absolute inset-0 grid place-items-center px-2 pb-20 pt-28">
+        <div ref={ref} className="relative aspect-[360/460] w-full max-w-full touch-none">
+          <svg ref={svgRef} viewBox="0 0 360 460" className="absolute inset-0 h-full w-full" preserveAspectRatio="xMidYMid meet">
+            <circle cx={center.x} cy={center.y} r="112" fill="none" stroke={inBand ? '#6FB552' : '#3A2D2455'} strokeWidth="4" strokeDasharray="10 7" />
           </svg>
-          <div
-            className="pointer-events-none absolute left-1/2 top-[52%] flex h-56 w-56 -translate-x-1/2 -translate-y-1/2 items-end justify-center pb-4"
-            style={{
-              border: speed >= 0.6 && speed <= 1.2 ? '5px solid #6FB552' : '5px dashed rgba(255,247,215,0.82)',
-              boxShadow: speed >= 0.6 && speed <= 1.2 ? '0 0 0 6px rgba(232,184,58,0.42)' : 'none',
-            }}
-          >
-            <div className="pixel-meter w-40 bg-[#fff7d7]/90">
+          <div className="absolute left-1/2 top-[50%] w-[112%] -translate-x-1/2 -translate-y-1/2">
+            <img
+              src={`${ASSET_BASE}assets/gameplay/laksa-rempah-wok-700.webp`}
+              alt=""
+              draggable={false}
+              className={`heat-shimmer w-full select-none pointer-events-none ${inBand ? 'target-flash' : ''}`}
+              style={{ imageRendering: 'auto' }}
+            />
+            <SteamWisps className="left-20 right-20 top-6 bottom-28" count={4} />
+            <BubbleLayer className="left-24 right-24 top-40 bottom-28" count={12} />
+          </div>
+          <div className="surface absolute bottom-6 left-1/2 w-64 -translate-x-1/2 px-4 py-3">
+            <div className="mb-2 flex justify-between text-xs font-black text-outline/70">
+              <span>{isReady ? 'LIFT SPOON' : inBand ? 'GOOD STIR' : 'STIR CIRCLES'}</span>
+              <span>{Math.round(bloom * 100)}%</span>
+            </div>
+            <div className="pixel-meter h-[13px] w-full">
               <span style={{ width: `${bloom * 100}%` }} />
             </div>
           </div>
         </div>
       </div>
-      <div className="absolute bottom-20 left-0 right-0 text-center text-sm pointer-events-none">
-        <div>{Math.round(bloom * 100)}%</div>
-        <div className="text-[11px] text-outline/60">{speed >= 0.6 && speed <= 1.2 ? '✓ in band' : 'too ' + (speed > 1.2 ? 'fast' : 'slow')}</div>
-      </div>
     </>
   );
 }
 
-// Step 2: Sequenced snap targets — order matters
 function OrderStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
   const t = useT();
-  const { remaining, finish } = useStep({ stepId: 'order', onComplete, dishId: DISH, durationMs: 9000 });
-  const order = ['stock', 'coconut', 'taupok'] as const;
+  const { remaining, finish } = useStep({ stepId: 'order', onComplete, dishId: DISH, durationMs: 10000 });
+  const order: { key: 'stock' | 'coconut' | 'taupok'; kind: FoodKind }[] = [
+    { key: 'stock', kind: 'stock' },
+    { key: 'coconut', kind: 'coconut' },
+    { key: 'taupok', kind: 'taupok' },
+  ];
   const [step, setStep] = useState(0);
-  const [split, setSplit] = useState(false);
+  const [mistakes, setMistakes] = useState(0);
 
-  const tap = (key: typeof order[number]) => {
-    const expected = order[step];
-    if (key === expected) {
-      sfx.snap();
-      setStep((s) => s + 1);
-      if (step + 1 >= order.length) {
-        finish(split ? 'silver' : 'gold', split ? 0.7 : 1);
-      }
-    } else {
+  const tap = (key: (typeof order)[number]['key']) => {
+    if (step >= order.length) return;
+    const expected = order[step].key;
+    if (key !== expected) {
       sfx.error();
-      setSplit(true);
+      setMistakes((n) => n + 1);
+      return;
+    }
+    sfx.snap();
+    const next = step + 1;
+    setStep(next);
+    if (next >= order.length) {
+      const tier: ScoreTier = mistakes === 0 ? 'gold' : mistakes <= 1 ? 'silver' : 'bronze';
+      finish(tier, mistakes === 0 ? 1 : 0.68);
     }
   };
 
-  // Timeout fallback so the step always advances — score reflects progress.
   useEffect(() => {
     if (remaining > 0) return;
-    const tier: ScoreTier =
-      step === order.length ? (split ? 'silver' : 'gold')
-      : step === 2 ? 'silver'
-      : step === 1 ? 'bronze'
-      : 'miss';
-    finish(tier, step / order.length);
-  }, [remaining, step, split, finish, order.length]);
+    const tier: ScoreTier = step >= 3 ? (mistakes ? 'silver' : 'gold') : step >= 2 ? 'silver' : step >= 1 ? 'bronze' : 'miss';
+    finish(tier, step / 3);
+  }, [remaining, step, mistakes, finish]);
+
+  const nextKey = order[Math.min(step, order.length - 1)].key;
 
   return (
     <>
-      <HUD dishId={DISH} stepKeyTitle="la.step2.title" stepKeyHint="la.step2.hint" remaining={remaining} total={9000} mood={split ? 'worried' : 'tutorial_pointing'} />
-      <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 px-6 pt-32 pb-20">
-        <div className={`pixel-panel relative grid h-40 w-72 place-items-center overflow-hidden ${split ? 'bg-gradient-to-r from-kaya/40 to-marble' : 'bg-sambal/20'}`}>
-          <svg viewBox="0 0 280 150" className="absolute inset-0 w-full h-full" aria-hidden>
-            <FoodDefs />
-            <ellipse cx="140" cy="90" rx="108" ry="28" fill="#3A2D24" opacity="0.3" />
-            <ellipse cx="140" cy="82" rx="104" ry="44" fill="url(#fi-laksa)" stroke="#3A2D24" strokeWidth="3" />
-            <path d="M65 78 Q110 60 156 78 T224 76" stroke={split ? '#FFF7E8' : '#FFE4C0'} strokeWidth="6" fill="none" opacity={split ? 0.35 : 0.7} strokeLinecap="round" />
-            {split && <path d="M50 62 Q110 100 228 61" stroke="#F4EFE6" strokeWidth="5" strokeDasharray="10 8" fill="none" opacity="0.9" />}
-          </svg>
-          <div className="relative text-center text-xs px-3 font-bold text-outline">{split ? t('la.step2.broth_split') : t('la.step2.broth_stable')}</div>
-        </div>
-        <div className="grid grid-cols-3 gap-3">
-          {(['stock', 'coconut', 'taupok'] as const).map((k, i) => (
-            <button
-              key={k}
-              onClick={() => tap(k)}
-              disabled={i < step}
-              className={`pixel-token thumb-target px-3 py-3 ${i < step ? 'opacity-50 line-through' : ''}`}
-            >
-              <PixelIconSvg kind={k === 'stock' ? 'stock' : k === 'coconut' ? 'coconut' : 'taupok'} size={58} title={t(`la.step2.${k}`)} />
-              <div className="text-[11px] mt-1">{t(`la.step2.${k}`)}</div>
-            </button>
-          ))}
+      <HUD dishId={DISH} stepKeyTitle="la.step2.title" stepKeyHint="la.step2.hint" remaining={remaining} total={10000} mood={mistakes ? 'worried' : 'tutorial_pointing'} />
+      <div className="absolute inset-0 flex flex-col items-center justify-end gap-4 px-4 pb-16 pt-28">
+        <div className="surface relative w-full max-w-sm overflow-hidden px-4 py-3 text-center">
+          <div className="relative mx-auto h-48">
+            <img
+              src={LAKSA_BASE}
+              alt=""
+              draggable={false}
+              className="food-breathe absolute inset-0 h-full w-full select-none object-contain opacity-90"
+              style={{ imageRendering: 'auto' }}
+            />
+            <BubbleLayer className="left-16 right-16 top-16 bottom-16" count={8} />
+          </div>
+          <div className="mt-1 text-xs font-black uppercase text-sambal">
+            {step >= order.length ? 'BROTH READY' : `NEXT: ${t(`la.step2.${nextKey}`)}`}
+          </div>
+          <div className="mt-2 grid grid-cols-3 gap-2">
+            {order.map((item, i) => (
+              <button
+                key={item.key}
+                onClick={() => tap(item.key)}
+                disabled={i < step}
+                className={`surface thumb-target px-2 py-2 text-center transition-transform active:translate-y-1 ${i === step ? 'target-flash' : ''} ${i < step ? 'opacity-55' : ''}`}
+              >
+                <FoodIconSvg kind={item.kind} size={56} title={t(`la.step2.${item.key}`)} />
+                <div className="mt-1 text-[10px] font-black leading-tight">{t(`la.step2.${item.key}`)}</div>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     </>
   );
 }
 
-// Step 3: Noodle bath — release in 4–6s window
 function NoodleStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
-  const t = useT();
   const { remaining, finish } = useStep({ stepId: 'noodle', onComplete, dishId: DISH, durationMs: 9000 });
   const [holding, setHolding] = useState(false);
   const [held, setHeld] = useState(0);
@@ -254,9 +202,7 @@ function NoodleStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
     startRef.current = performance.now();
     let raf = 0;
     const loop = () => {
-      if (startRef.current) {
-        setHeld(performance.now() - startRef.current);
-      }
+      if (startRef.current !== null) setHeld(performance.now() - startRef.current);
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
@@ -264,82 +210,88 @@ function NoodleStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
   }, [holding]);
 
   const release = () => {
+    if (!holding) return;
     setHolding(false);
     const ms = held;
-    let tier: ScoreTier;
-    if (ms >= 4000 && ms <= 6000) tier = 'gold';
-    else if (ms >= 3000 && ms <= 7000) tier = 'silver';
-    else if (ms >= 2000) tier = 'bronze';
-    else tier = 'miss';
-    finish(tier, ms >= 4000 && ms <= 6000 ? 1 : 0.5);
+    const tier: ScoreTier = ms >= 2600 && ms <= 4600 ? 'gold' : ms >= 1800 && ms <= 5600 ? 'silver' : ms >= 900 ? 'bronze' : 'miss';
+    finish(tier, ms >= 2600 && ms <= 4600 ? 1 : 0.55);
   };
 
-  // Timeout fallback (mushy noodles).
   useEffect(() => {
     if (remaining > 0) return;
-    finish(held >= 2000 ? 'bronze' : 'miss', 0.3);
+    finish(held >= 900 ? 'bronze' : 'miss', 0.3);
   }, [remaining, held, finish]);
 
-  const glow = held >= 3500 && held <= 6500;
+  const pct = clamp(held / 4600, 0, 1);
+  const inWindow = held >= 2600 && held <= 4600;
 
   return (
     <>
-      <HUD dishId={DISH} stepKeyTitle="la.step3.title" stepKeyHint="la.step3.hint" remaining={remaining} total={9000} mood={glow ? 'cheering' : 'idle'} />
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <div className="relative">
-          <div className="h-44 w-44 border-[4px] border-outline bg-tile-teal/30" />
-          <div
-            className={`absolute inset-6 ${glow ? 'bg-kaya animate-pulse' : 'bg-marble'} grid place-items-center border-[4px] border-outline`}
-          >
-            <PixelIconSvg kind="noodle" size={74} title="noodles" />
+      <HUD dishId={DISH} stepKeyTitle="la.step3.title" stepKeyHint="la.step3.hint" remaining={remaining} total={9000} mood={inWindow ? 'cheering' : 'idle'} />
+      <div className="absolute inset-0 flex flex-col items-center justify-end px-4 pb-14 pt-28">
+        <div className="relative w-full max-w-sm">
+          <img
+            src={`${ASSET_BASE}assets/gameplay/laksa-noodle-basket-700.webp`}
+            alt=""
+            draggable={false}
+            className={`w-full select-none pointer-events-none ${holding ? 'cook-jiggle' : 'food-breathe'} ${inWindow ? 'target-flash' : ''}`}
+            style={{ imageRendering: 'auto' }}
+          />
+          <SteamWisps className="left-20 right-16 top-0 bottom-40" count={4} />
+        </div>
+        <div className="surface mt-2 w-full max-w-xs px-4 py-3">
+          <div className="mb-2 flex justify-between text-xs font-black text-outline/70">
+            <span>{inWindow ? 'LIFT NOW' : holding ? 'BLANCHING' : 'HOLD'}</span>
+            <span>{(held / 1000).toFixed(1)}s</span>
+          </div>
+          <div className="pixel-meter h-[13px] w-full">
+            <span style={{ width: `${pct * 100}%` }} />
           </div>
         </div>
-        <div className="text-xs text-outline/60 mt-2">{(held / 1000).toFixed(1)}s {glow ? '— now!' : ''}</div>
         <button
-          className={`btn-primary mt-6 thumb-target ${holding ? 'bg-sambal-shade' : ''}`}
-          onPointerDown={() => setHolding(true)}
-          onPointerUp={() => holding && release()}
-          onPointerLeave={() => holding && release()}
+          className={`btn-primary mt-4 min-w-[190px] thumb-target ${inWindow ? 'target-flash' : ''}`}
+          onPointerDown={() => {
+            setHeld(0);
+            setHolding(true);
+          }}
+          onPointerUp={release}
+          onPointerCancel={release}
         >
-          {holding ? t('menu.done') : 'hold ↓'}
+          {inWindow ? 'Release!' : holding ? 'Hold...' : 'Hold to blanch'}
         </button>
       </div>
     </>
   );
 }
 
-// Step 4: Garnish — drag-snap items
 function GarnishStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
   const t = useT();
-  const items: { kind: FoodKind; label: string; x: number; y: number }[] = [
-    { kind: 'prawn', label: 'prawn', x: 133, y: 178 },
-    { kind: 'fishcake', label: 'fishcake', x: 169, y: 184 },
-    { kind: 'sprouts', label: 'sprouts', x: 199, y: 174 },
-    { kind: 'sambal', label: 'sambal', x: 228, y: 185 },
+  const items: { kind: FoodKind; label: string; tokenX: number; tokenY: number; mask: string }[] = [
+    { kind: 'prawn', label: 'prawn', tokenX: 68, tokenY: 405, mask: 'radial-gradient(ellipse 24% 18% at 36% 55%, #000 64%, transparent 100%)' },
+    { kind: 'fishcake', label: 'fishcake', tokenX: 151, tokenY: 405, mask: 'radial-gradient(ellipse 18% 13% at 75% 37%, #000 66%, transparent 100%)' },
+    { kind: 'sprouts', label: 'sprouts', tokenX: 235, tokenY: 405, mask: 'radial-gradient(ellipse 13% 13% at 52% 39%, #000 62%, transparent 100%)' },
+    { kind: 'sambal', label: 'sambal', tokenX: 318, tokenY: 405, mask: 'radial-gradient(ellipse 12% 11% at 70% 56%, #000 64%, transparent 100%)' },
   ];
   const [placed, setPlaced] = useState<boolean[]>([false, false, false, false]);
-  // pos.x/y in container px (for the dragged emoji follow), pos.vbX/vbY in viewBox px (for snap distance check).
-  const [pos, setPos] = useState<{ x: number; y: number; vbX: number; vbY: number; idx: number | null }>({ x: 0, y: 0, vbX: 0, vbY: 0, idx: null });
+  const [dragging, setDragging] = useState<{ idx: number; x: number; y: number } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
-
-  const target = { x: 180, y: 200 }; // viewBox coords
+  const target = { x: 180, y: 235 };
 
   usePointer(ref, (e) => {
     const vb = clientToSvg(svgRef.current, e.raw.clientX, e.raw.clientY);
     if (e.type === 'down') {
-      const idx = items.findIndex((_, i) => !placed[i]);
-      if (idx >= 0) setPos({ x: e.x, y: e.y, vbX: vb.x, vbY: vb.y, idx });
-    } else if (e.type === 'move' && pos.idx !== null) {
-      setPos({ ...pos, x: e.x, y: e.y, vbX: vb.x, vbY: vb.y });
-    } else if (e.type === 'up' && pos.idx !== null) {
-      const onPlate = dist(vb.x, vb.y, target.x, target.y) < 90;
-      if (onPlate) {
+      const idx = items.findIndex((item, i) => !placed[i] && dist(vb.x, vb.y, item.tokenX, item.tokenY) < 48);
+      if (idx >= 0) setDragging({ idx, x: e.x, y: e.y });
+    } else if (e.type === 'move' && dragging) {
+      setDragging({ ...dragging, x: e.x, y: e.y });
+    } else if (e.type === 'up' && dragging) {
+      if (dist(vb.x, vb.y, target.x, target.y) < 112) {
         sfx.snap();
-        const idx = pos.idx;
+        const idx = dragging.idx;
         setPlaced((p) => p.map((v, i) => (i === idx ? true : v)));
       }
-      setPos({ x: 0, y: 0, vbX: 0, vbY: 0, idx: null });
+      setDragging(null);
     }
   });
 
@@ -348,42 +300,67 @@ function GarnishStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
     if (!allDone) return;
     const id = setTimeout(() => {
       onComplete({ stepId: 'garnish', tier: 'gold', rawScore: 1, durationMs: 0 });
-    }, 400);
+    }, 360);
     return () => clearTimeout(id);
   }, [allDone, onComplete]);
 
   return (
     <>
       <HUD dishId={DISH} stepKeyTitle="la.step4.title" stepKeyHint="la.step4.hint" mood={allDone ? 'tasting' : 'idle'} />
-      <div className="absolute inset-0 grid place-items-center pt-28 pb-24 px-2">
-        <div ref={ref} className="relative w-full max-w-full max-h-full aspect-[360/460] touch-none">
-          <svg ref={svgRef} viewBox="0 0 360 460" className="absolute inset-0 w-full h-full pixel-art" preserveAspectRatio="xMidYMid meet" shapeRendering="crispEdges">
-            <FoodDefs />
-            <IllustratedPlate x={target.x} y={target.y} rx={112} ry={34} />
-            <ellipse cx={target.x} cy={target.y - 9} rx="82" ry="24" fill="url(#fi-laksa)" stroke="rgba(58,45,36,0.25)" strokeWidth="1.5" />
-            <path d={`M ${target.x - 58} ${target.y - 12} q 16 9 32 0 t32 0 t32 0`} stroke="#FFEBC5" strokeWidth="4" fill="none" strokeLinecap="round" />
-            {placed.map((p, i) => p && (
-              <PixelIcon key={i} kind={items[i].kind} x={items[i].x - 18} y={items[i].y - 18} size={36} />
+      <div ref={ref} className="absolute inset-0 touch-none px-3 pb-20 pt-28">
+        <svg ref={svgRef} viewBox="0 0 360 460" className="absolute inset-0 h-full w-full pointer-events-none" preserveAspectRatio="xMidYMid meet">
+          <ellipse cx={target.x} cy={target.y + 60} rx="128" ry="18" fill="rgba(58,45,36,0.18)" />
+        </svg>
+        <div className="absolute left-1/2 top-[43%] w-[92%] max-w-sm -translate-x-1/2 -translate-y-1/2">
+          <div className={`relative aspect-[760/573] w-full ${dragging ? 'target-flash' : ''}`}>
+            <img
+              src={LAKSA_BASE}
+              alt=""
+              draggable={false}
+              className="food-breathe absolute inset-0 h-full w-full select-none object-fill pointer-events-none"
+              style={{ imageRendering: 'auto' }}
+            />
+            {items.map((item, i) => (
+              placed[i] && !allDone ? (
+                <img
+                  key={item.label}
+                  src={LAKSA_FINISHED}
+                  alt=""
+                  draggable={false}
+                  className="absolute inset-0 h-full w-full select-none object-fill pointer-events-none transition-opacity duration-300"
+                  style={{ WebkitMaskImage: item.mask, maskImage: item.mask, imageRendering: 'auto' }}
+                />
+              ) : null
             ))}
-          </svg>
-          {pos.idx !== null && (
-            <div className="absolute pointer-events-none" style={{ left: pos.x - 28, top: pos.y - 28 }}>
-              <PixelIconSvg kind={items[pos.idx].kind} size={56} title={items[pos.idx].label} />
-            </div>
-          )}
-        </div>
-      </div>
-      <div className="absolute bottom-12 left-0 right-0 flex justify-center gap-3 pointer-events-none">
-        {items.map((it, i) => (
-          <div
-            key={i}
-            className={`pixel-token h-14 w-14 ${placed[i] ? 'opacity-40' : ''}`}
-          >
-            <PixelIconSvg kind={it.kind} size={44} title={it.label} />
+            <img
+              src={LAKSA_FINISHED}
+              alt=""
+              draggable={false}
+              className={`absolute inset-0 h-full w-full select-none object-fill pointer-events-none transition-opacity duration-300 ${allDone ? 'opacity-100 food-breathe' : 'opacity-0'}`}
+              style={{ imageRendering: 'auto' }}
+            />
           </div>
-        ))}
+        </div>
+        <div className="surface absolute bottom-14 left-3 right-3 px-3 py-3">
+          <div className="mb-2 flex items-center justify-between text-xs font-black text-outline/70">
+            <span>{allDone ? 'READY' : 'DRAG TOPPINGS'}</span>
+            <span>{placed.filter(Boolean).length}/4</span>
+          </div>
+          <div className="grid grid-cols-4 gap-2">
+            {items.map((it, i) => (
+              <div key={it.label} className={`grid h-16 place-items-center border-2 border-outline/35 bg-[#fff7d7]/75 ${placed[i] ? 'opacity-45' : ''}`}>
+                <FoodIconSvg kind={it.kind} size={48} title={it.label} />
+              </div>
+            ))}
+          </div>
+        </div>
+        {dragging && (
+          <div className="pointer-events-none absolute z-20" style={{ left: dragging.x - 32, top: dragging.y - 32 }}>
+            <FoodIconSvg kind={items[dragging.idx].kind} size={64} title={items[dragging.idx].label} />
+          </div>
+        )}
       </div>
-      <div className="absolute bottom-2 left-0 right-0 text-center text-xs text-outline/60 pointer-events-none">{t('la.step4.hint')}</div>
+      <div className="sr-only">{t('la.step4.hint')}</div>
     </>
   );
 }

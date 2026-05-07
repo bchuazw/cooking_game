@@ -2,6 +2,7 @@ import { useT } from '../i18n/useT';
 import { useApp } from '../state/store';
 import type { DishId } from '../types';
 import { ChickenRiceHero } from '../art/ChickenRiceHero';
+import { LaksaHero } from '../art/LaksaHero';
 import { pickDaily } from '../game/engine/dailyChallenge';
 
 const base = (import.meta.env.BASE_URL as string) ?? '/';
@@ -23,6 +24,7 @@ export function HawkerMap({
   const dailyUnlocked = isUnlocked(daily.dish);
   const isDailyDone = !!dailyDone[daily.key];
   const spotlightDish: DishId = dailyUnlocked ? daily.dish : 'chicken-rice';
+  const laksaUnlocked = isUnlocked('laksa');
 
   return (
     <div className="absolute inset-0 overflow-hidden pixel-art">
@@ -70,6 +72,45 @@ export function HawkerMap({
       </button>
 
       <div className="absolute bottom-16 left-3 right-3 top-[190px] z-10 overflow-hidden">
+        {laksaUnlocked ? (
+          <div className="grid h-full grid-rows-2 gap-3">
+            <button
+              className="surface thumb-target relative flex min-h-0 items-center gap-3 overflow-hidden px-3 py-3 text-left transition-transform active:translate-y-1"
+              onClick={() => onPickDish('chicken-rice')}
+              aria-label={t('dish.chicken-rice.name')}
+            >
+              <div className="w-[42%] shrink-0">
+                <ChickenRiceHero compact />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-[10px] font-black uppercase text-sambal">READY</div>
+                <div className="mt-1 text-xl font-display font-black leading-tight text-outline">{t('dish.chicken-rice.name')}</div>
+                <p className="mt-2 max-h-[2.7em] overflow-hidden text-[11px] font-bold leading-snug text-outline/70">{t('dish.chicken-rice.hook')}</p>
+                <div className="mt-2 text-[10px] font-black text-outline/55">
+                  {'*'.repeat(bestStarFor('chicken-rice'))}{'-'.repeat(3 - bestStarFor('chicken-rice'))}
+                </div>
+              </div>
+            </button>
+            <button
+              className="surface thumb-target relative flex min-h-0 items-center gap-3 overflow-hidden px-3 py-3 text-left transition-transform active:translate-y-1"
+              onClick={() => onPickDish('laksa')}
+              aria-label={t('dish.laksa.name')}
+            >
+              <div className="w-[42%] shrink-0">
+                <LaksaHero compact />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-[10px] font-black uppercase text-sambal">{t('menu.start_cooking')}</div>
+                <div className="mt-1 text-xl font-display font-black leading-tight text-outline">{t('dish.laksa.name')}</div>
+                <p className="mt-2 max-h-[2.7em] overflow-hidden text-[11px] font-bold leading-snug text-outline/70">{t('dish.laksa.hook')}</p>
+                <div className="mt-2 text-[10px] font-black text-outline/55">
+                  {'*'.repeat(bestStarFor('laksa'))}{'-'.repeat(3 - bestStarFor('laksa'))}
+                </div>
+              </div>
+            </button>
+          </div>
+        ) : (
+          <>
         <button
           className="surface thumb-target relative flex min-h-[310px] w-full flex-col items-center overflow-hidden px-4 pb-4 pt-2 text-center transition-transform active:translate-y-1"
           onClick={() => onPickDish('chicken-rice')}
@@ -97,10 +138,12 @@ export function HawkerMap({
         <div className="mt-3 pixel-panel px-4 py-3 text-center text-[12px] font-bold leading-snug text-outline/70">
           One complete dish, tuned for mobile play.
         </div>
+          </>
+        )}
       </div>
 
       <div className="absolute bottom-4 left-3 right-3 z-10 pixel-panel px-3 py-2 text-center text-[11px] text-outline/75">
-        {t('dish.chicken-rice.name')} polish build
+        {laksaUnlocked ? 'Two dish beta build' : `${t('dish.chicken-rice.name')} polish build`}
       </div>
     </div>
   );

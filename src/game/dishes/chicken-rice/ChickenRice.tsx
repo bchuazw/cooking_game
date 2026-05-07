@@ -10,6 +10,7 @@ import { useT } from '../../../i18n/useT';
 import { sfx } from '../../../audio/audio';
 import { usePointer, clamp, dist, clientToSvg, clientToCanvas } from '../../engine/gestureHelpers';
 import { scoreFromBands } from '../../engine/scoring';
+import { BubbleLayer, SteamWisps } from '../../../art/GameFX';
 
 const DISH = 'chicken-rice';
 const ASSET_BASE = (import.meta.env.BASE_URL as string) ?? '/';
@@ -120,10 +121,11 @@ function PoachStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
           <img
             src={`${ASSET_BASE}assets/gameplay/poach-pot-620.webp`}
             alt=""
-            className={`relative w-full select-none pointer-events-none ${inBand ? 'target-flash' : ''}`}
+            className={`heat-shimmer relative w-full select-none pointer-events-none ${inBand ? 'target-flash' : ''}`}
             draggable={false}
             style={{ imageRendering: 'auto' }}
           />
+          <SteamWisps className="left-8 right-8 top-0 bottom-16" count={4} />
           <div className="surface absolute -bottom-9 left-1/2 w-56 -translate-x-1/2 px-3 py-2">
             <div className="mb-1 flex items-center justify-between text-[11px] font-bold text-outline/70">
               <span>{Math.round(temp)}C</span>
@@ -497,6 +499,7 @@ function PestleStep({ onComplete }: { onComplete: (r: StepResult) => void }) {
               transformOrigin: '50% 76%',
             }}
           />
+          {count > 0 && <BubbleLayer className="left-12 right-12 top-20 bottom-24" count={8} />}
           {count > 0 && count % 4 === 0 && (
             <div className="absolute top-10 rounded-full border-2 border-white/80 bg-sambal/80 px-3 py-1 text-[11px] font-black text-white">
               MIX!

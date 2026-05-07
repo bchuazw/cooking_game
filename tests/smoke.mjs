@@ -1,6 +1,6 @@
-// Headless smoke test for the current polished first-run dish.
-// It verifies that Hainanese Chicken Rice can be opened, played through, and
-// completed on a mobile-sized viewport without fatal console/page errors.
+// Headless mobile smoke tests for the currently polished dishes.
+// They verify that Hainanese Chicken Rice and Laksa can be opened, played
+// through, and completed without fatal console/page errors.
 
 import { chromium } from 'playwright';
 import os from 'node:os';
@@ -9,7 +9,7 @@ import path from 'node:path';
 const BASE = process.env.BASE_URL ?? 'http://127.0.0.1:4173/cooking_game/';
 
 const NOISE_RE = /(Failed to load resource.*manifest|favicon|fonts\.googleapis|fonts\.gstatic|ERR_CERT|AudioContext was not allowed|workbox|service worker|playwright|sw\.js|registerSW)/i;
-const FATAL_RE = /(\[pageerror\]|Uncaught|SyntaxError|TypeError|ReferenceError|Cannot read|Cannot access|\[test\])/i;
+const FATAL_RE = /(\[pageerror\]|Uncaught|SyntaxError|TypeError|ReferenceError|Cannot read|Cannot access|\[test\]|\[error\])/i;
 
 function attachLogs(page, errs) {
   page.on('console', (msg) => {
@@ -24,9 +24,9 @@ function attachLogs(page, errs) {
   });
 }
 
-async function primeEnglishFirstRun(page) {
+async function primeEnglishRun(page, bestStars = {}) {
   await page.goto(BASE, { waitUntil: 'networkidle' });
-  await page.evaluate(() => {
+  await page.evaluate((stars) => {
     localStorage.setItem(
       'hawker-mama:v1',
       JSON.stringify({
@@ -40,13 +40,13 @@ async function primeEnglishFirstRun(page) {
         voice: 0,
         reducedMotion: true,
         describeStep: false,
-        bestStars: {},
+        bestStars: stars,
         results: [],
         dailyDone: {},
         bestCombo: 0,
       }),
     );
-  });
+  }, bestStars);
   await page.reload({ waitUntil: 'networkidle' });
 }
 
@@ -55,6 +55,16 @@ async function dragMouse(page, from, to, steps = 14) {
   await page.mouse.down();
   await page.mouse.move(to.x, to.y, { steps });
   await page.mouse.up();
+}
+
+async function svgPoint(page, x, y) {
+  return await page.locator('svg[viewBox="0 0 360 460"]').first().evaluate((svg, p) => {
+    const pt = svg.createSVGPoint();
+    pt.x = p.x;
+    pt.y = p.y;
+    const out = pt.matrixTransform(svg.getScreenCTM());
+    return { x: out.x, y: out.y };
+  }, { x, y });
 }
 
 async function openChickenRice(page) {
@@ -66,14 +76,12 @@ async function openChickenRice(page) {
 }
 
 async function playChickenRice(page) {
-  // Step 1: drag thermometer to the target band.
   await page.mouse.move(354, 650);
   await page.mouse.down();
   await page.mouse.move(354, 430, { steps: 8 });
   await page.waitForTimeout(2400);
   await page.mouse.up();
 
-  // Step 2: drag chicken into the enlarged ice bowl target.
   await page.getByText('Ice bath').waitFor({ timeout: 12000 });
   await page.mouse.move(121, 493);
   await page.mouse.down();
@@ -81,14 +89,12 @@ async function playChickenRice(page) {
   await page.waitForTimeout(650);
   await page.mouse.up();
 
-  // Step 3: tap the glowing ingredients in order.
   await page.getByText('Rice aromatics').waitFor({ timeout: 12000 });
   for (const name of [/shallot beat 1/i, /garlic beat 2/i, /ginger beat 3/i, /pandan beat 4/i]) {
     await page.getByRole('button', { name }).evaluate((el) => el.click());
     await page.waitForTimeout(250);
   }
 
-  // Step 4: alternate pestle taps.
   await page.getByText('Pound the sauce').waitFor({ timeout: 12000 });
   const left = page.getByRole('button', { name: /left tap/i });
   const right = page.getByRole('button', { name: /right tap/i });
@@ -97,21 +103,16 @@ async function playChickenRice(page) {
     await page.waitForTimeout(25);
   }
 
-  // Step 5: place chicken, place garnish, then paint sauce over the rice.
   await page.getByText('Plate').waitFor({ timeout: 12000 });
-  const plateBox = await page.locator('svg[viewBox="0 0 360 460"]').first().boundingBox();
-  if (!plateBox) throw new Error('plate svg not found');
-  const p = (x, y) => ({
-    x: plateBox.x + (x / 360) * plateBox.width,
-    y: plateBox.y + (y / 460) * plateBox.height,
-  });
+  const p = (x, y) => svgPoint(page, x, y);
 
-  await dragMouse(page, p(70, 320), p(180, 180));
+  await dragMouse(page, await p(70, 320), await p(180, 180));
   await page.waitForTimeout(300);
-  await dragMouse(page, p(250, 330), p(230, 206));
+  await dragMouse(page, await p(250, 330), await p(230, 206));
   await page.waitForTimeout(300);
 
-  await page.mouse.move(p(104, 174).x, p(104, 174).y);
+  const start = await p(104, 174);
+  await page.mouse.move(start.x, start.y);
   await page.mouse.down();
   const rows = [164, 170, 176, 182, 186, 160, 174, 184, 168, 180];
   for (let r = 0; r < rows.length; r++) {
@@ -120,7 +121,8 @@ async function playChickenRice(page) {
       ? [112, 136, 160, 184, 208, 232, 248]
       : [248, 224, 200, 176, 152, 128, 112];
     for (const x of xs) {
-      await page.mouse.move(p(x, y).x, p(x, y).y, { steps: 2 });
+      const point = await p(x, y);
+      await page.mouse.move(point.x, point.y, { steps: 2 });
     }
   }
   await page.mouse.up();
@@ -130,9 +132,55 @@ async function playChickenRice(page) {
   await page.getByText('All done!').waitFor({ timeout: 12000 });
 }
 
-async function main() {
+async function openLaksa(page) {
+  await page.getByRole('button', { name: /Tap to start/i }).click();
+  await page.getByText('Two dish beta build').waitFor({ timeout: 10000 });
+  await page.getByRole('button', { name: /^Laksa$/i }).last().click({ force: true });
+  await page.getByText('Katong Laksa').waitFor({ timeout: 10000 });
+  await page.getByRole('button', { name: /Start cooking/i }).first().evaluate((el) => el.click());
+  await page.getByText('Bloom the rempah').waitFor({ timeout: 10000 });
+}
+
+async function playLaksa(page) {
+  await page.waitForTimeout(1000);
+  let point = await svgPoint(page, 272, 230);
+  await page.mouse.move(point.x, point.y);
+  await page.mouse.down();
+  for (let i = 1; i <= 76; i++) {
+    const a = (i / 80) * Math.PI * 2;
+    point = await svgPoint(page, 180 + Math.cos(a) * 92, 230 + Math.sin(a) * 92);
+    await page.mouse.move(point.x, point.y);
+    await page.waitForTimeout(16);
+  }
+  await page.mouse.up();
+
+  await page.getByText('Add in order').waitFor({ timeout: 12000 });
+  for (const label of ['stock', 'coconut', 'tau pok']) {
+    await page.getByRole('button').filter({ hasText: label }).first().click({ force: true });
+    await page.waitForTimeout(260);
+  }
+
+  await page.getByText('Noodle bath').waitFor({ timeout: 12000 });
+  const hold = page.getByRole('button', { name: /Hold to blanch/i });
+  const hb = await hold.boundingBox();
+  if (!hb) throw new Error('hold button missing');
+  await page.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2);
+  await page.mouse.down();
+  await page.waitForTimeout(3300);
+  await page.mouse.up();
+
+  await page.getByText('Garnish').waitFor({ timeout: 12000 });
+  await page.waitForTimeout(600);
+  const target = await svgPoint(page, 180, 235);
+  for (const token of [[68, 405], [151, 405], [235, 405], [318, 405]]) {
+    await dragMouse(page, await svgPoint(page, token[0], token[1]), target, 18);
+    await page.waitForTimeout(300);
+  }
+  await page.getByText('All done!').waitFor({ timeout: 12000 });
+}
+
+async function runDish(browser, spec) {
   const errs = [];
-  const browser = await chromium.launch({ headless: true });
   const ctx = await browser.newContext({
     viewport: { width: 390, height: 844 },
     deviceScaleFactor: 2,
@@ -144,34 +192,60 @@ async function main() {
 
   let bodyText = '';
   try {
-    await primeEnglishFirstRun(page);
-    await openChickenRice(page);
-    await playChickenRice(page);
+    await primeEnglishRun(page, spec.bestStars);
+    await spec.open(page);
+    await spec.play(page);
     bodyText = await page.locator('body').innerText();
     if (!bodyText.includes('All done!')) errs.push('[test] completion screen not reached');
   } catch (e) {
     errs.push(`[test] ${e?.message ?? e}`);
     try {
-      await page.screenshot({ path: path.join(os.tmpdir(), 'smoke-chicken-rice-fail.png') });
+      await page.screenshot({ path: path.join(os.tmpdir(), `smoke-${spec.id}-fail.png`) });
     } catch {
       // Best-effort screenshot only.
     }
   } finally {
     await page.close();
     await ctx.close();
+  }
+
+  const fatal = errs.filter((e) => FATAL_RE.test(e));
+  return {
+    id: spec.id,
+    ok: fatal.length === 0 && bodyText.includes('All done!'),
+    fatal,
+    bodyText,
+  };
+}
+
+async function main() {
+  const browser = await chromium.launch({ headless: true });
+  const specs = [
+    { id: 'chicken-rice', bestStars: {}, open: openChickenRice, play: playChickenRice },
+    { id: 'laksa', bestStars: { 'chicken-rice': 3 }, open: openLaksa, play: playLaksa },
+  ];
+
+  const results = [];
+  try {
+    for (const spec of specs) {
+      results.push(await runDish(browser, spec));
+    }
+  } finally {
     await browser.close();
   }
 
-  const fatal = errs.filter((e) => FATAL_RE.test(e) || /\[error\]/.test(e));
-  const ok = fatal.length === 0 && bodyText.includes('All done!');
   console.log('\n=== Smoke summary ===');
-  console.log(`${ok ? 'OK  ' : 'FAIL'} chicken-rice full mobile playthrough`);
-  if (fatal.length) for (const e of fatal.slice(0, 8)) console.log(`     ${e}`);
-  if (ok) {
-    const resultLines = bodyText.split('\n').filter(Boolean).slice(0, 16).join(' | ');
-    console.log(`     ${resultLines}`);
+  for (const result of results) {
+    console.log(`${result.ok ? 'OK  ' : 'FAIL'} ${result.id} full mobile playthrough`);
+    if (result.fatal.length) {
+      for (const e of result.fatal.slice(0, 8)) console.log(`     ${e}`);
+    } else if (result.bodyText) {
+      const resultLines = result.bodyText.split('\n').filter(Boolean).slice(0, 16).join(' | ');
+      console.log(`     ${resultLines}`);
+    }
   }
-  process.exit(ok ? 0 : 1);
+
+  process.exit(results.every((r) => r.ok) ? 0 : 1);
 }
 
 main().catch((e) => {
