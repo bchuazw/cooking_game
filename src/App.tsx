@@ -398,7 +398,7 @@ function StirGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => vo
     event.preventDefault();
     const dy = drag.y - event.clientY;
     const dx = Math.abs(event.clientX - drag.x);
-    const power = clamp(dy / 130, 0, 1);
+    const power = clamp(dy / 190, 0, 1);
     const straight = clamp(1 - dx / 150, 0, 1);
     const nextPower = power * (0.55 + straight * 0.45);
     const close = Math.abs(nextPower - targetPowerRef.current);
@@ -419,7 +419,7 @@ function StirGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => vo
     const dy = drag.y - event.clientY;
     const dx = Math.abs(event.clientX - drag.x);
     dragRef.current = null;
-    const releasePower = clamp((dy - 18) / 150, 0, 1);
+    const releasePower = clamp((dy - 12) / 190, 0, 1);
     const straight = clamp(1 - dx / Math.max(80, dy * 0.8), 0, 1);
     if (releasePower < 0.12) {
       setCue('Swipe upward');
@@ -445,8 +445,8 @@ function StirGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => vo
         onPointerUp={endSwipe}
         onPointerCancel={resetDrag}
       >
-        <em aria-hidden="true" style={{ bottom: `${22 + targetPower * 58}%` }} />
-        <i style={{ height: `${24 + dragPower * 58}%` }} />
+        <em aria-hidden="true" style={{ bottom: `${34 + targetPower * 118}px` }} />
+        <i style={{ height: `${34 + dragPower * 118}px` }} />
         <b>UP</b>
         <span>{tossing ? 'Rice tossed!' : cue}</span>
       </div>
@@ -460,13 +460,20 @@ function SimmerGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => 
   const [heat, setHeat] = useState(0.22);
   const [hold, setHold] = useState(0);
   const [hits, setHits] = useState(0);
+  const [bubble, setBubble] = useState(0);
+  const [cue, setCue] = useState('Find simmer zone');
   const done = useRef(false);
   const startedAt = useRef(performance.now());
   const heatRef = useRef(0.22);
   const hitsRef = useRef(0);
+  const bubbleRef = useRef(0);
+  const bubbleStartedAt = useRef(performance.now());
+  const scoresRef = useRef<number[]>([]);
 
   const inZone = heat >= 0.55 && heat <= 0.72;
-  const progress = clamp((hold / 1600) * 0.72 + (hits / 3) * 0.28, 0, 1);
+  const bubbleReady = inZone && bubble >= 0.62 && bubble <= 0.86;
+  const targetHits = 3;
+  const progress = clamp((hold / 2200) * 0.6 + (hits / targetHits) * 0.4, 0, 1);
 
   useEffect(() => {
     let raf = 0;
@@ -475,8 +482,14 @@ function SimmerGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => 
       const dt = now - last;
       last = now;
       const liveInZone = heatRef.current >= 0.55 && heatRef.current <= 0.72;
-      setHold((value) => liveInZone ? value + dt : Math.max(0, value - dt * 0.8));
-      onVisual({ simmerHeat: heatRef.current, simmerHits: hitsRef.current, simmerReady: liveInZone });
+      setHold((value) => {
+        const next = liveInZone ? Math.min(2200, value + dt) : Math.max(0, value - dt * 0.9);
+        return next;
+      });
+      const nextBubble = ((now - bubbleStartedAt.current) % 1700) / 1700;
+      bubbleRef.current = nextBubble;
+      setBubble(nextBubble);
+      onVisual({ simmerHeat: heatRef.current, simmerHits: hitsRef.current, simmerReady: liveInZone, simmerBubble: nextBubble });
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
@@ -484,10 +497,11 @@ function SimmerGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => 
   }, [onVisual]);
 
   useEffect(() => {
-    if (!done.current && hold >= 1600 && hits >= 3) {
+    if (!done.current && hold >= 2200 && hits >= targetHits) {
       done.current = true;
       const elapsed = performance.now() - startedAt.current;
-      onFinish(elapsed < 8000 ? 1 : elapsed < 11500 ? 0.86 : 0.72);
+      const timingScore = avg(scoresRef.current);
+      onFinish(timingScore * (elapsed < 8500 ? 1 : elapsed < 12500 ? 0.9 : 0.78));
     }
   }, [hits, hold, onFinish]);
 
@@ -497,7 +511,34 @@ function SimmerGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => 
     const next = 1 - clamp((clientY - rect.top) / rect.height, 0, 1);
     heatRef.current = next;
     setHeat(next);
+    setCue(next >= 0.55 && next <= 0.72 ? 'Skim at the band' : 'Find simmer zone');
     onVisual({ simmerHeat: next, simmerReady: next >= 0.55 && next <= 0.72 });
+  };
+
+  const skimBubble = () => {
+    if (done.current) return;
+    if (!inZone) {
+      setCue('Set heat first');
+      onVisual({ pulse: performance.now() });
+      return;
+    }
+    const liveBubble = bubbleRef.current;
+    if (liveBubble < 0.62 || liveBubble > 0.86) {
+      setCue(liveBubble < 0.62 ? 'Wait for the band' : 'Missed, reset');
+      bubbleStartedAt.current = performance.now();
+      onVisual({ simmerBubble: 0, pulse: performance.now() });
+      return;
+    }
+
+    const accuracy = 1 - Math.min(1, Math.abs(liveBubble - 0.74) / 0.18);
+    scoresRef.current.push(clamp(0.68 + accuracy * 0.32, 0.68, 1));
+    const next = Math.min(targetHits, hitsRef.current + 1);
+    hitsRef.current = next;
+    setHits(next);
+    setCue(accuracy > 0.82 ? 'Clean skim' : 'Good skim');
+    bubbleStartedAt.current = performance.now();
+    setBubble(0);
+    onVisual({ simmerHits: next, simmerBubble: 0, pulse: performance.now() });
   };
 
   return (
@@ -520,18 +561,15 @@ function SimmerGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => 
         <b style={{ bottom: `calc(${heat * 100}% - 18px)` }}>drag</b>
       </div>
       <button
-        className={`bubble-button ${inZone ? 'ready' : ''}`}
+        className={`bubble-button ${inZone ? 'ready' : ''} ${bubbleReady ? 'skim-now' : ''}`}
         data-testid="bubble-button"
-        onClick={() => {
-          if (!inZone) return;
-          const next = Math.min(3, hitsRef.current + 1);
-          hitsRef.current = next;
-          setHits(next);
-          onVisual({ simmerHits: next, pulse: performance.now() });
-        }}
+        data-bubble-ready={bubbleReady ? 'true' : 'false'}
+        onClick={skimBubble}
       >
-        <span>{inZone ? 'Tap bubbles' : 'Find simmer zone'}</span>
-        <strong>{hits}/3</strong>
+        <i aria-hidden="true" className="bubble-zone">skim</i>
+        <b aria-hidden="true" style={{ bottom: `${76 + bubble * 82}px` }} />
+        <span>{inZone ? cue : 'Find simmer zone'}</span>
+        <strong>{hits}/{targetHits}</strong>
       </button>
       <ProgressBar value={progress} />
     </div>
@@ -703,7 +741,7 @@ function trianglePhase(phase: number) {
 }
 
 function randomTossTarget() {
-  return 0.34 + Math.random() * 0.5;
+  return 0.24 + Math.random() * 0.6;
 }
 
 function renderStars(value: number) {

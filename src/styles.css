@@ -409,7 +409,7 @@ p {
 
 .swipe-pad {
   position: relative;
-  min-height: 118px;
+  min-height: 190px;
   overflow: hidden;
   grid-template-rows: 1fr auto;
   gap: 6px;
@@ -423,9 +423,9 @@ p {
   content: "";
   position: absolute;
   left: 50%;
-  bottom: 18px;
-  width: 46px;
-  height: 76px;
+  bottom: 24px;
+  width: 58px;
+  height: 142px;
   border-radius: 999px 999px 12px 12px;
   background: rgba(35, 124, 109, 0.16);
   transform: translateX(-50%);
@@ -433,10 +433,10 @@ p {
 
 .swipe-pad i {
   position: absolute;
-  left: calc(50% - 11px);
-  bottom: 22px;
-  width: 22px;
-  min-height: 28px;
+  left: calc(50% - 14px);
+  bottom: 28px;
+  width: 28px;
+  min-height: 34px;
   border-radius: 999px;
   background: linear-gradient(180deg, #2f9f89, #ffd36d);
   box-shadow: 0 0 0 4px rgba(255, 250, 240, 0.72);
@@ -447,8 +447,8 @@ p {
   position: absolute;
   left: 50%;
   z-index: 1;
-  width: 118px;
-  height: 26px;
+  width: min(154px, calc(100% - 32px));
+  height: 30px;
   display: grid;
   place-items: center;
   border-radius: 999px;
@@ -551,7 +551,7 @@ p {
 }
 
 .simmer-mini {
-  grid-template-columns: 84px 1fr;
+  grid-template-columns: 108px 1fr;
 }
 
 .simmer-mini .progress-bar {
@@ -560,7 +560,7 @@ p {
 
 .heat-rail {
   position: relative;
-  height: 128px;
+  height: 188px;
   border-radius: 8px;
   background:
     linear-gradient(180deg, #df5b3b, #f5c75f 45%, #7bc26c 64%, #6b9fe5 100%);
@@ -602,7 +602,7 @@ p {
   position: absolute;
   left: -10px;
   right: -10px;
-  height: 34px;
+  height: 38px;
   display: grid;
   place-items: center;
   border-radius: 7px;
@@ -612,7 +612,6 @@ p {
   text-transform: uppercase;
 }
 
-.bubble-button,
 .mortar-pad {
   min-height: 128px;
   align-content: center;
@@ -622,10 +621,66 @@ p {
     #d9efcf;
 }
 
+.bubble-button {
+  position: relative;
+  min-height: 188px;
+  overflow: hidden;
+  align-content: end;
+  gap: 7px;
+  padding: 14px 10px 12px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.48), rgba(108, 181, 191, 0.26)),
+    #d9efcf;
+}
+
 .bubble-button.ready {
   background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.34), transparent 45%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.5), rgba(255, 224, 139, 0.38)),
     #ffe08b;
+}
+
+.bubble-button.skim-now {
+  box-shadow: inset 0 -6px rgba(33, 26, 23, 0.06), 0 0 0 3px rgba(47, 159, 137, 0.28);
+}
+
+.bubble-button .bubble-zone {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  top: 14%;
+  height: 24%;
+  display: grid;
+  place-items: center;
+  border-block: 2px dashed rgba(33, 26, 23, 0.42);
+  background: rgba(255, 250, 240, 0.46);
+  color: #1e403e;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 950;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+.bubble-button b {
+  position: absolute;
+  left: calc(50% - 18px);
+  width: 36px;
+  height: 28px;
+  border-radius: 999px;
+  background: radial-gradient(circle at 35% 30%, #ffffff 0 15%, #dff9f1 16% 42%, #72c4bd 43% 100%);
+  box-shadow: 0 8px 12px rgba(35, 70, 67, 0.2);
+  transition: bottom 45ms linear, transform 160ms ease;
+  pointer-events: none;
+}
+
+.bubble-button.skim-now b {
+  transform: scale(1.25);
+}
+
+.bubble-button span,
+.bubble-button strong {
+  position: relative;
+  z-index: 1;
 }
 
 .bubble-button strong,
@@ -829,14 +884,18 @@ p {
     min-height: 64px;
   }
 
+  .swipe-pad {
+    min-height: 156px;
+  }
+
   .stir-pad {
     min-height: 88px;
   }
 
   .heat-rail,
   .bubble-button {
-    height: 108px;
-    min-height: 108px;
+    height: 150px;
+    min-height: 150px;
   }
 }
 

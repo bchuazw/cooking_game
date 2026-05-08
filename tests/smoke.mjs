@@ -33,10 +33,9 @@ async function playSimmer(page) {
   if (!rail) throw new Error('simmer slider missing');
   const target = { x: rail.x + rail.width / 2, y: rail.y + rail.height * 0.36 };
   await drag(page, { x: target.x, y: rail.y + rail.height * 0.82 }, target, 12);
-  await page.waitForTimeout(1700);
   for (let i = 0; i < 3; i++) {
-    await page.getByTestId('bubble-button').click();
-    await page.waitForTimeout(180);
+    await page.locator('[data-testid="bubble-button"][data-bubble-ready="true"]').click({ timeout: 3200 });
+    await page.waitForTimeout(260);
   }
 }
 
