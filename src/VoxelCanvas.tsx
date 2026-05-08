@@ -42,6 +42,7 @@ interface DynamicRefs {
   wokSpoon?: THREE.Group;
   potSteam: THREE.Mesh[];
   potBubbles: THREE.Mesh[];
+  waterRipples: THREE.Mesh[];
   potChicken?: THREE.Group;
   heatMercury?: THREE.Mesh;
   sauceItems: Record<string, THREE.Object3D[]>;
@@ -189,6 +190,7 @@ function buildScene(root: THREE.Group, mode: Mode, stepId?: string) {
     wokFlames: [],
     potSteam: [],
     potBubbles: [],
+    waterRipples: [],
     sauceItems: {},
     plateParts: {},
     shaderUniforms: [],
@@ -426,11 +428,22 @@ function poachScene(root: THREE.Group, cube: CubeFn, cyl: CylFn, chunk: (color: 
   cyl(C.steelDark, 0, 0.56, 0.25, 1.24, 0.32, 0.88);
   cyl(C.steel, 0, 0.73, 0.25, 1.12, 0.36, 0.78);
   cyl('#d7ded6', 0, 0.94, 0.25, 1.0, 0.08, 0.7);
-  cyl(C.broth, 0, 0.99, 0.25, 0.88, 0.035, 0.58);
-  const broth = shaderDisk(0, 1.02, 0.25, 0.86, C.broth, '#e0f5dc');
-  root.add(broth.mesh);
-  d.shaderUniforms.push(broth.uniforms);
-  d.shaderMeshes.push(broth.mesh);
+  cyl('#7fb7a8', 0, 0.99, 0.25, 0.88, 0.022, 0.58);
+  const stock = waterSurface(0, 1.035, 0.25, 0.92, 0.62);
+  root.add(stock.mesh);
+  d.shaderUniforms.push(stock.uniforms);
+  d.shaderMeshes.push(stock.mesh);
+  [
+    waterRing(0, 1.065, 0.25, 0.37, 0.385, '#eefdf0', 0.48),
+    waterRing(0.03, 1.07, 0.25, 0.62, 0.635, '#ffffff', 0.24),
+    waterRing(-0.28, 1.073, 0.17, 0.18, 0.192, '#fff6d7', 0.36),
+  ].forEach((ring, i) => {
+    ring.userData.dynamic = true;
+    ring.userData.rippleIndex = i;
+    d.waterRipples.push(ring);
+    d.shaderMeshes.push(ring);
+    root.add(ring);
+  });
   d.potChicken = chicken(root, cube, cyl, chunk, 0, 1.14, 0.2, 0.92);
   for (let i = 0; i < 5; i++) {
     const steam = cube(i % 2 ? '#e8fff0' : '#f4fff7', -0.68 + i * 0.34, 1.44 + i * 0.09, -0.36 + (i % 2) * 0.12, 0.06, 0.18, 0.06);
@@ -577,6 +590,47 @@ function shaderDisk(x: number, y: number, z: number, radius: number, colorA: str
   return { mesh, uniforms };
 }
 
+function waterSurface(x: number, y: number, z: number, radiusX: number, radiusZ: number) {
+  const uniforms = {
+    uTime: { value: 0 },
+    uPulse: { value: 0 },
+  };
+  const material = new THREE.ShaderMaterial({
+    uniforms,
+    transparent: true,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+    vertexShader:
+      'uniform float uTime; varying vec2 vUv; varying float vWave; void main(){ vUv = uv; vec3 p = position; float edge = 1.0 - smoothstep(0.28, 0.5, distance(uv, vec2(0.5))); float wave = (sin(p.x * 9.0 + uTime * 2.1) + sin(p.y * 11.0 - uTime * 2.7)) * 0.014 * edge; p.z += wave; vWave = wave; gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0); }',
+    fragmentShader:
+      'uniform float uTime; uniform float uPulse; varying vec2 vUv; varying float vWave; void main(){ float d = distance(vUv, vec2(0.5)); float edge = 1.0 - smoothstep(0.46, 0.5, d); float ripple = sin(d * 58.0 - uTime * 3.4) * 0.5 + 0.5; float glint = smoothstep(0.72, 1.0, sin((vUv.x - vUv.y) * 18.0 + uTime * 2.8) * 0.5 + 0.5); vec3 stock = vec3(0.45, 0.73, 0.64); vec3 shallow = vec3(0.82, 0.98, 0.88); vec3 foam = vec3(1.0, 0.98, 0.83); vec3 color = mix(stock, shallow, 0.34 + ripple * 0.2 + vWave * 7.0); color = mix(color, foam, glint * 0.18 + uPulse * 0.04); float alpha = edge * (0.52 + ripple * 0.12 + glint * 0.1); gl_FragColor = vec4(color, alpha); }',
+  });
+  const mesh = new THREE.Mesh(new THREE.CircleGeometry(1, 64), material);
+  mesh.position.set(x, y, z);
+  mesh.rotation.x = -Math.PI / 2;
+  mesh.scale.set(radiusX, radiusZ, 1);
+  mesh.renderOrder = 1;
+  mesh.userData.dynamic = true;
+  return { mesh, uniforms };
+}
+
+function waterRing(x: number, y: number, z: number, inner: number, outer: number, color: string, opacity: number) {
+  const material = new THREE.MeshBasicMaterial({
+    color,
+    transparent: true,
+    opacity,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+  });
+  const mesh = new THREE.Mesh(new THREE.RingGeometry(inner, outer, 64), material);
+  mesh.position.set(x, y, z);
+  mesh.rotation.x = -Math.PI / 2;
+  mesh.scale.set(1, 0.68, 1);
+  mesh.renderOrder = 2;
+  mesh.userData.baseOpacity = opacity;
+  return mesh;
+}
+
 function updateDynamics(d: DynamicRefs, state: VisualState, t: number) {
   d.shaderUniforms.forEach((u) => {
     u.uTime.value = t;
@@ -686,6 +740,14 @@ function updateDynamics(d: DynamicRefs, state: VisualState, t: number) {
     d.potChicken.position.y = Math.sin(t * 2.6) * 0.025 + (state.simmerReady ? 0.06 : 0);
     d.potChicken.rotation.z = Math.sin(t * 1.2) * 0.025;
   }
+  d.waterRipples.forEach((ring, i) => {
+    const base = baseScale(ring);
+    const shimmer = 1 + Math.sin(t * (0.9 + i * 0.22) + i) * 0.018 + (state.simmerReady ? 0.016 : 0);
+    ring.scale.set(base.x * shimmer, base.y * (1 + (shimmer - 1) * 0.7), base.z);
+    ring.rotation.z = Math.sin(t * 0.45 + i) * 0.06;
+    const material = ring.material as THREE.MeshBasicMaterial;
+    material.opacity = ((ring.userData.baseOpacity as number | undefined) ?? 0.3) * (0.8 + Math.sin(t * 1.4 + i) * 0.16 + (state.simmerReady ? 0.14 : 0));
+  });
   d.potSteam.forEach((steam, i) => {
     const base = basePosition(steam);
     const scale = baseScale(steam);
