@@ -33,7 +33,7 @@ export const CHICKEN_RICE: DishDefinition = {
       kind: 'prep',
       title: 'Prep the Aromatics',
       shortTitle: 'Prep',
-      instruction: 'Prep one aromatic at a time. Swipe across the highlighted garlic, ginger, pandan, and shallot.',
+      instruction: 'Tap Chop when the cleaver lines up over the ingredient. Each hit cuts one aromatic into pieces.',
       lesson: 'Garlic, ginger, pandan, and shallot perfume both the broth and the chicken-fat rice.',
       target: 4,
     },

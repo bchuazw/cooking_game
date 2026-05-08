@@ -176,7 +176,8 @@ p {
 .exit-button:active,
 .token-grid button:active,
 .bubble-button:active,
-.mortar-pad:active {
+.mortar-pad:active,
+.chop-button:active {
   transform: translateY(2px) scale(0.99);
 }
 
@@ -301,7 +302,9 @@ p {
 .gesture-pad,
 .mortar-pad,
 .bubble-button,
-.plate-drop {
+.plate-drop,
+.chop-timing,
+.chop-button {
   min-height: 78px;
   display: grid;
   place-items: center;
@@ -314,6 +317,53 @@ p {
   touch-action: none;
   text-align: center;
   font-weight: 950;
+}
+
+.chop-timing {
+  position: relative;
+  min-height: 74px;
+  overflow: hidden;
+  background:
+    linear-gradient(90deg, rgba(214, 83, 58, 0.16), rgba(255, 211, 109, 0.22) 42% 58%, rgba(47, 159, 137, 0.16)),
+    #fff0c7;
+}
+
+.chop-timing .target-zone {
+  position: absolute;
+  top: 9px;
+  bottom: 9px;
+  left: 42%;
+  width: 16%;
+  border-inline: 3px solid rgba(47, 159, 137, 0.65);
+  background: rgba(47, 159, 137, 0.16);
+}
+
+.chop-timing b {
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  width: 16px;
+  border-radius: 999px;
+  background: var(--ink);
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.64);
+}
+
+.chop-timing span {
+  position: relative;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: rgba(255, 250, 240, 0.86);
+}
+
+.chop-button {
+  min-height: 64px;
+  background: linear-gradient(180deg, #ffd36d, #e58c31);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.42), 0 8px 14px rgba(80, 55, 28, 0.16);
+  font-size: 20px;
+}
+
+.chop-button:disabled {
+  opacity: 0.72;
 }
 
 .prep-pad,
@@ -604,7 +654,8 @@ p {
 
   .gesture-pad,
   .mortar-pad,
-  .bubble-button {
+  .bubble-button,
+  .chop-timing {
     min-height: 64px;
   }
 

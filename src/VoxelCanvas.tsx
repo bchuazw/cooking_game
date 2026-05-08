@@ -8,6 +8,8 @@ export interface VisualState {
   pulse?: number;
   prepCuts?: number;
   prepActive?: number;
+  prepBlade?: number;
+  prepChop?: number;
   stirProgress?: number;
   stirTurns?: number;
   simmerHeat?: number;
@@ -496,6 +498,8 @@ function updateDynamics(d: DynamicRefs, state: VisualState, t: number) {
   const prepCuts = state.prepCuts ?? 0;
   const prepActive = state.prepActive ?? Math.min(prepCuts, 3);
   const prepCenters = [-1.15, -0.35, 0.45, 1.2];
+  const chopAge = state.prepChop ? t - state.prepChop / 1000 : 999;
+  const recentChop = chopAge >= 0 && chopAge < 0.58;
   d.prepIngredients.forEach((parts, i) => {
     const done = i < prepCuts;
     const visible = i === prepActive && !done;
@@ -510,13 +514,25 @@ function updateDynamics(d: DynamicRefs, state: VisualState, t: number) {
     });
   });
   d.prepChopped.forEach((bit, i) => {
-    bit.visible = Math.floor(i / 5) < prepCuts;
+    const ingredient = Math.floor(i / 5);
+    const piece = i % 5;
+    const base = basePosition(bit);
+    const scale = baseScale(bit);
+    const showCenter = recentChop && ingredient === prepActive;
+    bit.visible = ingredient < prepCuts;
+    bit.position.set(
+      showCenter ? (piece - 2) * 0.11 : base.x,
+      base.y + (showCenter ? 0.08 + Math.sin(t * 10 + i) * 0.025 : 0),
+      showCenter ? 0.2 + (piece % 2) * 0.12 : base.z,
+    );
+    bit.scale.set(scale.x * (showCenter ? 1.35 : 1), scale.y, scale.z * (showCenter ? 1.35 : 1));
     bit.rotation.y = t * 0.6 + i;
   });
   if (d.cleaver) {
-    const active = state.prepActive ?? Math.min(prepCuts, 3);
-    d.cleaver.position.set(-1.15 + active * 0.78, 0.1 + Math.abs(Math.sin(t * 5)) * 0.08, 0);
-    d.cleaver.rotation.z = Math.sin(t * 8) * 0.03;
+    const blade = state.prepBlade ?? 0.5;
+    const drop = recentChop && chopAge < 0.18 ? 0.38 * (1 - chopAge / 0.18) : 0;
+    d.cleaver.position.set(-0.78 + blade * 1.56, 0.1 + Math.abs(Math.sin(t * 5)) * 0.05 - drop, 0);
+    d.cleaver.rotation.z = Math.sin(t * 8) * 0.025;
   }
 
   const stir = state.stirProgress ?? 0;

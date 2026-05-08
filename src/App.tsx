@@ -196,28 +196,60 @@ function MiniGame({
 function PrepGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => void; onFinish: (score: number) => void }) {
   const ingredients = ['Garlic', 'Ginger', 'Pandan', 'Shallot'];
   const [active, setActive] = useState(0);
-  const startRef = useRef<{ x: number; y: number } | null>(null);
   const [cuts, setCuts] = useState(0);
+  const [blade, setBlade] = useState(0.5);
+  const [cutting, setCutting] = useState(false);
+  const bladeRef = useRef(0.5);
   const scoresRef = useRef<number[]>([]);
   const startedAt = useRef(performance.now());
+  const roundStarted = useRef(performance.now());
 
   useEffect(() => {
     onVisual({ prepCuts: cuts, prepActive: active });
   }, [active, cuts, onVisual]);
 
-  const slice = (distance: number) => {
-    if (active >= ingredients.length) return;
-    const quality = clamp(distance / 150, 0.65, 1);
+  useEffect(() => {
+    let raf = 0;
+    let last = 0;
+    const tick = (now: number) => {
+      if (!cutting && now - last > 33) {
+        last = now;
+        const phase = ((now - roundStarted.current) % 1800) / 1800;
+        const next = phase < 0.5 ? phase * 2 : 2 - phase * 2;
+        bladeRef.current = next;
+        setBlade(next);
+        onVisual({ prepBlade: next });
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [cutting, onVisual]);
+
+  const chop = () => {
+    if (active >= ingredients.length || cutting) return;
+    const accuracy = 1 - Math.min(1, Math.abs(bladeRef.current - 0.5) / 0.5);
+    const quality = clamp(0.72 + accuracy * 0.28, 0.72, 1);
     scoresRef.current.push(quality);
     const next = active + 1;
+    setCutting(true);
     setCuts(next);
-    setActive(next);
-    onVisual({ prepCuts: next, prepActive: next, pulse: performance.now() });
-    if (next >= ingredients.length) {
-      const elapsed = performance.now() - startedAt.current;
-      const speed = elapsed < 6500 ? 1 : elapsed < 9500 ? 0.9 : 0.78;
-      window.setTimeout(() => onFinish(avg(scoresRef.current) * speed), 360);
-    }
+    onVisual({ prepCuts: next, prepActive: active, prepBlade: bladeRef.current, prepChop: performance.now(), pulse: performance.now() });
+
+    window.setTimeout(() => {
+      if (next >= ingredients.length) {
+        const elapsed = performance.now() - startedAt.current;
+        const speed = elapsed < 9000 ? 1 : elapsed < 12500 ? 0.92 : 0.82;
+        onFinish(avg(scoresRef.current) * speed);
+        return;
+      }
+      setActive(next);
+      setCutting(false);
+      roundStarted.current = performance.now();
+      bladeRef.current = 0.5;
+      setBlade(0.5);
+      onVisual({ prepCuts: next, prepActive: next, prepBlade: 0.5 });
+    }, 520);
   };
 
   return (
@@ -226,28 +258,14 @@ function PrepGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => vo
         <span>{Math.min(active + 1, ingredients.length)}/{ingredients.length}</span>
         <strong>{ingredients[active] ?? 'Ready'}</strong>
       </div>
-      <div
-        className="gesture-pad prep-pad"
-        data-testid="prep-pad"
-        onPointerDown={(event) => {
-          event.preventDefault();
-          event.currentTarget.setPointerCapture(event.pointerId);
-          startRef.current = { x: event.clientX, y: event.clientY };
-        }}
-        onPointerUp={(event) => {
-          event.preventDefault();
-          const start = startRef.current;
-          if (!start) return;
-          const distance = Math.hypot(event.clientX - start.x, event.clientY - start.y);
-          startRef.current = null;
-          if (distance > 48) slice(distance);
-        }}
-        onPointerCancel={() => {
-          startRef.current = null;
-        }}
-      >
-        <span>Swipe across {ingredients[active] ?? 'the board'}</span>
+      <div className="chop-timing" data-testid="chop-timing">
+        <i className="target-zone" />
+        <b style={{ left: `calc(${blade * 100}% - 8px)` }} />
+        <span>Line up the blade</span>
       </div>
+      <button className="chop-button" data-testid="chop-button" onClick={chop} disabled={cutting}>
+        {cutting ? 'Chopped!' : `Chop ${ingredients[active] ?? ''}`}
+      </button>
       <ProgressBar value={cuts / ingredients.length} />
     </div>
   );

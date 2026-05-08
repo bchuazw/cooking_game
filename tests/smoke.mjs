@@ -12,12 +12,9 @@ async function drag(page, from, to, steps = 12) {
 }
 
 async function playPrep(page) {
-  const pad = await page.getByTestId('prep-pad').boundingBox();
-  if (!pad) throw new Error('prep pad missing');
   for (let i = 0; i < 4; i++) {
-    const y = pad.y + pad.height * (0.35 + (i % 2) * 0.24);
-    await drag(page, { x: pad.x + pad.width * 0.18, y }, { x: pad.x + pad.width * 0.84, y }, 10);
-    await page.waitForTimeout(220);
+    await page.getByTestId('chop-button').click();
+    await page.waitForTimeout(720);
   }
 }
 
