@@ -19,19 +19,10 @@ async function playPrep(page) {
 }
 
 async function playStir(page) {
-  const pad = await page.getByTestId('stir-pad').boundingBox();
-  if (!pad) throw new Error('stir pad missing');
-  const cx = pad.x + pad.width / 2;
-  const cy = pad.y + pad.height / 2;
-  const radius = Math.min(pad.width, pad.height) * 0.34;
-  await page.mouse.move(cx + radius, cy);
-  await page.mouse.down();
-  for (let i = 1; i <= 230; i++) {
-    const angle = (i / 38) * Math.PI * 2;
-    await page.mouse.move(cx + Math.cos(angle) * radius, cy + Math.sin(angle) * radius);
-    await page.waitForTimeout(4);
+  for (let i = 0; i < 5; i++) {
+    await page.getByTestId('toss-button').click();
+    await page.waitForTimeout(560);
   }
-  await page.mouse.up();
 }
 
 async function playSimmer(page) {

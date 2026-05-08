@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { CHICKEN_RICE, starsFromAverage, tierFromScore, type StepDefinition, type Tier } from './gameData';
 import { VoxelCanvas, type VisualState } from './VoxelCanvas';
 
@@ -272,60 +272,88 @@ function PrepGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => vo
 }
 
 function StirGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => void; onFinish: (score: number) => void }) {
-  const padRef = useRef<HTMLDivElement>(null);
-  const lastAngle = useRef<number | null>(null);
-  const turns = useRef(0);
   const startedAt = useRef(performance.now());
+  const roundStarted = useRef(performance.now());
+  const markerRef = useRef(0.5);
+  const scoresRef = useRef<number[]>([]);
+  const tossesRef = useRef(0);
+  const targetTosses = 5;
   const [progress, setProgress] = useState(0);
+  const progressRef = useRef(0);
+  const [marker, setMarker] = useState(0.5);
+  const [tossing, setTossing] = useState(false);
+  const [tosses, setTosses] = useState(0);
+  const [cue, setCue] = useState('Rice in wok');
   const done = useRef(false);
 
-  const move = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const rect = padRef.current?.getBoundingClientRect();
-    if (!rect || done.current) return;
-    const angle = Math.atan2(event.clientY - (rect.top + rect.height / 2), event.clientX - (rect.left + rect.width / 2));
-    if (lastAngle.current !== null) {
-      let delta = angle - lastAngle.current;
-      if (delta > Math.PI) delta -= Math.PI * 2;
-      if (delta < -Math.PI) delta += Math.PI * 2;
-      turns.current += Math.abs(delta) / (Math.PI * 2);
-      const next = clamp(turns.current / 3, 0, 1);
-      setProgress(next);
-      onVisual({ stirProgress: next, stirTurns: turns.current });
-      if (next >= 1) {
+  useEffect(() => {
+    let raf = 0;
+    let last = 0;
+    const tick = (now: number) => {
+      if (!tossing && !done.current && now - last > 33) {
+        last = now;
+        const phase = ((now - roundStarted.current) % 1700) / 1700;
+        const next = phase < 0.5 ? phase * 2 : 2 - phase * 2;
+        markerRef.current = next;
+        setMarker(next);
+        onVisual({ stirMarker: next, stirProgress: progressRef.current });
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [onVisual, tossing]);
+
+  const toss = () => {
+    if (done.current || tossing) return;
+    const accuracy = 1 - Math.min(1, Math.abs(markerRef.current - 0.5) / 0.5);
+    const quality = clamp(0.72 + accuracy * 0.28, 0.72, 1);
+    scoresRef.current.push(quality);
+    tossesRef.current += 1;
+    setTosses(tossesRef.current);
+    setCue(accuracy > 0.86 ? 'Perfect toss' : accuracy > 0.64 ? 'Good toss' : 'Rice tossed');
+    const nextProgress = clamp(progressRef.current + 0.17 + quality * 0.06, 0, 1);
+    progressRef.current = nextProgress;
+    setProgress(nextProgress);
+    setTossing(true);
+    onVisual({
+      stirProgress: nextProgress,
+      stirMarker: markerRef.current,
+      stirTurns: tossesRef.current,
+      stirToss: performance.now(),
+      pulse: performance.now(),
+    });
+
+    window.setTimeout(() => {
+      if (nextProgress >= 1) {
         done.current = true;
         const elapsed = performance.now() - startedAt.current;
-        onFinish(elapsed < 8500 ? 1 : elapsed < 12000 ? 0.86 : 0.72);
+        onFinish(avg(scoresRef.current) * (elapsed < 9000 ? 1 : elapsed < 12500 ? 0.92 : 0.82));
+        return;
       }
-    }
-    lastAngle.current = angle;
+      setTossing(false);
+      roundStarted.current = performance.now();
+      markerRef.current = 0.5;
+      setMarker(0.5);
+      setCue('Rice in wok');
+      onVisual({ stirProgress: nextProgress, stirMarker: 0.5 });
+    }, 430);
   };
 
   return (
     <div className="mini">
       <div className="status-row">
-        <span>Rice fragrance</span>
-        <strong>{Math.round(progress * 100)}%</strong>
+        <span>{tossing ? cue : 'Toast the rice'}</span>
+        <strong>{Math.min(tosses, targetTosses)}/{targetTosses}</strong>
       </div>
-      <div
-        ref={padRef}
-        className="gesture-pad stir-pad"
-        data-testid="stir-pad"
-        onPointerDown={(event) => {
-          event.preventDefault();
-          event.currentTarget.setPointerCapture(event.pointerId);
-          lastAngle.current = null;
-          move(event);
-        }}
-        onPointerMove={(event) => {
-          event.preventDefault();
-          if (event.buttons || event.pointerType === 'touch') move(event);
-        }}
-        onPointerUp={() => {
-          lastAngle.current = null;
-        }}
-      >
-        <span>Draw circles in the wok</span>
+      <div className="timing-caption">{tossing ? 'The rice jumps and turns in the wok.' : 'Tap when the black marker crosses the gold zone.'}</div>
+      <div className="chop-timing toss-timing" data-testid="toss-timing">
+        <i className="target-zone" />
+        <b style={{ left: `calc(${marker * 100}% - 8px)` }} />
       </div>
+      <button className="chop-button toss-button" data-testid="toss-button" onClick={toss} disabled={tossing}>
+        {tossing ? 'Rice tossed!' : 'Toss the Rice'}
+      </button>
       <ProgressBar value={progress} />
     </div>
   );

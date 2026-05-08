@@ -12,6 +12,8 @@ export interface VisualState {
   prepChop?: number;
   stirProgress?: number;
   stirTurns?: number;
+  stirMarker?: number;
+  stirToss?: number;
   simmerHeat?: number;
   simmerHits?: number;
   simmerReady?: boolean;
@@ -31,6 +33,10 @@ interface DynamicRefs {
   prepChopped: THREE.Object3D[];
   cleaver?: THREE.Group;
   riceBits: THREE.Object3D[];
+  riceMounds: THREE.Object3D[];
+  wokAromatics: THREE.Object3D[];
+  wokFlames: THREE.Object3D[];
+  wokOil?: THREE.Mesh;
   wokSpoon?: THREE.Group;
   potSteam: THREE.Mesh[];
   potBubbles: THREE.Mesh[];
@@ -117,6 +123,9 @@ export function VoxelCanvas({ mode, stepId, visualState = {} }: VoxelCanvasProps
     const root = new THREE.Group();
     scene.add(root);
     const { dynamics, dispose } = buildScene(root, mode, stepId);
+    if (mode === 'cook' && stepId === 'toast-rice') {
+      root.position.y = 0.56;
+    }
 
     const resize = () => {
       const rect = host.getBoundingClientRect();
@@ -171,6 +180,9 @@ function buildScene(root: THREE.Group, mode: Mode, stepId?: string) {
     prepIngredients: [],
     prepChopped: [],
     riceBits: [],
+    riceMounds: [],
+    wokAromatics: [],
+    wokFlames: [],
     potSteam: [],
     potBubbles: [],
     sauceItems: {},
@@ -216,7 +228,9 @@ function buildScene(root: THREE.Group, mode: Mode, stepId?: string) {
   };
 
   floor(cube);
-  counter(cube);
+  if (!(mode === 'cook' && stepId === 'toast-rice')) {
+    counter(cube);
+  }
 
   if (mode === 'menu' || mode === 'result') {
     finalPlate(cube, cyl, dynamics, true);
@@ -331,27 +345,67 @@ function prepScene(root: THREE.Group, cube: CubeFn, cyl: CylFn, chunk: (color: s
 }
 
 function wokScene(root: THREE.Group, cube: CubeFn, cyl: CylFn, chunk: (color: string, x: number, y: number, z: number, s?: number) => THREE.Mesh, d: DynamicRefs) {
+  cube('#211814', 0, 0.12, 0.4, 3.38, 0.18, 2.4);
+  cube('#4d3c32', 0, 0.25, 1.08, 1.46, 0.12, 0.42);
+  for (let i = 0; i < 7; i++) {
+    const flame = cube(i % 2 ? '#ffb02f' : '#2778ff', -0.48 + i * 0.16, 0.48, 1.06 + (i % 2) * 0.08, 0.08, 0.32, 0.08);
+    flame.userData.dynamic = true;
+    d.wokFlames.push(flame);
+  }
   wok(root, cube, cyl, 0, 0.25, 0.35, d);
-  for (let i = 0; i < 24; i++) {
-    const a = i * 0.9;
-    const r = 0.22 + (i % 5) * 0.08;
-    const grain = cube(i % 3 === 0 ? C.oil : C.rice, Math.cos(a) * r, 0.88, 0.35 + Math.sin(a) * r * 0.7, 0.08, 0.05, 0.08);
+  d.wokOil = cyl('#f2b846', -0.12, 0.965, 0.4, 0.26, 0.025, 0.14);
+  d.wokOil.userData.dynamic = true;
+  cube('#ffd568', 0.28, 0.99, 0.25, 0.1, 0.018, 0.05).rotation.y = -0.28;
+  cube('#ffe194', -0.34, 0.99, 0.5, 0.09, 0.018, 0.045).rotation.y = 0.55;
+  const lowerRice = cyl(C.rice, 0.02, 1.04, 0.36, 0.58, 0.1, 0.36);
+  const topRice = cyl('#fffaf0', -0.03, 1.14, 0.34, 0.42, 0.08, 0.26);
+  const sideRice = cyl('#fff8df', 0.18, 1.1, 0.46, 0.25, 0.06, 0.16);
+  [lowerRice, topRice, sideRice].forEach((part) => {
+    part.userData.dynamic = true;
+    d.riceMounds.push(part);
+  });
+  for (let i = 0; i < 110; i++) {
+    const a = i * 2.399;
+    const r = 0.02 + Math.sqrt(i / 110) * 0.54;
+    const x = Math.cos(a) * r * 0.78;
+    const z = 0.35 + Math.sin(a) * r * 0.48;
+    const mound = Math.max(0, 1 - r / 0.58) * 0.18;
+    const grain = cube(i % 9 === 0 ? '#ffe9b6' : i % 5 === 0 ? '#fff0ca' : '#fffdf4', x, 1.14 + mound + (i % 4) * 0.004, z, 0.044, 0.018, 0.062);
+    grain.rotation.y = a;
+    grain.rotation.x = (i % 3) * 0.06;
     grain.userData.dynamic = true;
+    grain.userData.baseRotationY = a;
     d.riceBits.push(grain);
   }
+  const aromatics = [
+    chunk(C.garlic, -0.78, 1.13, 0.18, 0.1),
+    chunk('#fff9dc', -0.64, 1.12, 0.25, 0.08),
+    cube(C.ginger, 0.66, 1.08, 0.2, 0.11, 0.045, 0.09),
+    cube('#c87e30', 0.75, 1.1, 0.31, 0.1, 0.04, 0.08),
+    cube(C.pandan, -0.44, 1.13, 0.77, 0.06, 0.04, 0.5),
+    cube('#76c468', -0.24, 1.12, 0.74, 0.06, 0.04, 0.42),
+  ];
+  aromatics.forEach((item, i) => {
+    item.userData.dynamic = true;
+    item.userData.aromaticIndex = i;
+    item.rotation.y = i * 0.64;
+    d.wokAromatics.push(item);
+  });
   const spoon = new THREE.Group();
   spoon.userData.dynamic = true;
   root.add(spoon);
-  const bowl = cyl(C.steel, 0.55, 1.08, 0.35, 0.18, 0.08, 0.12);
-  const handle = cube(C.cream, 0.9, 1.32, 0.35, 0.12, 0.78, 0.12);
-  [bowl, handle].forEach((m) => spoon.attach(m));
+  const paddle = cube(C.steel, -0.2, 1.08, 0.35, 0.34, 0.055, 0.23);
+  const lip = cube(C.steelDark, -0.38, 1.1, 0.35, 0.065, 0.08, 0.28);
+  const handle = cube('#7a4a29', 0.18, 1.08, 0.35, 0.68, 0.052, 0.08);
+  [paddle, lip, handle].forEach((m) => spoon.attach(m));
   d.wokSpoon = spoon;
 }
 
 function wok(root: THREE.Group, cube: CubeFn, cyl: CylFn, x: number, y: number, z: number, d?: DynamicRefs) {
   cyl(C.ink, x, y + 0.2, z, 1.55, 0.14, 1.05);
   cyl(C.steelDark, x, y + 0.38, z, 1.34, 0.22, 0.88);
-  const heat = shaderDisk(x, y + 0.58, z, 1.05, '#d9912f', '#fff0aa');
+  cyl(C.ink, x, y + 0.55, z, 1.18, 0.08, 0.76);
+  const heat = shaderDisk(x, y + 0.63, z, 0.92, '#2a1d18', '#734326');
   root.add(heat.mesh);
   if (d) {
     d.shaderUniforms.push(heat.uniforms);
@@ -536,17 +590,52 @@ function updateDynamics(d: DynamicRefs, state: VisualState, t: number) {
   }
 
   const stir = state.stirProgress ?? 0;
+  const stirTossAge = state.stirToss ? t - state.stirToss / 1000 : 999;
+  const recentToss = stirTossAge >= 0 && stirTossAge < 0.5;
+  const tossArc = recentToss ? Math.sin((stirTossAge / 0.5) * Math.PI) : 0;
+  d.wokFlames.forEach((flame, i) => {
+    const base = basePosition(flame);
+    const scale = baseScale(flame);
+    const flicker = 0.76 + Math.sin(t * 10 + i) * 0.12 + (i % 2) * 0.08;
+    flame.position.y = base.y + flicker * 0.05;
+    flame.scale.set(scale.x, scale.y * flicker, scale.z);
+  });
+  if (d.wokOil) {
+    const base = baseScale(d.wokOil);
+    d.wokOil.scale.set(base.x * (1 + stir * 0.18 + tossArc * 0.05), base.y, base.z * (1 + stir * 0.18 + tossArc * 0.05));
+  }
+  d.riceMounds.forEach((mound, i) => {
+    const base = basePosition(mound);
+    const scale = baseScale(mound);
+    mound.position.y = base.y + tossArc * (0.05 + i * 0.05);
+    mound.scale.set(scale.x * (1 + stir * 0.08 + tossArc * 0.06), scale.y, scale.z * (1 + stir * 0.08 + tossArc * 0.06));
+  });
   d.riceBits.forEach((grain, i) => {
-    const angle = t * (1.2 + stir * 3) + i;
-    const radius = 0.2 + (i % 5) * 0.08;
-    grain.position.x = Math.cos(angle) * radius;
-    grain.position.z = 0.35 + Math.sin(angle) * radius * 0.72;
-    grain.position.y = 0.88 + Math.sin(t * 8 + i) * 0.018 * (0.3 + stir);
-    grain.rotation.y = angle;
+    const base = basePosition(grain);
+    const scale = baseScale(grain);
+    const drift = Math.sin(t * (2.6 + stir * 2.4) + i) * 0.025 * (0.4 + stir);
+    const lift = tossArc * (0.2 + (i % 5) * 0.03);
+    grain.position.x = base.x * (1 + stir * 0.18) + Math.cos(i * 1.7) * tossArc * 0.08 + drift;
+    grain.position.z = 0.35 + (base.z - 0.35) * (1 + stir * 0.12) + Math.sin(i * 1.3) * tossArc * 0.06;
+    grain.position.y = base.y + Math.sin(t * 8 + i) * 0.016 * (0.3 + stir) + lift;
+    grain.scale.set(scale.x * (1 + stir * 0.16), scale.y, scale.z * (1 + stir * 0.16));
+    grain.rotation.y = ((grain.userData.baseRotationY as number | undefined) ?? i) + tossArc * 1.2 + stir * 0.35;
+    grain.rotation.x = tossArc * 0.65 + stir * 0.16;
+  });
+  d.wokAromatics.forEach((item, i) => {
+    const base = basePosition(item);
+    const towardRice = stir * 0.12;
+    item.position.x = base.x * (1 - towardRice) + Math.sin(t * 2 + i) * 0.015 + tossArc * Math.cos(i) * 0.04;
+    item.position.z = 0.35 + (base.z - 0.35) * (1 - towardRice) + tossArc * Math.sin(i) * 0.04;
+    item.position.y = base.y + Math.sin(t * 4 + i) * 0.01 + tossArc * (0.16 + (i % 3) * 0.03);
+    item.rotation.y = t * 0.35 + i;
   });
   if (d.wokSpoon) {
-    d.wokSpoon.rotation.y = t * 1.5 + stir * Math.PI * 4;
-    d.wokSpoon.position.y = Math.sin(t * 5) * 0.04;
+    d.wokSpoon.position.x = 0.56 - tossArc * 0.34;
+    d.wokSpoon.position.z = 0.48 - tossArc * 0.16;
+    d.wokSpoon.position.y = Math.sin(t * 5) * 0.01 - tossArc * 0.07;
+    d.wokSpoon.rotation.y = -0.35 - tossArc * 0.42 + stir * 0.25;
+    d.wokSpoon.rotation.z = -0.04 - tossArc * 0.18;
   }
 
   if (d.heatMercury) {

@@ -42,7 +42,7 @@ export const CHICKEN_RICE: DishDefinition = {
       kind: 'stir',
       title: 'Toast the Rice',
       shortTitle: 'Rice',
-      instruction: 'Draw circles in the wok to coat rice with aromatics and chicken fat.',
+      instruction: 'Tap Toss Rice when the marker reaches the golden zone to toss the rice in the wok with garlic, ginger, pandan, and chicken fat.',
       lesson: 'Toasting rice in fat and aromatics before cooking gives chicken rice its signature fragrance.',
       target: 3,
     },
