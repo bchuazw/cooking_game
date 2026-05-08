@@ -1,5 +1,5 @@
 export type DishId = 'chicken-rice' | 'laksa' | 'prata';
-export type StepKind = 'slider' | 'sequence' | 'stir' | 'hold' | 'swipe' | 'fold' | 'plate';
+export type StepKind = 'cut' | 'slider' | 'sequence' | 'stir' | 'hold' | 'swipe' | 'fold' | 'plate';
 export type Tier = 'gold' | 'silver' | 'bronze';
 
 export interface StepDefinition {
@@ -34,7 +34,7 @@ export const DISHES: DishDefinition[] = [
     id: 'chicken-rice',
     name: 'Hainanese Chicken Rice',
     shortName: 'Chicken Rice',
-    tagline: 'Poach tender chicken, season fragrant rice, and plate the hawker classic.',
+    tagline: 'Poach the chicken, season fragrant rice, chop, and plate the hawker classic.',
     learning:
       'Chicken rice came with Hainanese migrants and became Singaporean through chicken-fat rice, clear stock, and ginger-chili sauce.',
     palette: { main: '#2BA59D', dark: '#174F55', light: '#BDEFE8' },
@@ -43,15 +43,15 @@ export const DISHES: DishDefinition[] = [
         id: 'poach',
         kind: 'slider',
         title: 'Poach the Chicken',
-        instruction: 'Drag the handle into the green zone and keep it steady.',
-        targetLabel: 'Target heat',
-        target: { min: 75, max: 85, unit: 'C' },
+        instruction: 'Drag the thermometer into the green zone, then tap the chicken once to turn it.',
+        targetLabel: 'Poach heat',
+        target: { min: 76, max: 84, unit: 'C' },
       },
       {
         id: 'aromatics',
         kind: 'sequence',
         title: 'Season the Rice',
-        instruction: 'Drag or flick each aromatic into the wok in order.',
+        instruction: 'Tap the wok to toss each aromatic in order, or drag them in.',
         targetLabel: 'Next ingredient',
         items: [
           { id: 'shallot', label: 'Shallot', color: '#B34779' },
@@ -61,10 +61,23 @@ export const DISHES: DishDefinition[] = [
         ],
       },
       {
+        id: 'cut',
+        kind: 'cut',
+        title: 'Chop the Cooked Chicken',
+        instruction: 'Tap CHOP as the cleaver lines up with each cooked serving cut.',
+        targetLabel: 'Clean cleaver cuts',
+        items: [
+          { id: 'left-wing', label: 'Wing portion', color: '#D69A62' },
+          { id: 'left-drumlet', label: 'Left leg portion', color: '#C9834C' },
+          { id: 'right-drumlet', label: 'Right leg portion', color: '#C9834C' },
+          { id: 'right-wing', label: 'Final wing portion', color: '#D69A62' },
+        ],
+      },
+      {
         id: 'plate',
         kind: 'plate',
         title: 'Plate the Set',
-        instruction: 'Drag each part onto the plate.',
+        instruction: 'Tap or drag each part onto the plate.',
         targetLabel: 'Plate',
         items: [
           { id: 'rice', label: 'Rice', color: '#F8F0D7' },
@@ -87,7 +100,7 @@ export const DISHES: DishDefinition[] = [
         id: 'rempah',
         kind: 'stir',
         title: 'Bloom the Rempah',
-        instruction: 'Stir circles in the wok until the paste blooms.',
+        instruction: 'Stir circles or tap the pan to flip the paste.',
         targetLabel: 'Circle stir',
         turns: 3,
       },
@@ -95,7 +108,7 @@ export const DISHES: DishDefinition[] = [
         id: 'broth',
         kind: 'sequence',
         title: 'Build the Broth',
-        instruction: 'Drag each broth ingredient into the pot in order.',
+        instruction: 'Tap the pot to toss each broth ingredient in order.',
         targetLabel: 'Next pour',
         items: [
           { id: 'stock', label: 'Stock', color: '#7DB7E8' },
@@ -107,7 +120,7 @@ export const DISHES: DishDefinition[] = [
         id: 'noodles',
         kind: 'hold',
         title: 'Blanch Noodles',
-        instruction: 'Hold to blanch, release inside the green window.',
+        instruction: 'Hold to blanch, tap the basket to dunk, release in the window.',
         targetLabel: 'Release window',
         target: { min: 2.4, max: 3.7, unit: 's' },
         seconds: 4.5,
@@ -127,7 +140,7 @@ export const DISHES: DishDefinition[] = [
         id: 'knead',
         kind: 'stir',
         title: 'Knead the Dough',
-        instruction: 'Rub circles over the dough until it turns smooth.',
+        instruction: 'Rub circles or tap the dough to slap-knead it.',
         targetLabel: 'Knead circles',
         turns: 2,
       },
@@ -135,7 +148,7 @@ export const DISHES: DishDefinition[] = [
         id: 'stretch',
         kind: 'swipe',
         title: 'Slap-Stretch',
-        instruction: 'Swipe left and right to stretch the dough thin.',
+        instruction: 'Swipe left and right; tap the dough for a slap bounce.',
         targetLabel: 'Stretch count',
         swipes: 6,
       },
@@ -143,7 +156,7 @@ export const DISHES: DishDefinition[] = [
         id: 'fold',
         kind: 'fold',
         title: 'Fold the Prata',
-        instruction: 'Drag all four corner flaps into the centre.',
+        instruction: 'Drag all four corner flaps into the centre, tap to settle.',
         targetLabel: 'Fold corners',
       },
     ],

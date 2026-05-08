@@ -12,6 +12,11 @@ async function drag(page, from, to, steps = 12) {
 }
 
 async function playSlider(page) {
+  const scene = await page.getByTestId('scene-touch').boundingBox();
+  if (scene) {
+    await page.mouse.click(scene.x + scene.width / 2, scene.y + scene.height * 0.42);
+    await page.waitForTimeout(120);
+  }
   const rail = await page.getByTestId('slider-rail').boundingBox();
   if (!rail) throw new Error('slider rail missing');
   const x = rail.x + rail.width / 2;
@@ -21,6 +26,34 @@ async function playSlider(page) {
   await page.mouse.move(x, y, { steps: 12 });
   await page.waitForTimeout(1650);
   await page.mouse.up();
+}
+
+async function playCut(page) {
+  for (let i = 0; i < 4; i++) {
+    await page.waitForFunction((index) => {
+      const marker = document.querySelector('[data-testid="knife-marker"]');
+      const target = document.querySelector(`[data-testid="cut-target-${index}"]`);
+      if (!marker || !target) return false;
+      const markerRect = marker.getBoundingClientRect();
+      const targetRect = target.getBoundingClientRect();
+      const markerX = markerRect.left + markerRect.width / 2;
+      const targetX = targetRect.left + targetRect.width / 2;
+      return Math.abs(markerX - targetX) < 8;
+    }, i, { timeout: 5000 });
+    const scene = await page.getByTestId('scene-touch').boundingBox();
+    if (!scene) throw new Error('scene touch missing');
+    await page.mouse.click(scene.x + scene.width / 2, scene.y + scene.height * 0.46);
+    await page.waitForTimeout(180);
+  }
+}
+
+async function playSceneSequence(page, count) {
+  for (let i = 0; i < count; i++) {
+    const scene = await page.getByTestId('scene-touch').boundingBox();
+    if (!scene) throw new Error('scene touch missing');
+    await page.mouse.click(scene.x + scene.width * (0.45 + i * 0.04), scene.y + scene.height * 0.48);
+    await page.waitForTimeout(360);
+  }
 }
 
 async function playSequence(page, ids) {
@@ -82,17 +115,9 @@ async function playSwipes(page) {
 async function playPlate(page) {
   const target = await page.getByTestId('plate-target').boundingBox();
   if (!target) throw new Error('plate target missing');
-  const center = { x: target.x + target.width / 2, y: target.y + target.height / 2 };
   for (const id of ['rice', 'chicken', 'sauce']) {
-    const token = await page.getByTestId(`plate-token-${id}`).boundingBox();
-    if (!token) throw new Error(`plate token ${id} missing`);
-    await drag(
-      page,
-      { x: token.x + token.width / 2, y: token.y + token.height / 2 },
-      center,
-      10,
-    );
-    await page.waitForTimeout(120);
+    await page.getByTestId(`plate-token-${id}`).click();
+    await page.waitForTimeout(220);
   }
 }
 
@@ -150,18 +175,9 @@ async function main() {
   const results = [];
   results.push(['chicken-rice', await runDish(page, 'chicken-rice', [
     () => playSlider(page),
-    () => playSequence(page, ['shallot', 'garlic', 'ginger', 'pandan']),
+    () => playSceneSequence(page, 4),
+    () => playCut(page),
     () => playPlate(page),
-  ])]);
-  results.push(['laksa', await runDish(page, 'laksa', [
-    () => playStir(page, 3.1),
-    () => playSequence(page, ['stock', 'coconut', 'tau-pok']),
-    () => playHold(page, 3100),
-  ])]);
-  results.push(['prata', await runDish(page, 'prata', [
-    () => playStir(page, 2.1),
-    () => playSwipes(page),
-    () => playFold(page),
   ])]);
 
   const canvasPixels = await page.locator('canvas').first().evaluate((canvas) => {

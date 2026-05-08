@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { DISHES, dishById, starsFromAverage, tierFromScore, type DishDefinition, type DishId, type StepDefinition, type Tier } from './gameData';
 import { VoxelCanvas, type VisualState } from './VoxelCanvas';
 
@@ -12,12 +12,20 @@ interface StepResult {
 type Screen = 'menu' | 'cook' | 'result';
 
 const BEST_KEY = 'hawker-mama-voxel:v1';
+const PLAYABLE_DISH_IDS: DishId[] = ['chicken-rice'];
 
 interface DragState {
   id: string;
   x: number;
   y: number;
   startY: number;
+}
+
+interface SceneTap {
+  id: number;
+  x: number;
+  y: number;
+  time: number;
 }
 
 export default function App() {
@@ -45,6 +53,10 @@ export default function App() {
     setScreen('cook');
   };
 
+  const updateVisualState = useCallback((state: VisualState) => {
+    setVisualState((prev) => ({ ...prev, ...state }));
+  }, []);
+
   const finishStep = (score: number) => {
     if (completedRef.current) return;
     completedRef.current = true;
@@ -66,7 +78,7 @@ export default function App() {
       } else {
         setScreen('result');
       }
-    }, 850);
+    }, 520);
   };
 
   useEffect(() => {
@@ -99,7 +111,7 @@ export default function App() {
           visualState={visualState}
           onExit={() => setScreen('menu')}
           onFinish={finishStep}
-          onVisualState={setVisualState}
+          onVisualState={updateVisualState}
         />
       )}
 
@@ -119,17 +131,18 @@ export default function App() {
 function MenuScreen({ best, onBegin }: { best: Record<string, number>; onBegin: (id: DishId) => void }) {
   const [featured, setFeatured] = useState<DishId>('chicken-rice');
   const dish = dishById(featured);
+  const playableDishes = DISHES.filter((item) => PLAYABLE_DISH_IDS.includes(item.id));
   return (
     <section className="screen menu-screen">
       <VoxelCanvas mode="menu" dishId={featured} dim />
       <header className="brand-panel">
         <p className="eyebrow">Singapore hawker cooking game</p>
         <h1>Hawker Mama</h1>
-        <p>Pick a dish, play short cooking mini-games, and earn a hawker rating.</p>
+        <p>Cook Hainanese Chicken Rice through short hands-on mini-games.</p>
       </header>
 
-      <div className="dish-dock" aria-label="Choose a dish">
-        {DISHES.map((item) => (
+      <div className="dish-dock" aria-label="Featured dish">
+        {playableDishes.map((item) => (
           <article
             key={item.id}
             className={`dish-card ${featured === item.id ? 'is-featured' : ''}`}
@@ -188,6 +201,30 @@ function CookScreen({
   onFinish: (score: number) => void;
   onVisualState: (state: VisualState) => void;
 }) {
+  const [sceneTap, setSceneTap] = useState<SceneTap | null>(null);
+  const prompt = scenePromptFor(step, visualState);
+
+  useEffect(() => {
+    setSceneTap(null);
+  }, [step.id]);
+
+  const tapStage = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const action: SceneTap = {
+      id: Math.max(sceneTap?.id ?? 0, visualState.stagePulse ?? 0) + 1,
+      x: clamp((event.clientX - rect.left) / rect.width, 0, 1),
+      y: clamp((event.clientY - rect.top) / rect.height, 0, 1),
+      time: performance.now(),
+    };
+    setSceneTap(action);
+    onVisualState({
+      stagePulse: action.id,
+      stageAt: action.time,
+      stageX: action.x,
+      stageY: action.y,
+    });
+  };
+
   return (
     <section className="screen cook-screen" style={{ '--accent': dish.palette.main, '--accent-dark': dish.palette.dark } as CSSProperties}>
       <VoxelCanvas mode="cook" dishId={dish.id} stepId={step.id} visualState={visualState} />
@@ -201,11 +238,19 @@ function CookScreen({
         <div className="step-count">{stepIndex + 1}/{totalSteps}</div>
       </div>
 
-      <div className="step-sheet">
-        <p className="eyebrow">{dish.name}</p>
-        <h2>{step.title}</h2>
-        <p className="instruction">{step.instruction}</p>
-        <MiniGame key={`${dish.id}-${step.id}-${stepIndex}`} step={step} onFinish={onFinish} onVisualState={onVisualState} />
+      <button className={`scene-touch-layer step-${step.kind}`} data-testid="scene-touch" aria-label={prompt} onPointerDown={tapStage}>
+        <span>{prompt}</span>
+      </button>
+
+      <div className={`step-sheet step-${step.kind}`}>
+        <div className="step-header">
+          <div>
+            <p className="eyebrow">{dish.name}</p>
+            <h2>{step.title}</h2>
+          </div>
+          <p className="instruction">{step.instruction}</p>
+        </div>
+        <MiniGame key={`${dish.id}-${step.id}-${stepIndex}`} step={step} sceneTap={sceneTap} onFinish={onFinish} onVisualState={onVisualState} />
       </div>
 
       {feedback && (
@@ -218,30 +263,190 @@ function CookScreen({
   );
 }
 
+function scenePromptFor(step: StepDefinition, visualState: VisualState) {
+  if (step.kind === 'cut') {
+    const next = step.items?.[visualState.cutIndex ?? 0]?.label;
+    return next ? `Chop ${next} on the green band` : 'Chicken chopped';
+  }
+  if (step.kind === 'slider') return 'Tap chicken to turn';
+  if (step.kind === 'sequence') {
+    const next = step.items?.[visualState.sequenceIndex ?? 0]?.label;
+    return next ? `Tap 3D ${step.id === 'broth' ? 'pot' : 'wok'} to toss ${next}` : 'Tap the pan to toss';
+  }
+  if (step.kind === 'stir') return 'Tap pan to flip';
+  if (step.kind === 'hold') return 'Tap basket to dunk';
+  if (step.kind === 'swipe') return 'Tap dough to slap';
+  if (step.kind === 'fold') return 'Tap dough to settle';
+  return 'Tap or drag food cards below';
+}
+
 function MiniGame({
   step,
+  sceneTap,
   onFinish,
   onVisualState,
 }: {
   step: StepDefinition;
+  sceneTap: SceneTap | null;
   onFinish: (score: number) => void;
   onVisualState: (state: VisualState) => void;
 }) {
-  if (step.kind === 'slider') return <SliderGame step={step} onFinish={onFinish} onVisualState={onVisualState} />;
-  if (step.kind === 'sequence') return <SequenceGame step={step} onFinish={onFinish} onVisualState={onVisualState} />;
-  if (step.kind === 'stir') return <StirGame step={step} onFinish={onFinish} onVisualState={onVisualState} />;
-  if (step.kind === 'hold') return <HoldGame step={step} onFinish={onFinish} onVisualState={onVisualState} />;
-  if (step.kind === 'swipe') return <SwipeGame step={step} onFinish={onFinish} onVisualState={onVisualState} />;
-  if (step.kind === 'fold') return <FoldGame onFinish={onFinish} onVisualState={onVisualState} />;
-  return <PlateGame step={step} onFinish={onFinish} onVisualState={onVisualState} />;
+  if (step.kind === 'cut') return <CutGame step={step} sceneTap={sceneTap} onFinish={onFinish} onVisualState={onVisualState} />;
+  if (step.kind === 'slider') return <SliderGame step={step} sceneTap={sceneTap} onFinish={onFinish} onVisualState={onVisualState} />;
+  if (step.kind === 'sequence') return <SequenceGame step={step} sceneTap={sceneTap} onFinish={onFinish} onVisualState={onVisualState} />;
+  if (step.kind === 'stir') return <StirGame step={step} sceneTap={sceneTap} onFinish={onFinish} onVisualState={onVisualState} />;
+  if (step.kind === 'hold') return <HoldGame step={step} sceneTap={sceneTap} onFinish={onFinish} onVisualState={onVisualState} />;
+  if (step.kind === 'swipe') return <SwipeGame step={step} sceneTap={sceneTap} onFinish={onFinish} onVisualState={onVisualState} />;
+  if (step.kind === 'fold') return <FoldGame sceneTap={sceneTap} onFinish={onFinish} onVisualState={onVisualState} />;
+  return <PlateGame step={step} sceneTap={sceneTap} onFinish={onFinish} onVisualState={onVisualState} />;
+}
+
+const CUT_TARGETS = [0.2, 0.38, 0.62, 0.8];
+
+function CutGame({
+  step,
+  sceneTap,
+  onFinish,
+  onVisualState,
+}: {
+  step: StepDefinition;
+  sceneTap: SceneTap | null;
+  onFinish: (score: number) => void;
+  onVisualState: (state: VisualState) => void;
+}) {
+  const items = step.items ?? [];
+  const startRef = useRef(performance.now());
+  const indexRef = useRef(0);
+  const knifeRef = useRef(0.5);
+  const displayedKnifeRef = useRef(0.5);
+  const scoresRef = useRef<number[]>([]);
+  const cutsRef = useRef<string[]>([]);
+  const doneRef = useRef(false);
+  const lastSceneTapRef = useRef(0);
+  const fallbackPulseRef = useRef(9000);
+  const visualRef = useRef(onVisualState);
+  const lastVisualAtRef = useRef(0);
+  const [knifeX, setKnifeX] = useState(0.5);
+  const [cutIndex, setCutIndex] = useState(0);
+  const [scores, setScores] = useState<number[]>([]);
+
+  useEffect(() => {
+    visualRef.current = onVisualState;
+  }, [onVisualState]);
+
+  useEffect(() => {
+    let raf = 0;
+    const tick = (now: number) => {
+      const elapsed = (now - startRef.current) / 1000;
+      const next = 0.5 + Math.sin(elapsed * 1.55) * 0.39;
+      knifeRef.current = next;
+      if (now - lastVisualAtRef.current > 1000 / 30) {
+        lastVisualAtRef.current = now;
+        displayedKnifeRef.current = next;
+        setKnifeX(next);
+        visualRef.current({
+          cutKnifeX: next,
+          cutIndex: indexRef.current,
+          cutIds: cutsRef.current,
+          cutScore: scoresRef.current[scoresRef.current.length - 1],
+        });
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+  const cut = (action?: SceneTap) => {
+    if (doneRef.current || indexRef.current >= items.length) return;
+    const chopAction = action ?? {
+      id: fallbackPulseRef.current++,
+      x: knifeRef.current,
+      y: 0.46,
+      time: performance.now(),
+    };
+    const currentIndex = indexRef.current;
+    const target = CUT_TARGETS[currentIndex] ?? 0.5;
+    const scoreKnifeX = action ? displayedKnifeRef.current : knifeRef.current;
+    const error = Math.abs(scoreKnifeX - target);
+    const score = error < 0.18 ? 1 : clamp(1 - (error - 0.18) / 0.62, 0.62, 1);
+    const nextCuts = [...cutsRef.current, items[currentIndex].id];
+    const nextScores = [...scoresRef.current, score];
+    const nextIndex = currentIndex + 1;
+    cutsRef.current = nextCuts;
+    scoresRef.current = nextScores;
+    indexRef.current = nextIndex;
+    setCutIndex(nextIndex);
+    setScores(nextScores);
+    visualRef.current({
+      cutKnifeX: scoreKnifeX,
+      cutIndex: nextIndex,
+      cutIds: nextCuts,
+      cutScore: score,
+      lastCutId: items[currentIndex].id,
+      stagePulse: chopAction.id,
+      stageAt: chopAction.time,
+      stageX: chopAction.x,
+      stageY: chopAction.y,
+    });
+    if (nextIndex >= items.length) {
+      doneRef.current = true;
+      const average = nextScores.reduce((sum, value) => sum + value, 0) / nextScores.length;
+      window.setTimeout(() => onFinish(average), 420);
+    }
+  };
+
+  useEffect(() => {
+    if (!sceneTap || sceneTap.id === lastSceneTapRef.current) return;
+    lastSceneTapRef.current = sceneTap.id;
+    cut(sceneTap);
+  }, [sceneTap?.id]);
+
+  const next = items[cutIndex];
+  const average = scores.length ? scores.reduce((sum, value) => sum + value, 0) / scores.length : 0;
+  const last = scores[scores.length - 1];
+  const actionLabel = step.title.toLowerCase().includes('chop') ? 'Chop' : 'Cut';
+  const lastLabel = last === undefined
+    ? 'Ready'
+    : last > 0.82
+      ? `Clean ${actionLabel.toLowerCase()}`
+      : last > 0.58
+        ? 'Good enough'
+        : `Rough ${actionLabel.toLowerCase()}`;
+
+  return (
+    <div className="cut-game">
+      <div className="cut-readout">
+        <span>{next ? `Next joint: ${next.label}` : 'All cuts done'}</span>
+        <strong>{lastLabel}</strong>
+      </div>
+      <div className="cut-timing" data-testid="cut-timing">
+        {items.map((item, i) => (
+          <i
+            key={item.id}
+            data-testid={`cut-target-${i}`}
+            className={`cut-target ${i === cutIndex ? 'active' : i < cutIndex ? 'done' : ''}`}
+            style={{ left: `${(CUT_TARGETS[i] ?? 0.5) * 100}%` }}
+          />
+        ))}
+        <b className="knife-marker" data-testid="knife-marker" style={{ left: `${knifeX * 100}%` }} />
+      </div>
+      <button className="cut-button" data-testid="cut-button" onClick={() => cut()}>
+        {actionLabel}
+      </button>
+      <div className="meter"><i style={{ width: `${Math.max(average, cutIndex / Math.max(1, items.length)) * 100}%` }} /></div>
+    </div>
+  );
 }
 
 function SliderGame({
   step,
+  sceneTap,
   onFinish,
   onVisualState,
 }: {
   step: StepDefinition;
+  sceneTap: SceneTap | null;
   onFinish: (score: number) => void;
   onVisualState: (state: VisualState) => void;
 }) {
@@ -253,6 +458,8 @@ function SliderGame({
   const doneRef = useRef(false);
   const finishRef = useRef(onFinish);
   const visualRef = useRef(onVisualState);
+  const flipRef = useRef(0);
+  const lastSceneTapRef = useRef(0);
   const [value, setValue] = useState(0.18);
   const [hold, setHold] = useState(0);
   const temp = 60 + value * 40;
@@ -292,7 +499,8 @@ function SliderGame({
       if (!doneRef.current && holdRef.current >= holdGoal) {
         doneRef.current = true;
         const elapsed = performance.now() - startRef.current;
-        finishRef.current(elapsed < 4300 ? 1 : elapsed < 6500 ? 0.78 : 0.58);
+        const flipPenalty = flipRef.current ? 0 : 0.18;
+        finishRef.current((elapsed < 4300 ? 1 : elapsed < 6500 ? 0.78 : 0.58) - flipPenalty);
       }
       raf = requestAnimationFrame(tick);
     };
@@ -300,8 +508,34 @@ function SliderGame({
     return () => cancelAnimationFrame(raf);
   }, [holdGoal, max, min]);
 
+  useEffect(() => {
+    if (!sceneTap || sceneTap.id === lastSceneTapRef.current) return;
+    lastSceneTapRef.current = sceneTap.id;
+    flipRef.current += 1;
+    const liveTemp = 60 + valueRef.current * 40;
+    visualRef.current({
+      sliderValue: valueRef.current,
+      temp: liveTemp,
+      inZone: liveTemp >= min && liveTemp <= max,
+      holdPct: clamp(holdRef.current / holdGoal, 0, 1),
+      poachFlipCount: flipRef.current,
+      stagePulse: sceneTap.id,
+      stageAt: sceneTap.time,
+      stageX: sceneTap.x,
+      stageY: sceneTap.y,
+    });
+  }, [holdGoal, max, min, sceneTap]);
+
   const pct = clamp(hold / holdGoal, 0, 1);
-  const status = !touchedRef.current ? 'Drag the handle' : inZone ? 'Good, hold steady' : temp < min ? 'Too cool, drag up' : 'Too hot, drag down';
+  const status = !touchedRef.current
+    ? 'Drag the handle'
+    : inZone && !flipRef.current
+      ? 'Tap chicken to turn'
+      : inZone
+        ? 'Good, hold steady'
+        : temp < min
+          ? 'Too cool, drag up'
+          : 'Too hot, drag down';
 
   return (
     <div className="slider-game">
@@ -317,11 +551,14 @@ function SliderGame({
           if (e.buttons || e.pointerType === 'touch') updateFromY(e.clientY);
         }}
       >
+        <div className="rail-label">heat</div>
         <div className="target-zone" style={{ bottom: `${((min - 60) / 40) * 100}%`, height: `${((max - min) / 40) * 100}%` }}>
           target
         </div>
         <div className="thermo-fill" style={{ height: `${value * 100}%` }} />
-        <div className="thermo-handle" style={{ bottom: `calc(${value * 100}% - 17px)` }}>drag</div>
+        <div className="thermo-handle" style={{ bottom: `calc(${value * 100}% - 17px)` }}>
+          <span>drag</span>
+        </div>
       </div>
       <div className="readout-card">
         <span>{Math.round(temp)}{step.target?.unit}</span>
@@ -334,10 +571,12 @@ function SliderGame({
 
 function SequenceGame({
   step,
+  sceneTap,
   onFinish,
   onVisualState,
 }: {
   step: StepDefinition;
+  sceneTap: SceneTap | null;
   onFinish: (score: number) => void;
   onVisualState: (state: VisualState) => void;
 }) {
@@ -350,6 +589,7 @@ function SequenceGame({
   const dragRef = useRef<DragState | null>(null);
   const startRef = useRef(performance.now());
   const lastDropAt = useRef(0);
+  const lastSceneTapRef = useRef(0);
 
   useEffect(() => {
     dragRef.current = drag;
@@ -394,7 +634,7 @@ function SequenceGame({
     addIngredient(id);
   };
 
-  const addIngredient = (id: string) => {
+  const addIngredient = (id: string, action?: SceneTap) => {
     if (index >= items.length || placed.includes(id)) return;
     if (id !== items[index].id) {
       setMistakes((m) => m + 1);
@@ -404,6 +644,12 @@ function SequenceGame({
     const nextPlaced = [...placed, id];
     setPlaced(nextPlaced);
     setIndex(next);
+    onVisualState({
+      sequenceIndex: next,
+      placedIds: nextPlaced,
+      dragId: null,
+      ...(action ? { stagePulse: action.id, stageAt: action.time, stageX: action.x, stageY: action.y } : {}),
+    });
     if (next === items.length) {
       const elapsed = performance.now() - startRef.current;
       const mistakePenalty = mistakes * 0.16;
@@ -412,6 +658,13 @@ function SequenceGame({
       window.setTimeout(() => onFinish(0.9 + speedBonus - mistakePenalty), 260);
     }
   };
+
+  useEffect(() => {
+    if (!sceneTap || sceneTap.id === lastSceneTapRef.current) return;
+    lastSceneTapRef.current = sceneTap.id;
+    const current = items[index];
+    if (current) addIngredient(current.id, sceneTap);
+  }, [sceneTap?.id]);
 
   useEffect(() => {
     if (!drag) return undefined;
@@ -457,7 +710,7 @@ function SequenceGame({
       window.removeEventListener('touchend', onTouchEnd);
       window.removeEventListener('touchcancel', onTouchEnd);
     };
-  });
+  }, [drag?.id]);
 
   return (
     <div className="sequence-game">
@@ -466,7 +719,7 @@ function SequenceGame({
         <strong>{items[index]?.label ?? 'Ready'}</strong>
       </div>
       <div ref={dropRef} className="ingredient-drop-zone" data-testid="sequence-drop-zone">
-        <span>{items[index] ? `Drop ${items[index].label} here` : 'Ready'}</span>
+        <span>{items[index] ? `Flick ${items[index].label} into the 3D wok` : 'Ready'}</span>
         <div className="drop-bowl">
           {placed.map((id) => {
             const item = items.find((candidate) => candidate.id === id);
@@ -481,7 +734,7 @@ function SequenceGame({
             className={`ingredient-tile ${i === index ? 'active' : ''} ${i < index ? 'done' : ''}`}
             style={{ '--tile': item.color } as CSSProperties}
             data-testid={`sequence-${item.id}`}
-            disabled={placed.includes(item.id)}
+            disabled={i !== index}
             onClick={() => {
               if (performance.now() - lastDropAt.current < 350) return;
               if (i === index) addIngredient(item.id);
@@ -538,10 +791,12 @@ function SequenceGame({
 
 function StirGame({
   step,
+  sceneTap,
   onFinish,
   onVisualState,
 }: {
   step: StepDefinition;
+  sceneTap: SceneTap | null;
   onFinish: (score: number) => void;
   onVisualState: (state: VisualState) => void;
 }) {
@@ -550,6 +805,8 @@ function StirGame({
   const progressRef = useRef(0);
   const startRef = useRef(performance.now());
   const doneRef = useRef(false);
+  const lastSceneTapRef = useRef(0);
+  const flipRef = useRef(0);
   const [progress, setProgress] = useState(0);
   const turns = step.turns ?? 2.5;
 
@@ -557,6 +814,22 @@ function StirGame({
     const rect = padRef.current?.getBoundingClientRect();
     if (!rect) return 0;
     return Math.atan2(clientY - (rect.top + rect.height / 2), clientX - (rect.left + rect.width / 2));
+  };
+
+  const addProgress = (amount: number, action?: SceneTap) => {
+    if (doneRef.current) return;
+    progressRef.current = clamp(progressRef.current + amount, 0, 1);
+    setProgress(progressRef.current);
+    if (action) flipRef.current += 1;
+    onVisualState({
+      stirProgress: progressRef.current,
+      ...(action ? { panFlipCount: flipRef.current, stagePulse: action.id, stageAt: action.time, stageX: action.x, stageY: action.y } : {}),
+    });
+    if (progressRef.current >= 1) {
+      doneRef.current = true;
+      const elapsed = performance.now() - startRef.current;
+      onFinish((elapsed < 5800 ? 1 : elapsed < 8200 ? 0.76 : 0.58) - Math.max(0, flipRef.current - 9) * 0.02);
+    }
   };
 
   const move = (clientX: number, clientY: number) => {
@@ -568,16 +841,15 @@ function StirGame({
     let delta = angle - lastAngle.current;
     if (delta > Math.PI) delta -= Math.PI * 2;
     if (delta < -Math.PI) delta += Math.PI * 2;
-    progressRef.current = clamp(progressRef.current + Math.abs(delta) / (Math.PI * 2 * turns), 0, 1);
     lastAngle.current = angle;
-    setProgress(progressRef.current);
-    onVisualState({ stirProgress: progressRef.current });
-    if (!doneRef.current && progressRef.current >= 1) {
-      doneRef.current = true;
-      const elapsed = performance.now() - startRef.current;
-      onFinish(elapsed < 5800 ? 1 : elapsed < 8200 ? 0.76 : 0.58);
-    }
+    addProgress(Math.abs(delta) / (Math.PI * 2 * turns));
   };
+
+  useEffect(() => {
+    if (!sceneTap || sceneTap.id === lastSceneTapRef.current) return;
+    lastSceneTapRef.current = sceneTap.id;
+    addProgress(0.14, sceneTap);
+  }, [sceneTap?.id]);
 
   return (
     <div className="stir-game">
@@ -609,10 +881,12 @@ function StirGame({
 
 function HoldGame({
   step,
+  sceneTap,
   onFinish,
   onVisualState,
 }: {
   step: StepDefinition;
+  sceneTap: SceneTap | null;
   onFinish: (score: number) => void;
   onVisualState: (state: VisualState) => void;
 }) {
@@ -620,6 +894,7 @@ function HoldGame({
   const [holding, setHolding] = useState(false);
   const startRef = useRef(0);
   const doneRef = useRef(false);
+  const lastSceneTapRef = useRef(0);
   const min = step.target?.min ?? 2.4;
   const max = step.target?.max ?? 3.7;
   const total = step.seconds ?? 4.5;
@@ -651,6 +926,19 @@ function HoldGame({
     onFinish(score);
   };
 
+  useEffect(() => {
+    if (!sceneTap || sceneTap.id === lastSceneTapRef.current) return;
+    lastSceneTapRef.current = sceneTap.id;
+    onVisualState({
+      stagePulse: sceneTap.id,
+      stageAt: sceneTap.time,
+      stageX: sceneTap.x,
+      stageY: sceneTap.y,
+      holdProgress: clamp(held / total, 0, 1),
+      inZone,
+    });
+  }, [sceneTap?.id]);
+
   return (
     <div className="hold-game">
       <div className="timing-bar">
@@ -679,10 +967,12 @@ function HoldGame({
 
 function SwipeGame({
   step,
+  sceneTap,
   onFinish,
   onVisualState,
 }: {
   step: StepDefinition;
+  sceneTap: SceneTap | null;
   onFinish: (score: number) => void;
   onVisualState: (state: VisualState) => void;
 }) {
@@ -694,6 +984,7 @@ function SwipeGame({
   const startX = useRef(0);
   const draggingRef = useRef(false);
   const startRef = useRef(performance.now());
+  const lastSceneTapRef = useRef(0);
   const target = step.swipes ?? 6;
   const expected = count % 2 === 0 ? 'right' : 'left';
 
@@ -715,6 +1006,20 @@ function SwipeGame({
       onVisualState({ swipeProgress: liveCount / target, swipeDirection: direction, swipeDrag: 0 });
     }
   };
+
+  useEffect(() => {
+    if (!sceneTap || sceneTap.id === lastSceneTapRef.current) return;
+    lastSceneTapRef.current = sceneTap.id;
+    onVisualState({
+      swipeProgress: countRef.current / target,
+      swipeDirection: 'short',
+      swipeDrag: 0,
+      stagePulse: sceneTap.id,
+      stageAt: sceneTap.time,
+      stageX: sceneTap.x,
+      stageY: sceneTap.y,
+    });
+  }, [sceneTap?.id, target]);
 
   const move = (clientX: number) => {
     if (!draggingRef.current) return;
@@ -788,9 +1093,11 @@ function SwipeGame({
 }
 
 function FoldGame({
+  sceneTap,
   onFinish,
   onVisualState,
 }: {
+  sceneTap: SceneTap | null;
   onFinish: (score: number) => void;
   onVisualState: (state: VisualState) => void;
 }) {
@@ -799,6 +1106,7 @@ function FoldGame({
   const [folded, setFolded] = useState<boolean[]>([false, false, false, false]);
   const [dragging, setDragging] = useState<number | null>(null);
   const startRef = useRef(performance.now());
+  const lastSceneTapRef = useRef(0);
 
   const fold = (i: number) => {
     if (folded[i]) return;
@@ -820,6 +1128,18 @@ function FoldGame({
     const dy = Math.abs(clientY - centerY);
     if (dx < rect.width * 0.24 && dy < rect.height * 0.24) fold(i);
   };
+
+  useEffect(() => {
+    if (!sceneTap || sceneTap.id === lastSceneTapRef.current) return;
+    lastSceneTapRef.current = sceneTap.id;
+    onVisualState({
+      foldedCorners: folded,
+      stagePulse: sceneTap.id,
+      stageAt: sceneTap.time,
+      stageX: sceneTap.x,
+      stageY: sceneTap.y,
+    });
+  }, [sceneTap?.id]);
 
   return (
     <div ref={boardRef} className="fold-game">
@@ -856,10 +1176,12 @@ function FoldGame({
 
 function PlateGame({
   step,
+  sceneTap,
   onFinish,
   onVisualState,
 }: {
   step: StepDefinition;
+  sceneTap: SceneTap | null;
   onFinish: (score: number) => void;
   onVisualState: (state: VisualState) => void;
 }) {
@@ -868,6 +1190,7 @@ function PlateGame({
   const [drag, setDrag] = useState<DragState | null>(null);
   const dragRef = useRef<DragState | null>(null);
   const startRef = useRef(performance.now());
+  const lastSceneTapRef = useRef(0);
   const items = step.items ?? [];
 
   useEffect(() => {
@@ -893,13 +1216,13 @@ function PlateGame({
     }
   };
 
-  const drop = (id: string, x: number, y: number) => {
-    const rect = plateRef.current?.getBoundingClientRect();
+  const placeItem = (id: string) => {
     dragRef.current = null;
     setDrag(null);
-    if (!rect || placed.includes(id)) return;
-    const inside = x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
-    if (!inside) return;
+    if (placed.includes(id)) {
+      onVisualState({ platePlaced: placed, dragId: null });
+      return;
+    }
     const next = [...placed, id];
     setPlaced(next);
     onVisualState({ platePlaced: next, dragId: null });
@@ -908,6 +1231,35 @@ function PlateGame({
       onFinish(elapsed < 7000 ? 1 : 0.76);
     }
   };
+
+  const drop = (id: string, x: number, y: number) => {
+    const rect = plateRef.current?.getBoundingClientRect();
+    dragRef.current = null;
+    setDrag(null);
+    if (!rect || placed.includes(id)) {
+      onVisualState({ platePlaced: placed, dragId: null });
+      return;
+    }
+    const inside = x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+    if (!inside) {
+      onVisualState({ platePlaced: placed, dragId: null });
+      return;
+    }
+    placeItem(id);
+  };
+
+  useEffect(() => {
+    if (!sceneTap || sceneTap.id === lastSceneTapRef.current) return;
+    lastSceneTapRef.current = sceneTap.id;
+    onVisualState({
+      platePlaced: placed,
+      dragId: null,
+      stagePulse: sceneTap.id,
+      stageAt: sceneTap.time,
+      stageX: sceneTap.x,
+      stageY: sceneTap.y,
+    });
+  }, [sceneTap?.id]);
 
   useEffect(() => {
     if (!drag) return undefined;
@@ -952,7 +1304,7 @@ function PlateGame({
       window.removeEventListener('touchend', onTouchEnd);
       window.removeEventListener('touchcancel', onTouchEnd);
     };
-  });
+  }, [drag?.id]);
 
   return (
     <div className="plate-game">
@@ -966,7 +1318,7 @@ function PlateGame({
             />
           ))}
         </div>
-        <span>{placed.length ? placed.map((id) => items.find((item) => item.id === id)?.label).join(' + ') : 'Drop food here'}</span>
+        <span>{placed.length ? `${placed.length}/${items.length} on plate` : 'Drop onto the 3D plate'}</span>
       </div>
       <div className="token-tray">
         {items.map((item) => (
@@ -1004,9 +1356,11 @@ function PlateGame({
               const touch = e.touches[0];
               if (touch) beginDrag(item.id, touch.clientX, touch.clientY);
             }}
+            onClick={() => placeItem(item.id)}
           >
             <span className="voxel-swatch mini" />
             <strong>{item.label}</strong>
+            <small>{placed.includes(item.id) ? 'placed' : 'tap or drag'}</small>
           </button>
         ))}
       </div>

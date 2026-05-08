@@ -13,6 +13,9 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
+          if (id.includes('node_modules/three/examples/jsm/loaders/GLTFLoader')) return 'gltf-loader';
+          if (id.includes('node_modules/three/examples/jsm/utils')) return 'gltf-loader';
+          if (id.includes('node_modules/three/examples/jsm')) return 'three-extras';
           if (id.includes('node_modules/three')) return 'three';
           if (id.includes('node_modules/react') || id.includes('node_modules/scheduler')) return 'react';
           if (id.includes('/dishes/')) {
