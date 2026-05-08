@@ -19,8 +19,11 @@ async function playPrep(page) {
 }
 
 async function playStir(page) {
-  for (let i = 0; i < 5; i++) {
-    await page.getByTestId('toss-button').click();
+  const pad = await page.getByTestId('toss-pad').boundingBox();
+  if (!pad) throw new Error('toss pad missing');
+  const x = pad.x + pad.width / 2;
+  for (let i = 0; i < 4; i++) {
+    await drag(page, { x, y: pad.y + pad.height * 0.82 }, { x: x - 8 + (i % 2) * 16, y: pad.y + pad.height * 0.16 }, 10);
     await page.waitForTimeout(560);
   }
 }

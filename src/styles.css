@@ -374,6 +374,64 @@ p {
   background: rgba(255, 207, 93, 0.3);
 }
 
+.swipe-pad {
+  position: relative;
+  min-height: 118px;
+  overflow: hidden;
+  grid-template-rows: 1fr auto;
+  gap: 6px;
+  background:
+    linear-gradient(180deg, rgba(255, 250, 240, 0.92), rgba(255, 221, 135, 0.58)),
+    #fff0c7;
+}
+
+.swipe-pad::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  width: 46px;
+  height: 76px;
+  border-radius: 999px 999px 12px 12px;
+  background: rgba(35, 124, 109, 0.16);
+  transform: translateX(-50%);
+}
+
+.swipe-pad i {
+  position: absolute;
+  left: calc(50% - 11px);
+  bottom: 22px;
+  width: 22px;
+  min-height: 28px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #2f9f89, #ffd36d);
+  box-shadow: 0 0 0 4px rgba(255, 250, 240, 0.72);
+}
+
+.swipe-pad b {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 40px;
+  border-radius: 7px;
+  background: #1e403e;
+  color: var(--paper);
+  font-size: 16px;
+  line-height: 1;
+}
+
+.swipe-pad span {
+  position: relative;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: rgba(255, 250, 240, 0.9);
+}
+
+.swipe-pad.is-tossing i {
+  background: linear-gradient(180deg, #ffd36d, #d6533a);
+}
+
 .chop-button {
   min-height: 64px;
   background: linear-gradient(180deg, #ffd36d, #e58c31);

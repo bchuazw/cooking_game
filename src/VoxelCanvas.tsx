@@ -14,6 +14,7 @@ export interface VisualState {
   stirTurns?: number;
   stirMarker?: number;
   stirToss?: number;
+  stirPull?: number;
   simmerHeat?: number;
   simmerHits?: number;
   simmerReady?: boolean;
@@ -590,6 +591,7 @@ function updateDynamics(d: DynamicRefs, state: VisualState, t: number) {
   }
 
   const stir = state.stirProgress ?? 0;
+  const stirPull = state.stirPull ?? 0;
   const stirTossAge = state.stirToss ? t - state.stirToss / 1000 : 999;
   const recentToss = stirTossAge >= 0 && stirTossAge < 0.5;
   const tossArc = recentToss ? Math.sin((stirTossAge / 0.5) * Math.PI) : 0;
@@ -607,14 +609,18 @@ function updateDynamics(d: DynamicRefs, state: VisualState, t: number) {
   d.riceMounds.forEach((mound, i) => {
     const base = basePosition(mound);
     const scale = baseScale(mound);
-    mound.position.y = base.y + tossArc * (0.05 + i * 0.05);
-    mound.scale.set(scale.x * (1 + stir * 0.08 + tossArc * 0.06), scale.y, scale.z * (1 + stir * 0.08 + tossArc * 0.06));
+    mound.position.y = base.y + tossArc * (0.05 + i * 0.05) + stirPull * 0.035;
+    mound.scale.set(
+      scale.x * (1 + stir * 0.08 + tossArc * 0.06 + stirPull * 0.03),
+      scale.y,
+      scale.z * (1 + stir * 0.08 + tossArc * 0.06 + stirPull * 0.03),
+    );
   });
   d.riceBits.forEach((grain, i) => {
     const base = basePosition(grain);
     const scale = baseScale(grain);
     const drift = Math.sin(t * (2.6 + stir * 2.4) + i) * 0.025 * (0.4 + stir);
-    const lift = tossArc * (0.2 + (i % 5) * 0.03);
+    const lift = tossArc * (0.2 + (i % 5) * 0.03) + stirPull * (0.04 + (i % 3) * 0.012);
     grain.position.x = base.x * (1 + stir * 0.18) + Math.cos(i * 1.7) * tossArc * 0.08 + drift;
     grain.position.z = 0.35 + (base.z - 0.35) * (1 + stir * 0.12) + Math.sin(i * 1.3) * tossArc * 0.06;
     grain.position.y = base.y + Math.sin(t * 8 + i) * 0.016 * (0.3 + stir) + lift;
@@ -627,15 +633,15 @@ function updateDynamics(d: DynamicRefs, state: VisualState, t: number) {
     const towardRice = stir * 0.12;
     item.position.x = base.x * (1 - towardRice) + Math.sin(t * 2 + i) * 0.015 + tossArc * Math.cos(i) * 0.04;
     item.position.z = 0.35 + (base.z - 0.35) * (1 - towardRice) + tossArc * Math.sin(i) * 0.04;
-    item.position.y = base.y + Math.sin(t * 4 + i) * 0.01 + tossArc * (0.16 + (i % 3) * 0.03);
+    item.position.y = base.y + Math.sin(t * 4 + i) * 0.01 + tossArc * (0.16 + (i % 3) * 0.03) + stirPull * 0.04;
     item.rotation.y = t * 0.35 + i;
   });
   if (d.wokSpoon) {
-    d.wokSpoon.position.x = 0.56 - tossArc * 0.34;
-    d.wokSpoon.position.z = 0.48 - tossArc * 0.16;
-    d.wokSpoon.position.y = Math.sin(t * 5) * 0.01 - tossArc * 0.07;
-    d.wokSpoon.rotation.y = -0.35 - tossArc * 0.42 + stir * 0.25;
-    d.wokSpoon.rotation.z = -0.04 - tossArc * 0.18;
+    d.wokSpoon.position.x = 0.56 - tossArc * 0.34 - stirPull * 0.18;
+    d.wokSpoon.position.z = 0.48 - tossArc * 0.16 - stirPull * 0.08;
+    d.wokSpoon.position.y = Math.sin(t * 5) * 0.01 - tossArc * 0.07 + stirPull * 0.05;
+    d.wokSpoon.rotation.y = -0.35 - tossArc * 0.42 + stir * 0.25 - stirPull * 0.18;
+    d.wokSpoon.rotation.z = -0.04 - tossArc * 0.18 - stirPull * 0.2;
   }
 
   if (d.heatMercury) {

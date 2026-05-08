@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { CHICKEN_RICE, starsFromAverage, tierFromScore, type StepDefinition, type Tier } from './gameData';
 import { VoxelCanvas, type VisualState } from './VoxelCanvas';
 
@@ -195,17 +195,20 @@ function MiniGame({
 
 function PrepGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => void; onFinish: (score: number) => void }) {
   const ingredients = ['Garlic', 'Ginger', 'Pandan', 'Shallot'];
+  const firstPhase = useRef(Math.random());
+  const firstBlade = useRef(trianglePhase(firstPhase.current));
   const [active, setActive] = useState(0);
   const [cuts, setCuts] = useState(0);
-  const [blade, setBlade] = useState(0.5);
+  const [blade, setBlade] = useState(firstBlade.current);
   const [cutting, setCutting] = useState(false);
-  const bladeRef = useRef(0.5);
+  const bladeRef = useRef(firstBlade.current);
   const scoresRef = useRef<number[]>([]);
   const startedAt = useRef(performance.now());
   const roundStarted = useRef(performance.now());
+  const phaseOffset = useRef(firstPhase.current);
 
   useEffect(() => {
-    onVisual({ prepCuts: cuts, prepActive: active });
+    onVisual({ prepCuts: cuts, prepActive: active, prepBlade: bladeRef.current });
   }, [active, cuts, onVisual]);
 
   useEffect(() => {
@@ -214,8 +217,8 @@ function PrepGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => vo
     const tick = (now: number) => {
       if (!cutting && now - last > 33) {
         last = now;
-        const phase = ((now - roundStarted.current) % 1800) / 1800;
-        const next = phase < 0.5 ? phase * 2 : 2 - phase * 2;
+        const phase = (((now - roundStarted.current) / 1800) + phaseOffset.current) % 1;
+        const next = trianglePhase(phase);
         bladeRef.current = next;
         setBlade(next);
         onVisual({ prepBlade: next });
@@ -246,9 +249,11 @@ function PrepGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => vo
       setActive(next);
       setCutting(false);
       roundStarted.current = performance.now();
-      bladeRef.current = 0.5;
-      setBlade(0.5);
-      onVisual({ prepCuts: next, prepActive: next, prepBlade: 0.5 });
+      phaseOffset.current = Math.random();
+      const nextBlade = trianglePhase(phaseOffset.current);
+      bladeRef.current = nextBlade;
+      setBlade(nextBlade);
+      onVisual({ prepCuts: next, prepActive: next, prepBlade: nextBlade });
     }, 520);
   };
 
@@ -273,54 +278,37 @@ function PrepGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => vo
 
 function StirGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => void; onFinish: (score: number) => void }) {
   const startedAt = useRef(performance.now());
-  const roundStarted = useRef(performance.now());
-  const markerRef = useRef(0.5);
   const scoresRef = useRef<number[]>([]);
   const tossesRef = useRef(0);
-  const targetTosses = 5;
+  const targetTosses = 4;
   const [progress, setProgress] = useState(0);
-  const progressRef = useRef(0);
-  const [marker, setMarker] = useState(0.5);
   const [tossing, setTossing] = useState(false);
   const [tosses, setTosses] = useState(0);
-  const [cue, setCue] = useState('Rice in wok');
+  const [cue, setCue] = useState('Swipe upward');
+  const [dragPower, setDragPower] = useState(0);
+  const dragRef = useRef<{ x: number; y: number; time: number; pointerId: number } | null>(null);
   const done = useRef(false);
 
-  useEffect(() => {
-    let raf = 0;
-    let last = 0;
-    const tick = (now: number) => {
-      if (!tossing && !done.current && now - last > 33) {
-        last = now;
-        const phase = ((now - roundStarted.current) % 1700) / 1700;
-        const next = phase < 0.5 ? phase * 2 : 2 - phase * 2;
-        markerRef.current = next;
-        setMarker(next);
-        onVisual({ stirMarker: next, stirProgress: progressRef.current });
-      }
-      raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [onVisual, tossing]);
+  const resetDrag = () => {
+    dragRef.current = null;
+    setDragPower(0);
+    onVisual({ stirPull: 0 });
+  };
 
-  const toss = () => {
-    if (done.current || tossing) return;
-    const accuracy = 1 - Math.min(1, Math.abs(markerRef.current - 0.5) / 0.5);
-    const quality = clamp(0.72 + accuracy * 0.28, 0.72, 1);
+  const completeToss = (quality: number) => {
     scoresRef.current.push(quality);
     tossesRef.current += 1;
     setTosses(tossesRef.current);
-    setCue(accuracy > 0.86 ? 'Perfect toss' : accuracy > 0.64 ? 'Good toss' : 'Rice tossed');
-    const nextProgress = clamp(progressRef.current + 0.17 + quality * 0.06, 0, 1);
-    progressRef.current = nextProgress;
+    setCue(quality > 0.9 ? 'High toss' : quality > 0.76 ? 'Good toss' : 'Short toss');
+    const nextProgress = clamp(tossesRef.current / targetTosses, 0, 1);
     setProgress(nextProgress);
     setTossing(true);
+    setDragPower(0);
     onVisual({
       stirProgress: nextProgress,
-      stirMarker: markerRef.current,
       stirTurns: tossesRef.current,
       stirToss: performance.now(),
+      stirPull: 0,
       pulse: performance.now(),
     });
 
@@ -332,12 +320,59 @@ function StirGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => vo
         return;
       }
       setTossing(false);
-      roundStarted.current = performance.now();
-      markerRef.current = 0.5;
-      setMarker(0.5);
-      setCue('Rice in wok');
-      onVisual({ stirProgress: nextProgress, stirMarker: 0.5 });
+      setCue('Swipe upward');
+      onVisual({ stirProgress: nextProgress, stirPull: 0 });
     }, 430);
+  };
+
+  const startSwipe = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (done.current || tossing) return;
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragRef.current = { x: event.clientX, y: event.clientY, time: performance.now(), pointerId: event.pointerId };
+    setCue('Pull up');
+    setDragPower(0);
+    onVisual({ stirPull: 0 });
+  };
+
+  const moveSwipe = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    if (!drag || done.current || tossing) return;
+    event.preventDefault();
+    const dy = drag.y - event.clientY;
+    const dx = Math.abs(event.clientX - drag.x);
+    const power = clamp(dy / 130, 0, 1);
+    const straight = clamp(1 - dx / 150, 0, 1);
+    const nextPower = power * (0.55 + straight * 0.45);
+    setDragPower(nextPower);
+    setCue(nextPower > 0.72 ? 'Release!' : 'Pull higher');
+    onVisual({ stirPull: nextPower });
+  };
+
+  const endSwipe = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    if (!drag || done.current || tossing) return;
+    event.preventDefault();
+    try {
+      event.currentTarget.releasePointerCapture(drag.pointerId);
+    } catch {
+      // Pointer capture can already be gone after touch cancellation.
+    }
+    const dy = drag.y - event.clientY;
+    const dx = Math.abs(event.clientX - drag.x);
+    const duration = Math.max(120, performance.now() - drag.time);
+    dragRef.current = null;
+    const distance = clamp((dy - 36) / 130, 0, 1);
+    const straight = clamp(1 - dx / Math.max(80, dy * 0.8), 0, 1);
+    const speed = clamp(340 / duration, 0, 1);
+    const power = distance * 0.56 + straight * 0.24 + speed * 0.2;
+    if (distance < 0.18) {
+      setCue('Swipe upward');
+      setDragPower(0);
+      onVisual({ stirPull: 0 });
+      return;
+    }
+    completeToss(clamp(0.62 + power * 0.38, 0.62, 1));
   };
 
   return (
@@ -346,14 +381,19 @@ function StirGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => vo
         <span>{tossing ? cue : 'Toast the rice'}</span>
         <strong>{Math.min(tosses, targetTosses)}/{targetTosses}</strong>
       </div>
-      <div className="timing-caption">{tossing ? 'The rice jumps and turns in the wok.' : 'Tap when the black marker crosses the gold zone.'}</div>
-      <div className="chop-timing toss-timing" data-testid="toss-timing">
-        <i className="target-zone" />
-        <b style={{ left: `calc(${marker * 100}% - 8px)` }} />
+      <div className="timing-caption">{tossing ? 'The rice jumps and turns in the wok.' : 'Drag upward on the pad, then release.'}</div>
+      <div
+        className={`gesture-pad swipe-pad ${tossing ? 'is-tossing' : ''}`}
+        data-testid="toss-pad"
+        onPointerDown={startSwipe}
+        onPointerMove={moveSwipe}
+        onPointerUp={endSwipe}
+        onPointerCancel={resetDrag}
+      >
+        <i style={{ height: `${24 + dragPower * 58}%` }} />
+        <b>UP</b>
+        <span>{tossing ? 'Rice tossed!' : cue}</span>
       </div>
-      <button className="chop-button toss-button" data-testid="toss-button" onClick={toss} disabled={tossing}>
-        {tossing ? 'Rice tossed!' : 'Toss the Rice'}
-      </button>
       <ProgressBar value={progress} />
     </div>
   );
@@ -600,6 +640,10 @@ function avg(values: number[]) {
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
+}
+
+function trianglePhase(phase: number) {
+  return phase < 0.5 ? phase * 2 : 2 - phase * 2;
 }
 
 function renderStars(value: number) {
