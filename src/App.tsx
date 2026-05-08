@@ -886,6 +886,41 @@ interface MusicLoop {
 }
 
 function createMusicLoop(): MusicLoop {
+  const track = new Audio();
+  const base = import.meta.env.BASE_URL;
+  const opus = `${base}audio/happy-clappy-loop.opus`;
+  const mp3 = `${base}audio/happy-clappy-loop.mp3`;
+  track.src = track.canPlayType('audio/ogg; codecs="opus"') ? opus : mp3;
+  track.loop = true;
+  track.preload = 'auto';
+  track.volume = 0.86;
+  track.load();
+  let fallback: MusicLoop | null = null;
+
+  return {
+    start: async () => {
+      try {
+        track.volume = 0.86;
+        await track.play();
+      } catch {
+        if (!fallback) fallback = createSynthMusicLoop();
+        await fallback.start();
+      }
+    },
+    stop: () => {
+      track.pause();
+      try {
+        track.currentTime = 0;
+      } catch {
+        // Some mobile browsers disallow seeking before media metadata is ready.
+      }
+      fallback?.stop();
+      fallback = null;
+    },
+  };
+}
+
+function createSynthMusicLoop(): MusicLoop {
   const AudioCtor = window.AudioContext ?? (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
   if (!AudioCtor) {
     return { start: async () => undefined, stop: () => undefined };
@@ -895,6 +930,7 @@ function createMusicLoop(): MusicLoop {
   const master = ctx.createGain();
   master.gain.value = 0.0001;
   master.connect(ctx.destination);
+  const masterVolume = 0.34;
 
   const melody = [392, 440, 523.25, 587.33, 523.25, 440, 392, 329.63];
   const bass = [196, 246.94, 220, 174.61];
@@ -919,13 +955,13 @@ function createMusicLoop(): MusicLoop {
     while (nextTime < ctx.currentTime + 0.55) {
       const beat = step % 16;
       if (beat % 2 === 0) {
-        pluck(melody[(step / 2) % melody.length], nextTime, 0.22, 0.026, 'triangle');
+        pluck(melody[(step / 2) % melody.length], nextTime, 0.24, 0.06, 'triangle');
       }
       if (beat % 8 === 0) {
-        pluck(bass[(step / 8) % bass.length], nextTime, 0.42, 0.018, 'sine');
+        pluck(bass[(step / 8) % bass.length], nextTime, 0.46, 0.044, 'sine');
       }
       if (beat === 6 || beat === 14) {
-        pluck(880, nextTime + 0.015, 0.06, 0.01, 'sine');
+        pluck(880, nextTime + 0.015, 0.08, 0.024, 'sine');
       }
       nextTime += 0.18;
       step += 1;
@@ -938,7 +974,7 @@ function createMusicLoop(): MusicLoop {
     start: async () => {
       if (ctx.state === 'suspended') await ctx.resume();
       master.gain.cancelScheduledValues(ctx.currentTime);
-      master.gain.setTargetAtTime(0.045, ctx.currentTime, 0.08);
+      master.gain.setTargetAtTime(masterVolume, ctx.currentTime, 0.08);
       schedule();
     },
     stop: () => {
