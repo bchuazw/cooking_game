@@ -22,13 +22,43 @@ export default function App() {
   const [visualState, setVisualState] = useState<VisualState>({});
   const [feedback, setFeedback] = useState<StepResult | null>(null);
   const [best, setBest] = useState(() => loadBest());
+  const [musicOn, setMusicOn] = useState(false);
   const completingRef = useRef(false);
+  const musicRef = useRef<MusicLoop | null>(null);
 
   const step = CHICKEN_RICE.steps[stepIndex];
   const average = results.length ? results.reduce((sum, item) => sum + item.score, 0) / results.length : 0;
   const stars = results.length ? starsFromAverage(average) : 1;
 
+  const startMusic = useCallback(async () => {
+    try {
+      if (!musicRef.current) {
+        musicRef.current = createMusicLoop();
+      }
+      await musicRef.current.start();
+      setMusicOn(true);
+    } catch {
+      musicRef.current = null;
+      setMusicOn(false);
+    }
+  }, []);
+
+  const stopMusic = useCallback(() => {
+    musicRef.current?.stop();
+    musicRef.current = null;
+    setMusicOn(false);
+  }, []);
+
+  const toggleMusic = useCallback(() => {
+    if (musicRef.current && musicOn) {
+      stopMusic();
+      return;
+    }
+    void startMusic();
+  }, [musicOn, startMusic, stopMusic]);
+
   const begin = () => {
+    void startMusic();
     completingRef.current = false;
     setStepIndex(0);
     setResults([]);
@@ -76,6 +106,12 @@ export default function App() {
     });
   }, [screen, stars]);
 
+  useEffect(() => {
+    return () => {
+      musicRef.current?.stop();
+    };
+  }, []);
+
   return (
     <main className="app-shell">
       {screen === 'menu' && <MenuScreen best={best} onBegin={begin} />}
@@ -86,6 +122,8 @@ export default function App() {
           totalSteps={CHICKEN_RICE.steps.length}
           visualState={visualState}
           feedback={feedback}
+          musicOn={musicOn}
+          onToggleMusic={toggleMusic}
           onVisual={patchVisual}
           onFinish={finishStep}
           onExit={() => setScreen('menu')}
@@ -130,6 +168,8 @@ function CookScreen({
   totalSteps,
   visualState,
   feedback,
+  musicOn,
+  onToggleMusic,
   onVisual,
   onFinish,
   onExit,
@@ -139,6 +179,8 @@ function CookScreen({
   totalSteps: number;
   visualState: VisualState;
   feedback: StepResult | null;
+  musicOn: boolean;
+  onToggleMusic: () => void;
   onVisual: (patch: VisualState) => void;
   onFinish: (score: number) => void;
   onExit: () => void;
@@ -148,6 +190,9 @@ function CookScreen({
       <VoxelCanvas mode="cook" stepId={step.id} visualState={visualState} />
       <div className="top-hud">
         <button className="exit-button" onClick={onExit}>Exit</button>
+        <button className="music-button" aria-label="Toggle music" aria-pressed={musicOn} onClick={onToggleMusic}>
+          {musicOn ? 'On' : 'Off'}
+        </button>
         <div className="step-pips" aria-label={`step ${stepIndex + 1} of ${totalSteps}`}>
           {CHICKEN_RICE.steps.map((item, i) => (
             <span key={item.id} className={i < stepIndex ? 'done' : i === stepIndex ? 'active' : ''}>
@@ -158,7 +203,7 @@ function CookScreen({
         <strong>{stepIndex + 1}/{totalSteps}</strong>
       </div>
 
-      <section className="play-panel">
+      <section key={step.id} className="play-panel">
         <div className="step-copy">
           <p className="eyebrow">{CHICKEN_RICE.name}</p>
           <h2>{step.title}</h2>
@@ -281,13 +326,22 @@ function StirGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => vo
   const scoresRef = useRef<number[]>([]);
   const tossesRef = useRef(0);
   const targetTosses = 4;
+  const firstTarget = useRef(randomTossTarget());
   const [progress, setProgress] = useState(0);
   const [tossing, setTossing] = useState(false);
   const [tosses, setTosses] = useState(0);
   const [cue, setCue] = useState('Swipe upward');
   const [dragPower, setDragPower] = useState(0);
+  const [targetPower, setTargetPower] = useState(firstTarget.current);
+  const targetPowerRef = useRef(firstTarget.current);
   const dragRef = useRef<{ x: number; y: number; time: number; pointerId: number } | null>(null);
   const done = useRef(false);
+
+  const refreshTarget = () => {
+    const next = randomTossTarget();
+    targetPowerRef.current = next;
+    setTargetPower(next);
+  };
 
   const resetDrag = () => {
     dragRef.current = null;
@@ -295,11 +349,13 @@ function StirGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => vo
     onVisual({ stirPull: 0 });
   };
 
-  const completeToss = (quality: number) => {
+  const completeToss = (releasePower: number, straight: number) => {
+    const closeness = 1 - Math.min(1, Math.abs(releasePower - targetPowerRef.current) / 0.42);
+    const quality = clamp((0.54 + closeness * 0.46) * (0.92 + straight * 0.08), 0.54, 1);
     scoresRef.current.push(quality);
     tossesRef.current += 1;
     setTosses(tossesRef.current);
-    setCue(quality > 0.9 ? 'High toss' : quality > 0.76 ? 'Good toss' : 'Short toss');
+    setCue(closeness > 0.84 ? 'Perfect toss' : closeness > 0.58 ? 'Good toss' : releasePower > targetPowerRef.current ? 'Too high' : 'Too low');
     const nextProgress = clamp(tossesRef.current / targetTosses, 0, 1);
     setProgress(nextProgress);
     setTossing(true);
@@ -320,6 +376,7 @@ function StirGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => vo
         return;
       }
       setTossing(false);
+      refreshTarget();
       setCue('Swipe upward');
       onVisual({ stirProgress: nextProgress, stirPull: 0 });
     }, 430);
@@ -344,8 +401,9 @@ function StirGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => vo
     const power = clamp(dy / 130, 0, 1);
     const straight = clamp(1 - dx / 150, 0, 1);
     const nextPower = power * (0.55 + straight * 0.45);
+    const close = Math.abs(nextPower - targetPowerRef.current);
     setDragPower(nextPower);
-    setCue(nextPower > 0.72 ? 'Release!' : 'Pull higher');
+    setCue(close < 0.08 ? 'Release now!' : nextPower < targetPowerRef.current ? 'Pull higher' : 'Too high');
     onVisual({ stirPull: nextPower });
   };
 
@@ -360,19 +418,16 @@ function StirGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => vo
     }
     const dy = drag.y - event.clientY;
     const dx = Math.abs(event.clientX - drag.x);
-    const duration = Math.max(120, performance.now() - drag.time);
     dragRef.current = null;
-    const distance = clamp((dy - 36) / 130, 0, 1);
+    const releasePower = clamp((dy - 18) / 150, 0, 1);
     const straight = clamp(1 - dx / Math.max(80, dy * 0.8), 0, 1);
-    const speed = clamp(340 / duration, 0, 1);
-    const power = distance * 0.56 + straight * 0.24 + speed * 0.2;
-    if (distance < 0.18) {
+    if (releasePower < 0.12) {
       setCue('Swipe upward');
       setDragPower(0);
       onVisual({ stirPull: 0 });
       return;
     }
-    completeToss(clamp(0.62 + power * 0.38, 0.62, 1));
+    completeToss(releasePower, straight);
   };
 
   return (
@@ -381,7 +436,7 @@ function StirGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => vo
         <span>{tossing ? cue : 'Toast the rice'}</span>
         <strong>{Math.min(tosses, targetTosses)}/{targetTosses}</strong>
       </div>
-      <div className="timing-caption">{tossing ? 'The rice jumps and turns in the wok.' : 'Drag upward on the pad, then release.'}</div>
+      <div className="timing-caption">{tossing ? 'The rice jumps and turns in the wok.' : 'Pull to the gold band, then release.'}</div>
       <div
         className={`gesture-pad swipe-pad ${tossing ? 'is-tossing' : ''}`}
         data-testid="toss-pad"
@@ -390,6 +445,7 @@ function StirGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => vo
         onPointerUp={endSwipe}
         onPointerCancel={resetDrag}
       >
+        <em aria-hidden="true" style={{ bottom: `${22 + targetPower * 58}%` }} />
         <i style={{ height: `${24 + dragPower * 58}%` }} />
         <b>UP</b>
         <span>{tossing ? 'Rice tossed!' : cue}</span>
@@ -646,6 +702,79 @@ function trianglePhase(phase: number) {
   return phase < 0.5 ? phase * 2 : 2 - phase * 2;
 }
 
+function randomTossTarget() {
+  return 0.34 + Math.random() * 0.5;
+}
+
 function renderStars(value: number) {
   return FILLED_STAR.repeat(value) + EMPTY_STAR.repeat(3 - value);
+}
+
+interface MusicLoop {
+  start: () => Promise<void>;
+  stop: () => void;
+}
+
+function createMusicLoop(): MusicLoop {
+  const AudioCtor = window.AudioContext ?? (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (!AudioCtor) {
+    return { start: async () => undefined, stop: () => undefined };
+  }
+
+  const ctx = new AudioCtor({ latencyHint: 'playback' });
+  const master = ctx.createGain();
+  master.gain.value = 0.0001;
+  master.connect(ctx.destination);
+
+  const melody = [392, 440, 523.25, 587.33, 523.25, 440, 392, 329.63];
+  const bass = [196, 246.94, 220, 174.61];
+  let step = 0;
+  let nextTime = ctx.currentTime + 0.06;
+
+  const pluck = (freq: number, time: number, duration: number, volume: number, type: OscillatorType) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, time);
+    gain.gain.setValueAtTime(0.0001, time);
+    gain.gain.exponentialRampToValueAtTime(volume, time + 0.018);
+    gain.gain.exponentialRampToValueAtTime(0.0001, time + duration);
+    osc.connect(gain);
+    gain.connect(master);
+    osc.start(time);
+    osc.stop(time + duration + 0.04);
+  };
+
+  const schedule = () => {
+    while (nextTime < ctx.currentTime + 0.55) {
+      const beat = step % 16;
+      if (beat % 2 === 0) {
+        pluck(melody[(step / 2) % melody.length], nextTime, 0.22, 0.026, 'triangle');
+      }
+      if (beat % 8 === 0) {
+        pluck(bass[(step / 8) % bass.length], nextTime, 0.42, 0.018, 'sine');
+      }
+      if (beat === 6 || beat === 14) {
+        pluck(880, nextTime + 0.015, 0.06, 0.01, 'sine');
+      }
+      nextTime += 0.18;
+      step += 1;
+    }
+  };
+
+  const timer = window.setInterval(schedule, 120);
+
+  return {
+    start: async () => {
+      if (ctx.state === 'suspended') await ctx.resume();
+      master.gain.cancelScheduledValues(ctx.currentTime);
+      master.gain.setTargetAtTime(0.045, ctx.currentTime, 0.08);
+      schedule();
+    },
+    stop: () => {
+      window.clearInterval(timer);
+      master.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.04);
+      window.setTimeout(() => void ctx.close(), 120);
+    },
+  };
 }

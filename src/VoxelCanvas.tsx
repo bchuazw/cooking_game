@@ -126,6 +126,8 @@ export function VoxelCanvas({ mode, stepId, visualState = {} }: VoxelCanvasProps
     const { dynamics, dispose } = buildScene(root, mode, stepId);
     if (mode === 'cook' && stepId === 'toast-rice') {
       root.position.y = 0.56;
+    } else if (mode === 'cook' && stepId === 'poach-chicken') {
+      root.position.y = 0.38;
     }
 
     const resize = () => {
@@ -229,7 +231,7 @@ function buildScene(root: THREE.Group, mode: Mode, stepId?: string) {
   };
 
   floor(cube);
-  if (!(mode === 'cook' && stepId === 'toast-rice')) {
+  if (!(mode === 'cook' && (stepId === 'toast-rice' || stepId === 'poach-chicken'))) {
     counter(cube);
   }
 
@@ -417,27 +419,33 @@ function wok(root: THREE.Group, cube: CubeFn, cyl: CylFn, x: number, y: number, 
 }
 
 function poachScene(root: THREE.Group, cube: CubeFn, cyl: CylFn, chunk: (color: string, x: number, y: number, z: number, s?: number) => THREE.Mesh, d: DynamicRefs) {
-  cube(C.ink, 0, 0.16, 0.25, 2.85, 0.2, 2.05);
-  cyl(C.ink, 0, 0.32, 0.25, 1.28, 0.2, 0.96);
-  cyl(C.steel, 0, 0.58, 0.25, 1.12, 0.58, 0.82);
-  const broth = shaderDisk(0, 0.9, 0.25, 0.94, C.broth, '#dff5d8');
+  cube('#211814', 0, 0.11, 0.25, 3.18, 0.18, 2.34);
+  cube('#39291f', 0, 0.24, 1.02, 1.48, 0.14, 0.46);
+  cyl(C.ink, 0, 0.34, 0.25, 1.38, 0.22, 0.98);
+  cyl(C.steelDark, 0, 0.56, 0.25, 1.24, 0.32, 0.88);
+  cyl(C.steel, 0, 0.73, 0.25, 1.12, 0.36, 0.78);
+  cyl('#d7ded6', 0, 0.94, 0.25, 1.0, 0.08, 0.7);
+  cyl(C.broth, 0, 0.99, 0.25, 0.88, 0.035, 0.58);
+  const broth = shaderDisk(0, 1.02, 0.25, 0.86, C.broth, '#e0f5dc');
   root.add(broth.mesh);
   d.shaderUniforms.push(broth.uniforms);
   d.shaderMeshes.push(broth.mesh);
-  d.potChicken = chicken(root, cube, chunk, 0, 1.16, 0.24, 0.92);
+  d.potChicken = chicken(root, cube, cyl, chunk, 0, 1.14, 0.2, 0.92);
   for (let i = 0; i < 5; i++) {
-    const steam = cube(i % 2 ? '#e8fff0' : C.cream, -0.72 + i * 0.36, 1.34 + i * 0.08, -0.03 + (i % 2) * 0.22, 0.08, 0.22, 0.08);
+    const steam = cube(i % 2 ? '#e8fff0' : C.cream, -0.68 + i * 0.34, 1.36 + i * 0.08, -0.02 + (i % 2) * 0.2, 0.08, 0.2, 0.08);
     steam.userData.dynamic = true;
     d.potSteam.push(steam);
-    const bubble = chunk('#e8fff0', -0.55 + i * 0.28, 1.02, 0.1 + (i % 2) * 0.22, 0.06);
+    const bubble = chunk('#e8fff0', -0.5 + i * 0.25, 1.06, 0.05 + (i % 2) * 0.24, 0.055);
     bubble.userData.dynamic = true;
     d.potBubbles.push(bubble);
   }
-  cube(C.ink, 1.26, 0.62, 0.56, 0.12, 1.34, 0.12);
-  cube(C.cream, 1.26, 0.62, 0.56, 0.07, 1.18, 0.07);
-  d.heatMercury = cube(C.chili, 1.26, 0.23, 0.56, 0.09, 0.2, 0.09);
+  cube(C.steelDark, -1.28, 0.72, 0.28, 0.34, 0.12, 0.16);
+  cube(C.steelDark, 1.28, 0.72, 0.28, 0.34, 0.12, 0.16);
+  cube(C.ink, 1.34, 0.68, 0.6, 0.13, 1.26, 0.13);
+  cube(C.cream, 1.34, 0.67, 0.6, 0.07, 1.1, 0.07);
+  d.heatMercury = cube(C.chili, 1.34, 0.27, 0.6, 0.09, 0.2, 0.09);
   d.heatMercury.userData.dynamic = true;
-  cube(C.yellow, 1.26, 1.28, 0.56, 0.22, 0.14, 0.2);
+  cube(C.yellow, 1.34, 1.26, 0.6, 0.23, 0.14, 0.2);
 }
 
 function sauceScene(root: THREE.Group, cube: CubeFn, cyl: CylFn, chunk: (color: string, x: number, y: number, z: number, s?: number) => THREE.Mesh, d: DynamicRefs) {
@@ -507,19 +515,25 @@ function finalPlate(cube: CubeFn, cyl: CylFn, d: DynamicRefs, full: boolean) {
   });
 }
 
-function chicken(root: THREE.Group, cube: CubeFn, chunk: (color: string, x: number, y: number, z: number, s?: number) => THREE.Mesh, x: number, y: number, z: number, s: number) {
+function chicken(root: THREE.Group, cube: CubeFn, cyl: CylFn, chunk: (color: string, x: number, y: number, z: number, s?: number) => THREE.Mesh, x: number, y: number, z: number, s: number) {
   const group = new THREE.Group();
   group.userData.dynamic = true;
   root.add(group);
-  const parts = [
-    chunk(C.chicken, x, y, z, 0.58 * s),
-    chunk(C.chicken, x - 0.36 * s, y + 0.08 * s, z + 0.45 * s, 0.22 * s),
-    chunk(C.chicken, x + 0.36 * s, y + 0.08 * s, z + 0.45 * s, 0.22 * s),
-    cube(C.chickenDark, x - 0.5 * s, y - 0.06 * s, z - 0.05 * s, 0.18 * s, 0.13 * s, 0.36 * s),
-    cube(C.chickenDark, x + 0.5 * s, y - 0.06 * s, z - 0.05 * s, 0.18 * s, 0.13 * s, 0.36 * s),
-    cube('#fff1ca', x - 0.5 * s, y + 0.14 * s, z + 0.78 * s, 0.1 * s, 0.08 * s, 0.16 * s),
-    cube('#fff1ca', x + 0.5 * s, y + 0.14 * s, z + 0.78 * s, 0.1 * s, 0.08 * s, 0.16 * s),
-  ];
+  const body = cyl('#efc98f', x, y, z, 0.6 * s, 0.26 * s, 0.42 * s);
+  body.rotation.y = 0.08;
+  const breast = cyl('#f7ddb0', x - 0.03 * s, y + 0.14 * s, z + 0.02 * s, 0.42 * s, 0.1 * s, 0.28 * s);
+  const wing = cube('#d99a62', x + 0.08 * s, y + 0.12 * s, z - 0.22 * s, 0.38 * s, 0.035 * s, 0.14 * s);
+  wing.rotation.y = 0.12;
+  const drumLeft = cyl('#e8bd80', x - 0.34 * s, y + 0.06 * s, z + 0.26 * s, 0.09 * s, 0.42 * s, 0.09 * s);
+  const drumRight = cyl('#e8bd80', x + 0.34 * s, y + 0.06 * s, z + 0.26 * s, 0.09 * s, 0.42 * s, 0.09 * s);
+  drumLeft.rotation.z = -0.58;
+  drumLeft.rotation.x = 0.18;
+  drumRight.rotation.z = 0.58;
+  drumRight.rotation.x = 0.18;
+  const jointLeft = chunk('#f5d6a4', x - 0.48 * s, y + 0.19 * s, z + 0.34 * s, 0.11 * s);
+  const jointRight = chunk('#f5d6a4', x + 0.48 * s, y + 0.19 * s, z + 0.34 * s, 0.11 * s);
+  const highlight = cube('#ffe6b8', x + 0.04 * s, y + 0.28 * s, z - 0.02 * s, 0.3 * s, 0.035 * s, 0.14 * s);
+  const parts = [body, breast, wing, drumLeft, drumRight, jointLeft, jointRight, highlight];
   parts.forEach((part) => group.attach(part));
   return group;
 }
