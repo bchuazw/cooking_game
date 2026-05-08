@@ -6,6 +6,7 @@ const PIXEL_BASE = BASE.includes('?') ? `${BASE}&pixelCheck=1` : `${BASE}?pixelC
 async function drag(page, from, to, steps = 12) {
   await page.mouse.move(from.x, from.y);
   await page.mouse.down();
+  await page.waitForTimeout(50);
   await page.mouse.move(to.x, to.y, { steps });
   await page.mouse.up();
 }
@@ -23,9 +24,14 @@ async function playSlider(page) {
 }
 
 async function playSequence(page, ids) {
+  const zone = await page.getByTestId('sequence-drop-zone').boundingBox();
+  if (!zone) throw new Error('sequence drop zone missing');
+  const target = { x: zone.x + zone.width / 2, y: zone.y + zone.height / 2 };
   for (const id of ids) {
-    await page.getByTestId(`sequence-${id}`).click();
-    await page.waitForTimeout(130);
+    const token = await page.getByTestId(`sequence-${id}`).boundingBox();
+    if (!token) throw new Error(`sequence token ${id} missing`);
+    await drag(page, { x: token.x + token.width / 2, y: token.y + token.height / 2 }, target, 10);
+    await page.waitForTimeout(180);
   }
 }
 
@@ -56,10 +62,20 @@ async function playHold(page, ms = 3100) {
 }
 
 async function playSwipes(page) {
+  const pad = await page.getByTestId('swipe-pad').boundingBox();
+  if (!pad) throw new Error('swipe pad missing');
+  const centerY = pad.y + pad.height / 2;
+  const leftX = pad.x + pad.width * 0.24;
+  const rightX = pad.x + pad.width * 0.76;
   for (let i = 0; i < 6; i++) {
-    const right = i % 2 === 0;
-    await page.getByTestId(right ? 'swipe-right' : 'swipe-left').click();
-    await page.waitForTimeout(100);
+    const goRight = i % 2 === 0;
+    await drag(
+      page,
+      { x: goRight ? leftX : rightX, y: centerY },
+      { x: goRight ? rightX : leftX, y: centerY },
+      12,
+    );
+    await page.waitForTimeout(140);
   }
 }
 
@@ -81,9 +97,19 @@ async function playPlate(page) {
 }
 
 async function playFold(page) {
+  const center = await page.getByTestId('fold-center').boundingBox();
+  if (!center) throw new Error('fold center missing');
+  const target = { x: center.x + center.width / 2, y: center.y + center.height / 2 };
   for (let i = 0; i < 4; i++) {
-    await page.getByTestId(`fold-${i}`).click();
-    await page.waitForTimeout(100);
+    const flap = await page.getByTestId(`fold-${i}`).boundingBox();
+    if (!flap) throw new Error(`fold flap ${i} missing`);
+    await drag(
+      page,
+      { x: flap.x + flap.width / 2, y: flap.y + flap.height / 2 },
+      target,
+      12,
+    );
+    await page.waitForTimeout(140);
   }
 }
 
@@ -128,12 +154,12 @@ async function main() {
     () => playPlate(page),
   ])]);
   results.push(['laksa', await runDish(page, 'laksa', [
-    () => playStir(page, 4),
+    () => playStir(page, 3.1),
     () => playSequence(page, ['stock', 'coconut', 'tau-pok']),
     () => playHold(page, 3100),
   ])]);
   results.push(['prata', await runDish(page, 'prata', [
-    () => playStir(page, 3),
+    () => playStir(page, 2.1),
     () => playSwipes(page),
     () => playFold(page),
   ])]);

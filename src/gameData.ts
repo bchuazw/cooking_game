@@ -51,7 +51,7 @@ export const DISHES: DishDefinition[] = [
         id: 'aromatics',
         kind: 'sequence',
         title: 'Season the Rice',
-        instruction: 'Tap the glowing aromatics in order.',
+        instruction: 'Drag or flick each aromatic into the wok in order.',
         targetLabel: 'Next ingredient',
         items: [
           { id: 'shallot', label: 'Shallot', color: '#B34779' },
@@ -95,7 +95,7 @@ export const DISHES: DishDefinition[] = [
         id: 'broth',
         kind: 'sequence',
         title: 'Build the Broth',
-        instruction: 'Add ingredients in the correct order.',
+        instruction: 'Drag each broth ingredient into the pot in order.',
         targetLabel: 'Next pour',
         items: [
           { id: 'stock', label: 'Stock', color: '#7DB7E8' },
@@ -143,7 +143,7 @@ export const DISHES: DishDefinition[] = [
         id: 'fold',
         kind: 'fold',
         title: 'Fold the Prata',
-        instruction: 'Tap all four glowing corners into the centre.',
+        instruction: 'Drag all four corner flaps into the centre.',
         targetLabel: 'Fold corners',
       },
     ],

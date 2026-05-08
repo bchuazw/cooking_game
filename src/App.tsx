@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { DISHES, dishById, starsFromAverage, tierFromScore, type DishDefinition, type DishId, type StepDefinition, type Tier } from './gameData';
-import { VoxelCanvas } from './VoxelCanvas';
+import { VoxelCanvas, type VisualState } from './VoxelCanvas';
 
 interface StepResult {
   id: string;
@@ -13,12 +13,20 @@ type Screen = 'menu' | 'cook' | 'result';
 
 const BEST_KEY = 'hawker-mama-voxel:v1';
 
+interface DragState {
+  id: string;
+  x: number;
+  y: number;
+  startY: number;
+}
+
 export default function App() {
   const [screen, setScreen] = useState<Screen>('menu');
   const [dishId, setDishId] = useState<DishId>('chicken-rice');
   const [stepIndex, setStepIndex] = useState(0);
   const [results, setResults] = useState<StepResult[]>([]);
   const [feedback, setFeedback] = useState<StepResult | null>(null);
+  const [visualState, setVisualState] = useState<VisualState>({});
   const [best, setBest] = useState<Record<string, number>>(() => loadBest());
   const completedRef = useRef(false);
 
@@ -32,6 +40,7 @@ export default function App() {
     setStepIndex(0);
     setResults([]);
     setFeedback(null);
+    setVisualState({});
     completedRef.current = false;
     setScreen('cook');
   };
@@ -70,6 +79,10 @@ export default function App() {
     });
   }, [screen, average, dishId]);
 
+  useEffect(() => {
+    setVisualState({});
+  }, [dishId, stepIndex]);
+
   return (
     <main className="app-shell">
       {screen === 'menu' && (
@@ -83,8 +96,10 @@ export default function App() {
           stepIndex={stepIndex}
           totalSteps={dish.steps.length}
           feedback={feedback}
+          visualState={visualState}
           onExit={() => setScreen('menu')}
           onFinish={finishStep}
+          onVisualState={setVisualState}
         />
       )}
 
@@ -158,20 +173,24 @@ function CookScreen({
   stepIndex,
   totalSteps,
   feedback,
+  visualState,
   onExit,
   onFinish,
+  onVisualState,
 }: {
   dish: DishDefinition;
   step: StepDefinition;
   stepIndex: number;
   totalSteps: number;
   feedback: StepResult | null;
+  visualState: VisualState;
   onExit: () => void;
   onFinish: (score: number) => void;
+  onVisualState: (state: VisualState) => void;
 }) {
   return (
     <section className="screen cook-screen" style={{ '--accent': dish.palette.main, '--accent-dark': dish.palette.dark } as CSSProperties}>
-      <VoxelCanvas mode="cook" dishId={dish.id} stepId={step.id} />
+      <VoxelCanvas mode="cook" dishId={dish.id} stepId={step.id} visualState={visualState} />
       <div className="cook-hud">
         <button className="ghost-button" onClick={onExit}>Exit</button>
         <div className="progress-pips" aria-label={`step ${stepIndex + 1} of ${totalSteps}`}>
@@ -186,7 +205,7 @@ function CookScreen({
         <p className="eyebrow">{dish.name}</p>
         <h2>{step.title}</h2>
         <p className="instruction">{step.instruction}</p>
-        <MiniGame key={`${dish.id}-${step.id}-${stepIndex}`} step={step} onFinish={onFinish} />
+        <MiniGame key={`${dish.id}-${step.id}-${stepIndex}`} step={step} onFinish={onFinish} onVisualState={onVisualState} />
       </div>
 
       {feedback && (
@@ -199,22 +218,41 @@ function CookScreen({
   );
 }
 
-function MiniGame({ step, onFinish }: { step: StepDefinition; onFinish: (score: number) => void }) {
-  if (step.kind === 'slider') return <SliderGame step={step} onFinish={onFinish} />;
-  if (step.kind === 'sequence') return <SequenceGame step={step} onFinish={onFinish} />;
-  if (step.kind === 'stir') return <StirGame step={step} onFinish={onFinish} />;
-  if (step.kind === 'hold') return <HoldGame step={step} onFinish={onFinish} />;
-  if (step.kind === 'swipe') return <SwipeGame step={step} onFinish={onFinish} />;
-  if (step.kind === 'fold') return <FoldGame onFinish={onFinish} />;
-  return <PlateGame step={step} onFinish={onFinish} />;
+function MiniGame({
+  step,
+  onFinish,
+  onVisualState,
+}: {
+  step: StepDefinition;
+  onFinish: (score: number) => void;
+  onVisualState: (state: VisualState) => void;
+}) {
+  if (step.kind === 'slider') return <SliderGame step={step} onFinish={onFinish} onVisualState={onVisualState} />;
+  if (step.kind === 'sequence') return <SequenceGame step={step} onFinish={onFinish} onVisualState={onVisualState} />;
+  if (step.kind === 'stir') return <StirGame step={step} onFinish={onFinish} onVisualState={onVisualState} />;
+  if (step.kind === 'hold') return <HoldGame step={step} onFinish={onFinish} onVisualState={onVisualState} />;
+  if (step.kind === 'swipe') return <SwipeGame step={step} onFinish={onFinish} onVisualState={onVisualState} />;
+  if (step.kind === 'fold') return <FoldGame onFinish={onFinish} onVisualState={onVisualState} />;
+  return <PlateGame step={step} onFinish={onFinish} onVisualState={onVisualState} />;
 }
 
-function SliderGame({ step, onFinish }: { step: StepDefinition; onFinish: (score: number) => void }) {
+function SliderGame({
+  step,
+  onFinish,
+  onVisualState,
+}: {
+  step: StepDefinition;
+  onFinish: (score: number) => void;
+  onVisualState: (state: VisualState) => void;
+}) {
   const railRef = useRef<HTMLDivElement>(null);
+  const valueRef = useRef(0.18);
   const holdRef = useRef(0);
   const startRef = useRef(performance.now());
   const touchedRef = useRef(false);
   const doneRef = useRef(false);
+  const finishRef = useRef(onFinish);
+  const visualRef = useRef(onVisualState);
   const [value, setValue] = useState(0.18);
   const [hold, setHold] = useState(0);
   const temp = 60 + value * 40;
@@ -227,9 +265,16 @@ function SliderGame({ step, onFinish }: { step: StepDefinition; onFinish: (score
     const rect = railRef.current?.getBoundingClientRect();
     if (!rect) return;
     const next = 1 - clamp((clientY - rect.top) / rect.height, 0, 1);
+    valueRef.current = next;
     touchedRef.current = true;
     setValue(next);
+    onVisualState({ sliderValue: next, temp: 60 + next * 40, inZone: (60 + next * 40) >= min && (60 + next * 40) <= max, holdPct: clamp(holdRef.current / holdGoal, 0, 1) });
   };
+
+  useEffect(() => {
+    finishRef.current = onFinish;
+    visualRef.current = onVisualState;
+  }, [onFinish, onVisualState]);
 
   useEffect(() => {
     let raf = 0;
@@ -237,19 +282,23 @@ function SliderGame({ step, onFinish }: { step: StepDefinition; onFinish: (score
     const tick = (now: number) => {
       const dt = now - last;
       last = now;
-      if (touchedRef.current && inZone) holdRef.current += dt;
+      const liveValue = valueRef.current;
+      const liveTemp = 60 + liveValue * 40;
+      const liveInZone = liveTemp >= min && liveTemp <= max;
+      if (touchedRef.current && liveInZone) holdRef.current += dt;
       else if (touchedRef.current) holdRef.current = Math.max(0, holdRef.current - dt * 0.9);
       setHold(holdRef.current);
+      visualRef.current({ sliderValue: liveValue, temp: liveTemp, inZone: liveInZone, holdPct: clamp(holdRef.current / holdGoal, 0, 1) });
       if (!doneRef.current && holdRef.current >= holdGoal) {
         doneRef.current = true;
         const elapsed = performance.now() - startRef.current;
-        onFinish(elapsed < 4300 ? 1 : elapsed < 6500 ? 0.78 : 0.58);
+        finishRef.current(elapsed < 4300 ? 1 : elapsed < 6500 ? 0.78 : 0.58);
       }
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [inZone, onFinish]);
+  }, [holdGoal, max, min]);
 
   const pct = clamp(hold / holdGoal, 0, 1);
   const status = !touchedRef.current ? 'Drag the handle' : inZone ? 'Good, hold steady' : temp < min ? 'Too cool, drag up' : 'Too hot, drag down';
@@ -283,33 +332,147 @@ function SliderGame({ step, onFinish }: { step: StepDefinition; onFinish: (score
   );
 }
 
-function SequenceGame({ step, onFinish }: { step: StepDefinition; onFinish: (score: number) => void }) {
+function SequenceGame({
+  step,
+  onFinish,
+  onVisualState,
+}: {
+  step: StepDefinition;
+  onFinish: (score: number) => void;
+  onVisualState: (state: VisualState) => void;
+}) {
   const items = step.items ?? [];
+  const dropRef = useRef<HTMLDivElement>(null);
   const [index, setIndex] = useState(0);
   const [mistakes, setMistakes] = useState(0);
+  const [placed, setPlaced] = useState<string[]>([]);
+  const [drag, setDrag] = useState<DragState | null>(null);
+  const dragRef = useRef<DragState | null>(null);
   const startRef = useRef(performance.now());
+  const lastDropAt = useRef(0);
 
-  const tap = (id: string) => {
+  useEffect(() => {
+    dragRef.current = drag;
+  }, [drag]);
+
+  useEffect(() => {
+    onVisualState({ sequenceIndex: index, placedIds: placed, dragId: drag?.id ?? null });
+  }, [drag?.id, index, onVisualState, placed]);
+
+  const beginDrag = (id: string, x: number, y: number) => {
+    const next = { id, x, y, startY: y };
+    dragRef.current = next;
+    setDrag(next);
+  };
+
+  const moveDrag = (x: number, y: number) => {
+    const current = dragRef.current;
+    if (!current) return;
+    const next = { ...current, x, y };
+    dragRef.current = next;
+    setDrag(next);
+    const rect = dropRef.current?.getBoundingClientRect();
+    const inside = rect && x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+    const tossedUp = y < current.startY - 18;
+    if (inside || tossedUp) drop(current.id, x, y, tossedUp, false);
+  };
+
+  const drop = (id: string, x: number, y: number, force = false, release = true) => {
     if (index >= items.length) return;
+    const rect = dropRef.current?.getBoundingClientRect();
+    const inside = !!rect && x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+    if (!force && !inside) {
+      if (release) {
+        dragRef.current = null;
+        setDrag(null);
+      }
+      return;
+    }
+    dragRef.current = null;
+    setDrag(null);
+    lastDropAt.current = performance.now();
+    addIngredient(id);
+  };
+
+  const addIngredient = (id: string) => {
+    if (index >= items.length || placed.includes(id)) return;
     if (id !== items[index].id) {
       setMistakes((m) => m + 1);
       return;
     }
     const next = index + 1;
+    const nextPlaced = [...placed, id];
+    setPlaced(nextPlaced);
     setIndex(next);
     if (next === items.length) {
       const elapsed = performance.now() - startRef.current;
       const mistakePenalty = mistakes * 0.16;
       const speedBonus = elapsed < 5000 ? 0.06 : 0;
-      onFinish(0.9 + speedBonus - mistakePenalty);
+      onVisualState({ sequenceIndex: next, placedIds: nextPlaced, dragId: null });
+      window.setTimeout(() => onFinish(0.9 + speedBonus - mistakePenalty), 260);
     }
   };
+
+  useEffect(() => {
+    if (!drag) return undefined;
+    const onMove = (e: PointerEvent) => {
+      moveDrag(e.clientX, e.clientY);
+    };
+    const onUp = (e: PointerEvent) => {
+      const current = dragRef.current;
+      if (current) drop(current.id, e.clientX, e.clientY, false, true);
+    };
+    const onMouseMove = (e: MouseEvent) => {
+      moveDrag(e.clientX, e.clientY);
+    };
+    const onMouseUp = (e: MouseEvent) => {
+      const current = dragRef.current;
+      if (current) drop(current.id, e.clientX, e.clientY, false, true);
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      const touch = e.touches[0] ?? e.changedTouches[0];
+      if (!touch) return;
+      moveDrag(touch.clientX, touch.clientY);
+    };
+    const onTouchEnd = (e: TouchEvent) => {
+      const current = dragRef.current;
+      const touch = e.changedTouches[0];
+      if (current && touch) drop(current.id, touch.clientX, touch.clientY, false, true);
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    window.addEventListener('touchmove', onTouchMove, { passive: true });
+    window.addEventListener('touchend', onTouchEnd);
+    window.addEventListener('touchcancel', onTouchEnd);
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+      window.removeEventListener('touchmove', onTouchMove);
+      window.removeEventListener('touchend', onTouchEnd);
+      window.removeEventListener('touchcancel', onTouchEnd);
+    };
+  });
 
   return (
     <div className="sequence-game">
       <div className="next-chip">
         <span>{step.targetLabel}</span>
         <strong>{items[index]?.label ?? 'Ready'}</strong>
+      </div>
+      <div ref={dropRef} className="ingredient-drop-zone" data-testid="sequence-drop-zone">
+        <span>{items[index] ? `Drop ${items[index].label} here` : 'Ready'}</span>
+        <div className="drop-bowl">
+          {placed.map((id) => {
+            const item = items.find((candidate) => candidate.id === id);
+            return item ? <i key={id} style={{ '--tile': item.color } as CSSProperties} /> : null;
+          })}
+        </div>
       </div>
       <div className="sequence-grid">
         {items.map((item, i) => (
@@ -318,20 +481,70 @@ function SequenceGame({ step, onFinish }: { step: StepDefinition; onFinish: (sco
             className={`ingredient-tile ${i === index ? 'active' : ''} ${i < index ? 'done' : ''}`}
             style={{ '--tile': item.color } as CSSProperties}
             data-testid={`sequence-${item.id}`}
-            onClick={() => tap(item.id)}
+            disabled={placed.includes(item.id)}
+            onClick={() => {
+              if (performance.now() - lastDropAt.current < 350) return;
+              if (i === index) addIngredient(item.id);
+              else setMistakes((m) => m + 1);
+            }}
+            onPointerDown={(e) => {
+              e.currentTarget.setPointerCapture(e.pointerId);
+              beginDrag(item.id, e.clientX, e.clientY);
+            }}
+            onPointerMove={(e) => {
+              if (e.buttons || e.pointerType === 'touch') moveDrag(e.clientX, e.clientY);
+            }}
+            onMouseMove={(e) => {
+              if (e.buttons) moveDrag(e.clientX, e.clientY);
+            }}
+            onTouchMove={(e) => {
+              const touch = e.touches[0];
+              if (touch) moveDrag(touch.clientX, touch.clientY);
+            }}
+            onPointerUp={(e) => {
+              const current = dragRef.current;
+              if (current) drop(current.id, e.clientX, e.clientY, false, true);
+            }}
+            onPointerCancel={(e) => {
+              const current = dragRef.current;
+              if (current) drop(current.id, e.clientX, e.clientY, false, true);
+            }}
+            onMouseDown={(e) => {
+              beginDrag(item.id, e.clientX, e.clientY);
+            }}
+            onTouchStart={(e) => {
+              const touch = e.touches[0];
+              if (touch) beginDrag(item.id, touch.clientX, touch.clientY);
+            }}
           >
             <span className="voxel-swatch" />
             <strong>{item.label}</strong>
-            <small>{i < index ? 'done' : i === index ? 'tap now' : 'wait'}</small>
+            <small>{i < index ? 'added' : i === index ? 'drag' : 'locked'}</small>
           </button>
         ))}
       </div>
-      <p className="microcopy">{mistakes ? `${mistakes} wrong tap${mistakes > 1 ? 's' : ''}; keep going.` : 'The glowing tile is always the next action.'}</p>
+      <p className="microcopy">{mistakes ? `${mistakes} wrong drop${mistakes > 1 ? 's' : ''}; keep going.` : 'Drag the glowing ingredient into the pot.'}</p>
+      {drag && (
+        <div
+          className="drag-ghost ingredient-ghost"
+          style={{ left: drag.x, top: drag.y, '--tile': items.find((item) => item.id === drag.id)?.color ?? '#fff8e4' } as CSSProperties}
+        >
+          {items.find((item) => item.id === drag.id)?.label}
+        </div>
+      )}
     </div>
   );
 }
 
-function StirGame({ step, onFinish }: { step: StepDefinition; onFinish: (score: number) => void }) {
+function StirGame({
+  step,
+  onFinish,
+  onVisualState,
+}: {
+  step: StepDefinition;
+  onFinish: (score: number) => void;
+  onVisualState: (state: VisualState) => void;
+}) {
   const padRef = useRef<HTMLDivElement>(null);
   const lastAngle = useRef<number | null>(null);
   const progressRef = useRef(0);
@@ -358,6 +571,7 @@ function StirGame({ step, onFinish }: { step: StepDefinition; onFinish: (score: 
     progressRef.current = clamp(progressRef.current + Math.abs(delta) / (Math.PI * 2 * turns), 0, 1);
     lastAngle.current = angle;
     setProgress(progressRef.current);
+    onVisualState({ stirProgress: progressRef.current });
     if (!doneRef.current && progressRef.current >= 1) {
       doneRef.current = true;
       const elapsed = performance.now() - startRef.current;
@@ -393,7 +607,15 @@ function StirGame({ step, onFinish }: { step: StepDefinition; onFinish: (score: 
   );
 }
 
-function HoldGame({ step, onFinish }: { step: StepDefinition; onFinish: (score: number) => void }) {
+function HoldGame({
+  step,
+  onFinish,
+  onVisualState,
+}: {
+  step: StepDefinition;
+  onFinish: (score: number) => void;
+  onVisualState: (state: VisualState) => void;
+}) {
   const [held, setHeld] = useState(0);
   const [holding, setHolding] = useState(false);
   const startRef = useRef(0);
@@ -409,6 +631,7 @@ function HoldGame({ step, onFinish }: { step: StepDefinition; onFinish: (score: 
     const tick = () => {
       const next = (performance.now() - startRef.current) / 1000;
       setHeld(next);
+      onVisualState({ holdProgress: clamp(next / total, 0, 1), inZone: next >= min && next <= max });
       if (next > total + 0.35 && !doneRef.current) {
         doneRef.current = true;
         setHolding(false);
@@ -443,6 +666,7 @@ function HoldGame({ step, onFinish }: { step: StepDefinition; onFinish: (score: 
           startRef.current = performance.now();
           setHeld(0);
           setHolding(true);
+          onVisualState({ holdProgress: 0, inZone: false });
         }}
         onPointerUp={release}
         onPointerCancel={release}
@@ -453,29 +677,69 @@ function HoldGame({ step, onFinish }: { step: StepDefinition; onFinish: (score: 
   );
 }
 
-function SwipeGame({ step, onFinish }: { step: StepDefinition; onFinish: (score: number) => void }) {
+function SwipeGame({
+  step,
+  onFinish,
+  onVisualState,
+}: {
+  step: StepDefinition;
+  onFinish: (score: number) => void;
+  onVisualState: (state: VisualState) => void;
+}) {
   const [count, setCount] = useState(0);
   const [mistakes, setMistakes] = useState(0);
+  const [dragDelta, setDragDelta] = useState(0);
+  const countRef = useRef(0);
+  const mistakesRef = useRef(0);
   const startX = useRef(0);
+  const draggingRef = useRef(false);
   const startRef = useRef(performance.now());
   const target = step.swipes ?? 6;
   const expected = count % 2 === 0 ? 'right' : 'left';
 
   const register = (direction: 'left' | 'right' | 'short') => {
-    if (direction === expected) {
-      const next = count + 1;
+    const liveCount = countRef.current;
+    const liveExpected = liveCount % 2 === 0 ? 'right' : 'left';
+    if (direction === liveExpected) {
+      const next = liveCount + 1;
+      countRef.current = next;
       setCount(next);
+      onVisualState({ swipeProgress: next / target, swipeDirection: direction, swipeDrag: 0 });
       if (next >= target) {
         const elapsed = performance.now() - startRef.current;
-        onFinish((elapsed < 6500 ? 0.98 : 0.82) - mistakes * 0.08);
+        onFinish((elapsed < 6500 ? 0.98 : 0.82) - mistakesRef.current * 0.08);
       }
     } else {
-      setMistakes((n) => n + 1);
+      mistakesRef.current += 1;
+      setMistakes(mistakesRef.current);
+      onVisualState({ swipeProgress: liveCount / target, swipeDirection: direction, swipeDrag: 0 });
     }
   };
 
-  const end = (clientX: number) => {
+  const move = (clientX: number) => {
+    if (!draggingRef.current) return;
     const dx = clientX - startX.current;
+    const normalized = clamp(dx / 135, -1, 1);
+    setDragDelta(dx);
+    onVisualState({ swipeProgress: countRef.current / target, swipeDirection: dx > 12 ? 'right' : dx < -12 ? 'left' : 'short', swipeDrag: normalized });
+    if (Math.abs(dx) > 12) {
+      draggingRef.current = false;
+      setDragDelta(0);
+      register(dx > 0 ? 'right' : 'left');
+    }
+  };
+
+  const start = (clientX: number) => {
+    startX.current = clientX;
+    draggingRef.current = true;
+    setDragDelta(0);
+  };
+
+  const end = (clientX: number) => {
+    if (!draggingRef.current) return;
+    draggingRef.current = false;
+    const dx = clientX - startX.current;
+    setDragDelta(0);
     register(dx > 48 ? 'right' : dx < -48 ? 'left' : 'short');
   };
 
@@ -486,20 +750,36 @@ function SwipeGame({ step, onFinish }: { step: StepDefinition; onFinish: (score:
         data-testid="swipe-pad"
         onPointerDown={(e) => {
           e.currentTarget.setPointerCapture(e.pointerId);
-          startX.current = e.clientX;
+          start(e.clientX);
+        }}
+        onPointerMove={(e) => {
+          if (e.buttons || e.pointerType === 'touch') move(e.clientX);
         }}
         onPointerUp={(e) => end(e.clientX)}
+        onPointerCancel={(e) => end(e.clientX)}
+        onMouseDown={(e) => start(e.clientX)}
+        onMouseMove={(e) => {
+          if (e.buttons) move(e.clientX);
+        }}
+        onMouseUp={(e) => end(e.clientX)}
+        onTouchStart={(e) => {
+          const touch = e.touches[0];
+          if (touch) start(touch.clientX);
+        }}
+        onTouchMove={(e) => {
+          const touch = e.touches[0];
+          if (touch) move(touch.clientX);
+        }}
+        onTouchEnd={(e) => {
+          const touch = e.changedTouches[0];
+          if (touch) end(touch.clientX);
+        }}
       >
+        <div className={`swipe-lane ${expected}`}>
+          <i style={{ transform: `translateX(${clamp(dragDelta, -96, 96)}px) scaleX(${1 + Math.min(Math.abs(dragDelta) / 180, 0.45)})` }} />
+        </div>
         <strong>Swipe {expected}</strong>
         <span>{count}/{target}</span>
-      </div>
-      <div className="swipe-buttons">
-        <button data-testid="swipe-left" className={expected === 'left' ? 'active' : ''} onClick={() => register('left')}>
-          Left
-        </button>
-        <button data-testid="swipe-right" className={expected === 'right' ? 'active' : ''} onClick={() => register('right')}>
-          Right
-        </button>
       </div>
       <div className="meter"><i style={{ width: `${(count / target) * 100}%` }} /></div>
       {mistakes > 0 && <p className="microcopy">Alternate directions: right, left, right, left.</p>}
@@ -507,61 +787,185 @@ function SwipeGame({ step, onFinish }: { step: StepDefinition; onFinish: (score:
   );
 }
 
-function FoldGame({ onFinish }: { onFinish: (score: number) => void }) {
+function FoldGame({
+  onFinish,
+  onVisualState,
+}: {
+  onFinish: (score: number) => void;
+  onVisualState: (state: VisualState) => void;
+}) {
   const corners = ['top left', 'top right', 'bottom left', 'bottom right'];
+  const boardRef = useRef<HTMLDivElement>(null);
   const [folded, setFolded] = useState<boolean[]>([false, false, false, false]);
+  const [dragging, setDragging] = useState<number | null>(null);
   const startRef = useRef(performance.now());
 
-  const tap = (i: number) => {
+  const fold = (i: number) => {
+    if (folded[i]) return;
     const next = folded.map((value, index) => (index === i ? true : value));
     setFolded(next);
+    onVisualState({ foldedCorners: next });
     if (next.every(Boolean)) {
       const elapsed = performance.now() - startRef.current;
       onFinish(elapsed < 5200 ? 1 : 0.74);
     }
   };
 
+  const dragTowardCenter = (i: number, clientX: number, clientY: number) => {
+    const rect = boardRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    const dx = Math.abs(clientX - centerX);
+    const dy = Math.abs(clientY - centerY);
+    if (dx < rect.width * 0.24 && dy < rect.height * 0.24) fold(i);
+  };
+
   return (
-    <div className="fold-game">
+    <div ref={boardRef} className="fold-game">
+      <div className="fold-sheet" aria-hidden>
+        <i className={`fold-crease horizontal ${folded[0] || folded[1] ? 'active' : ''}`} />
+        <i className={`fold-crease vertical ${folded[2] || folded[3] ? 'active' : ''}`} />
+      </div>
       {corners.map((corner, i) => (
         <button
           key={corner}
-          className={`corner-button c${i} ${folded[i] ? 'done' : ''}`}
+          className={`corner-button c${i} ${folded[i] ? 'done' : ''} ${dragging === i ? 'dragging' : ''}`}
           data-testid={`fold-${i}`}
-          onClick={() => tap(i)}
+          onPointerDown={(e) => {
+            e.currentTarget.setPointerCapture(e.pointerId);
+            setDragging(i);
+          }}
+          onPointerMove={(e) => {
+            if (e.buttons || e.pointerType === 'touch') dragTowardCenter(i, e.clientX, e.clientY);
+          }}
+          onPointerUp={(e) => {
+            dragTowardCenter(i, e.clientX, e.clientY);
+            setDragging(null);
+          }}
+          onPointerCancel={() => setDragging(null)}
+          onClick={() => fold(i)}
         >
-          {folded[i] ? 'folded' : corner}
+          <span>{folded[i] ? 'folded' : 'fold'}</span>
         </button>
       ))}
-      <div className="dough-target">centre</div>
+      <div className="dough-target" data-testid="fold-center">centre</div>
     </div>
   );
 }
 
-function PlateGame({ step, onFinish }: { step: StepDefinition; onFinish: (score: number) => void }) {
+function PlateGame({
+  step,
+  onFinish,
+  onVisualState,
+}: {
+  step: StepDefinition;
+  onFinish: (score: number) => void;
+  onVisualState: (state: VisualState) => void;
+}) {
   const plateRef = useRef<HTMLDivElement>(null);
   const [placed, setPlaced] = useState<string[]>([]);
-  const [drag, setDrag] = useState<{ id: string; x: number; y: number } | null>(null);
+  const [drag, setDrag] = useState<DragState | null>(null);
+  const dragRef = useRef<DragState | null>(null);
   const startRef = useRef(performance.now());
   const items = step.items ?? [];
 
+  useEffect(() => {
+    dragRef.current = drag;
+  }, [drag]);
+
+  const beginDrag = (id: string, x: number, y: number) => {
+    const next = { id, x, y, startY: y };
+    dragRef.current = next;
+    setDrag(next);
+    onVisualState({ platePlaced: placed, dragId: id });
+  };
+
+  const moveDrag = (x: number, y: number) => {
+    const current = dragRef.current;
+    if (!current) return;
+    const next = { ...current, x, y };
+    dragRef.current = next;
+    setDrag(next);
+    const rect = plateRef.current?.getBoundingClientRect();
+    if (rect && x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+      drop(current.id, x, y);
+    }
+  };
+
   const drop = (id: string, x: number, y: number) => {
     const rect = plateRef.current?.getBoundingClientRect();
+    dragRef.current = null;
     setDrag(null);
     if (!rect || placed.includes(id)) return;
     const inside = x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
     if (!inside) return;
     const next = [...placed, id];
     setPlaced(next);
+    onVisualState({ platePlaced: next, dragId: null });
     if (next.length === items.length) {
       const elapsed = performance.now() - startRef.current;
       onFinish(elapsed < 7000 ? 1 : 0.76);
     }
   };
 
+  useEffect(() => {
+    if (!drag) return undefined;
+    const onMove = (e: PointerEvent) => {
+      moveDrag(e.clientX, e.clientY);
+    };
+    const onUp = (e: PointerEvent) => {
+      const current = dragRef.current;
+      if (current) drop(current.id, e.clientX, e.clientY);
+    };
+    const onMouseMove = (e: MouseEvent) => {
+      moveDrag(e.clientX, e.clientY);
+    };
+    const onMouseUp = (e: MouseEvent) => {
+      const current = dragRef.current;
+      if (current) drop(current.id, e.clientX, e.clientY);
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      const touch = e.touches[0] ?? e.changedTouches[0];
+      if (touch) moveDrag(touch.clientX, touch.clientY);
+    };
+    const onTouchEnd = (e: TouchEvent) => {
+      const current = dragRef.current;
+      const touch = e.changedTouches[0];
+      if (current && touch) drop(current.id, touch.clientX, touch.clientY);
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    window.addEventListener('touchmove', onTouchMove, { passive: true });
+    window.addEventListener('touchend', onTouchEnd);
+    window.addEventListener('touchcancel', onTouchEnd);
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+      window.removeEventListener('touchmove', onTouchMove);
+      window.removeEventListener('touchend', onTouchEnd);
+      window.removeEventListener('touchcancel', onTouchEnd);
+    };
+  });
+
   return (
     <div className="plate-game">
       <div ref={plateRef} className="plate-target" data-testid="plate-target">
+        <div className="plate-visual" aria-hidden>
+          {items.map((item) => (
+            <i
+              key={item.id}
+              className={`plate-piece ${item.id} ${placed.includes(item.id) ? 'placed' : ''}`}
+              style={{ '--tile': item.color } as CSSProperties}
+            />
+          ))}
+        </div>
         <span>{placed.length ? placed.map((id) => items.find((item) => item.id === id)?.label).join(' + ') : 'Drop food here'}</span>
       </div>
       <div className="token-tray">
@@ -573,18 +977,47 @@ function PlateGame({ step, onFinish }: { step: StepDefinition; onFinish: (score:
             data-testid={`plate-token-${item.id}`}
             onPointerDown={(e) => {
               e.currentTarget.setPointerCapture(e.pointerId);
-              setDrag({ id: item.id, x: e.clientX, y: e.clientY });
+              beginDrag(item.id, e.clientX, e.clientY);
             }}
             onPointerMove={(e) => {
-              if (drag?.id === item.id) setDrag({ id: item.id, x: e.clientX, y: e.clientY });
+              if (e.buttons || e.pointerType === 'touch') moveDrag(e.clientX, e.clientY);
             }}
-            onPointerUp={(e) => drop(item.id, e.clientX, e.clientY)}
+            onMouseMove={(e) => {
+              if (e.buttons) moveDrag(e.clientX, e.clientY);
+            }}
+            onTouchMove={(e) => {
+              const touch = e.touches[0];
+              if (touch) moveDrag(touch.clientX, touch.clientY);
+            }}
+            onPointerUp={(e) => {
+              const current = dragRef.current;
+              if (current) drop(current.id, e.clientX, e.clientY);
+            }}
+            onPointerCancel={(e) => {
+              const current = dragRef.current;
+              if (current) drop(current.id, e.clientX, e.clientY);
+            }}
+            onMouseDown={(e) => {
+              beginDrag(item.id, e.clientX, e.clientY);
+            }}
+            onTouchStart={(e) => {
+              const touch = e.touches[0];
+              if (touch) beginDrag(item.id, touch.clientX, touch.clientY);
+            }}
           >
-            {item.label}
+            <span className="voxel-swatch mini" />
+            <strong>{item.label}</strong>
           </button>
         ))}
       </div>
-      {drag && <div className="drag-ghost" style={{ left: drag.x, top: drag.y }}>{items.find((item) => item.id === drag.id)?.label}</div>}
+      {drag && (
+        <div
+          className="drag-ghost"
+          style={{ left: drag.x, top: drag.y, '--tile': items.find((item) => item.id === drag.id)?.color ?? '#fff8e4' } as CSSProperties}
+        >
+          {items.find((item) => item.id === drag.id)?.label}
+        </div>
+      )}
     </div>
   );
 }
