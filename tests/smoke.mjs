@@ -34,7 +34,11 @@ async function playSimmer(page) {
   const target = { x: rail.x + rail.width / 2, y: rail.y + rail.height * 0.36 };
   await drag(page, { x: target.x, y: rail.y + rail.height * 0.82 }, target, 12);
   for (let i = 0; i < 3; i++) {
-    await page.locator('[data-testid="bubble-button"][data-bubble-ready="true"]').click({ timeout: 3200 });
+    const skim = page.locator('[data-testid="bubble-button"][data-bubble-ready="true"]');
+    await skim.waitFor({ timeout: 3600 });
+    const pad = await page.getByTestId('bubble-button').boundingBox();
+    if (!pad) throw new Error('skim pad missing');
+    await drag(page, { x: pad.x + pad.width * 0.16, y: pad.y + pad.height * 0.48 }, { x: pad.x + pad.width * 0.84, y: pad.y + pad.height * 0.42 }, 10);
     await page.waitForTimeout(260);
   }
 }
@@ -45,8 +49,10 @@ async function playSauce(page) {
     await page.waitForTimeout(140);
   }
   for (let i = 0; i < 4; i++) {
-    await page.getByTestId('mortar-pad').click();
-    await page.waitForTimeout(150);
+    const pad = await page.getByTestId('mortar-pad').boundingBox();
+    if (!pad) throw new Error('mortar pad missing');
+    await drag(page, { x: pad.x + pad.width * 0.52, y: pad.y + pad.height * 0.22 }, { x: pad.x + pad.width * 0.52, y: pad.y + pad.height * 0.88 }, 8);
+    await page.waitForTimeout(190);
   }
 }
 

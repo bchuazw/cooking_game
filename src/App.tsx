@@ -457,23 +457,29 @@ function StirGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => vo
 
 function SimmerGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => void; onFinish: (score: number) => void }) {
   const railRef = useRef<HTMLDivElement>(null);
+  const skimRef = useRef<HTMLDivElement>(null);
   const [heat, setHeat] = useState(0.22);
   const [hold, setHold] = useState(0);
   const [hits, setHits] = useState(0);
   const [bubble, setBubble] = useState(0);
-  const [cue, setCue] = useState('Find simmer zone');
+  const [spoon, setSpoon] = useState(0.18);
+  const [cue, setCue] = useState('Warm the pot');
   const done = useRef(false);
   const startedAt = useRef(performance.now());
   const heatRef = useRef(0.22);
   const hitsRef = useRef(0);
   const bubbleRef = useRef(0);
   const bubbleStartedAt = useRef(performance.now());
+  const skimDrag = useRef<{ startX: number; pointerId: number } | null>(null);
+  const skimLocked = useRef(false);
   const scoresRef = useRef<number[]>([]);
 
   const inZone = heat >= 0.55 && heat <= 0.72;
-  const bubbleReady = inZone && bubble >= 0.62 && bubble <= 0.86;
+  const bubbleReady = inZone && bubble >= 0.64 && bubble <= 0.9;
+  const bubbleX = clamp(0.5 + Math.sin(bubble * Math.PI * 1.4 + hits * 0.9) * 0.18, 0.24, 0.76);
+  const temperature = Math.round(44 + heat * 42);
   const targetHits = 3;
-  const progress = clamp((hold / 2200) * 0.6 + (hits / targetHits) * 0.4, 0, 1);
+  const progress = clamp((hold / 2400) * 0.58 + (hits / targetHits) * 0.42, 0, 1);
 
   useEffect(() => {
     let raf = 0;
@@ -483,10 +489,10 @@ function SimmerGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => 
       last = now;
       const liveInZone = heatRef.current >= 0.55 && heatRef.current <= 0.72;
       setHold((value) => {
-        const next = liveInZone ? Math.min(2200, value + dt) : Math.max(0, value - dt * 0.9);
+        const next = liveInZone ? Math.min(2400, value + dt) : Math.max(0, value - dt * 0.9);
         return next;
       });
-      const nextBubble = ((now - bubbleStartedAt.current) % 1700) / 1700;
+      const nextBubble = ((now - bubbleStartedAt.current) % 1900) / 1900;
       bubbleRef.current = nextBubble;
       setBubble(nextBubble);
       onVisual({ simmerHeat: heatRef.current, simmerHits: hitsRef.current, simmerReady: liveInZone, simmerBubble: nextBubble });
@@ -497,7 +503,7 @@ function SimmerGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => 
   }, [onVisual]);
 
   useEffect(() => {
-    if (!done.current && hold >= 2200 && hits >= targetHits) {
+    if (!done.current && hold >= 2400 && hits >= targetHits) {
       done.current = true;
       const elapsed = performance.now() - startedAt.current;
       const timingScore = avg(scoresRef.current);
@@ -511,66 +517,117 @@ function SimmerGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => 
     const next = 1 - clamp((clientY - rect.top) / rect.height, 0, 1);
     heatRef.current = next;
     setHeat(next);
-    setCue(next >= 0.55 && next <= 0.72 ? 'Skim at the band' : 'Find simmer zone');
+    setCue(next >= 0.55 && next <= 0.72 ? 'Gentle simmer' : next < 0.55 ? 'Too cool' : 'Too hot');
     onVisual({ simmerHeat: next, simmerReady: next >= 0.55 && next <= 0.72 });
   };
 
-  const skimBubble = () => {
-    if (done.current) return;
+  const skimFoam = () => {
+    if (done.current || skimLocked.current) return;
     if (!inZone) {
-      setCue('Set heat first');
+      setCue('Set simmer first');
       onVisual({ pulse: performance.now() });
       return;
     }
     const liveBubble = bubbleRef.current;
-    if (liveBubble < 0.62 || liveBubble > 0.86) {
-      setCue(liveBubble < 0.62 ? 'Wait for the band' : 'Missed, reset');
-      bubbleStartedAt.current = performance.now();
-      onVisual({ simmerBubble: 0, pulse: performance.now() });
-      return;
-    }
 
-    const accuracy = 1 - Math.min(1, Math.abs(liveBubble - 0.74) / 0.18);
-    scoresRef.current.push(clamp(0.68 + accuracy * 0.32, 0.68, 1));
+    skimLocked.current = true;
+    const accuracy = 1 - Math.min(1, Math.abs(liveBubble - 0.78) / 0.34);
+    scoresRef.current.push(clamp(0.58 + accuracy * 0.42, 0.58, 1));
     const next = Math.min(targetHits, hitsRef.current + 1);
     hitsRef.current = next;
     setHits(next);
-    setCue(accuracy > 0.82 ? 'Clean skim' : 'Good skim');
+    setCue(accuracy > 0.82 ? 'Clean skim' : accuracy > 0.5 ? 'Good skim' : 'Rough skim');
     bubbleStartedAt.current = performance.now();
     setBubble(0);
     onVisual({ simmerHits: next, simmerBubble: 0, pulse: performance.now() });
+    window.setTimeout(() => {
+      skimLocked.current = false;
+    }, 280);
+  };
+
+  const updateSpoon = (clientX: number) => {
+    const rect = skimRef.current?.getBoundingClientRect();
+    if (!rect) return 0.5;
+    const next = clamp((clientX - rect.left) / rect.width, 0.08, 0.92);
+    setSpoon(next);
+    return next;
+  };
+
+  const startSkim = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (done.current) return;
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    const x = updateSpoon(event.clientX);
+    skimDrag.current = { startX: x, pointerId: event.pointerId };
+    setCue(inZone ? 'Swipe over foam' : 'Set simmer first');
+  };
+
+  const moveSkim = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = skimDrag.current;
+    if (!drag || done.current) return;
+    event.preventDefault();
+    const x = updateSpoon(event.clientX);
+    if (Math.abs(x - drag.startX) > 0.34) {
+      skimDrag.current = null;
+      skimFoam();
+    }
+  };
+
+  const endSkim = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = skimDrag.current;
+    if (!drag) return;
+    event.preventDefault();
+    try {
+      event.currentTarget.releasePointerCapture(drag.pointerId);
+    } catch {
+      // Pointer capture can already be gone after touch cancellation.
+    }
+    skimDrag.current = null;
   };
 
   return (
-    <div className="mini simmer-mini">
-      <div
-        ref={railRef}
-        className="heat-rail"
-        data-testid="simmer-slider"
-        onPointerDown={(event) => {
-          event.preventDefault();
-          event.currentTarget.setPointerCapture(event.pointerId);
-          updateHeat(event.clientY);
-        }}
-        onPointerMove={(event) => {
-          event.preventDefault();
-          if (event.buttons || event.pointerType === 'touch') updateHeat(event.clientY);
-        }}
-      >
-        <i className="simmer-zone">simmer</i>
-        <b style={{ bottom: `calc(${heat * 100}% - 18px)` }}>drag</b>
+    <div className="mini poach-mini">
+      <div className="status-row">
+        <span>{cue}</span>
+        <strong>{temperature}C</strong>
       </div>
-      <button
-        className={`bubble-button ${inZone ? 'ready' : ''} ${bubbleReady ? 'skim-now' : ''}`}
-        data-testid="bubble-button"
-        data-bubble-ready={bubbleReady ? 'true' : 'false'}
-        onClick={skimBubble}
-      >
-        <i aria-hidden="true" className="bubble-zone">skim</i>
-        <b aria-hidden="true" style={{ bottom: `${76 + bubble * 82}px` }} />
-        <span>{inZone ? cue : 'Find simmer zone'}</span>
-        <strong>{hits}/{targetHits}</strong>
-      </button>
+      <div className="poach-control">
+        <div
+          ref={railRef}
+          className="heat-rail"
+          data-testid="simmer-slider"
+          onPointerDown={(event) => {
+            event.preventDefault();
+            event.currentTarget.setPointerCapture(event.pointerId);
+            updateHeat(event.clientY);
+          }}
+          onPointerMove={(event) => {
+            event.preventDefault();
+            if (event.buttons || event.pointerType === 'touch') updateHeat(event.clientY);
+          }}
+        >
+          <i className="simmer-zone">simmer</i>
+          <b style={{ bottom: `calc(${heat * 100}% - 18px)` }}>heat</b>
+        </div>
+        <div
+          ref={skimRef}
+          className={`stock-skim-pad ${inZone ? 'ready' : ''} ${bubbleReady ? 'skim-now' : ''}`}
+          data-testid="bubble-button"
+          data-bubble-ready={bubbleReady ? 'true' : 'false'}
+          role="button"
+          tabIndex={0}
+          onPointerDown={startSkim}
+          onPointerMove={moveSkim}
+          onPointerUp={endSkim}
+          onPointerCancel={endSkim}
+        >
+          <i aria-hidden="true" className="stock-surface" />
+          <b aria-hidden="true" className="foam-bubble" style={{ left: `${bubbleX * 100}%`, bottom: `${24 + bubble * 104}px` }} />
+          <em aria-hidden="true" className="skim-spoon" style={{ left: `${spoon * 100}%` }} />
+          <span>{inZone ? 'Swipe spoon over foam' : 'Warm stock gently'}</span>
+          <strong>{hits}/{targetHits}</strong>
+        </div>
+      </div>
       <ProgressBar value={progress} />
     </div>
   );
@@ -585,23 +642,30 @@ function SauceGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => v
   ] as const;
   const [added, setAdded] = useState<string[]>([]);
   const [mashes, setMashes] = useState(0);
+  const [press, setPress] = useState(0);
+  const [cue, setCue] = useState('Add ingredients');
   const startedAt = useRef(performance.now());
   const done = useRef(false);
+  const mashesRef = useRef(0);
+  const mashDrag = useRef<{ startY: number; pointerId: number; press: number } | null>(null);
 
   const add = (id: string) => {
     setAdded((prev) => {
       if (prev.includes(id)) return prev;
       const next = [...prev, id];
+      setCue(next.length >= items.length ? 'Pull pestle down' : 'Add ingredients');
       onVisual({ sauceItems: next, pulse: performance.now() });
       return next;
     });
   };
 
-  const mash = () => {
+  const completeMash = () => {
     if (added.length < items.length || done.current) return;
-    const next = mashes + 1;
+    const next = mashesRef.current + 1;
+    mashesRef.current = next;
     setMashes(next);
-    onVisual({ mashCount: next, sauceItems: added, pulse: performance.now() });
+    setCue(next >= 4 ? 'Sauce ready' : 'Pull pestle down');
+    onVisual({ mashCount: next, mashPress: 0, sauceItems: added, pulse: performance.now() });
     if (next >= 4) {
       done.current = true;
       const elapsed = performance.now() - startedAt.current;
@@ -609,24 +673,92 @@ function SauceGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => v
     }
   };
 
+  const startMash = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (added.length < items.length || done.current) {
+      setCue('Add ingredients first');
+      return;
+    }
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    mashDrag.current = { startY: event.clientY, pointerId: event.pointerId, press: 0 };
+    setPress(0.08);
+    onVisual({ mashPress: 0.08, sauceItems: added });
+  };
+
+  const moveMash = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = mashDrag.current;
+    if (!drag || done.current) return;
+    event.preventDefault();
+    const nextPress = clamp((event.clientY - drag.startY) / 104, 0, 1);
+    drag.press = nextPress;
+    setPress(nextPress);
+    setCue(nextPress > 0.68 ? 'Release to pound' : 'Pull pestle down');
+    onVisual({ mashPress: nextPress, sauceItems: added });
+  };
+
+  const endMash = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = mashDrag.current;
+    if (!drag) return;
+    event.preventDefault();
+    try {
+      event.currentTarget.releasePointerCapture(drag.pointerId);
+    } catch {
+      // Pointer capture can already be gone after touch cancellation.
+    }
+    mashDrag.current = null;
+    if (drag.press > 0.68) completeMash();
+    else setCue('Pull further');
+    setPress(0);
+    onVisual({ mashPress: 0, sauceItems: added });
+  };
+
   return (
     <div className="mini sauce-mini">
-      <div className="token-grid">
+      <div className="status-row">
+        <span>{cue}</span>
+        <strong>{added.length}/4</strong>
+      </div>
+      <div className="sauce-station">
+        <div className="sauce-bowl">
+          <i aria-hidden="true" />
+          <b
+            style={{
+              width: `${Math.max(0, (added.length / items.length) * 54 + (mashes / 4) * 28)}%`,
+              opacity: added.length ? 1 : 0,
+            }}
+          />
+          <span>{added.length < items.length ? 'Mortar is waiting' : 'Ingredients in mortar'}</span>
+        </div>
+      </div>
+      <div className="sauce-tray">
         {items.map(([id, label]) => (
           <button
             key={id}
-            className={added.includes(id) ? 'done' : ''}
+            className={`sauce-token ${id} ${added.includes(id) ? 'done' : ''}`}
             data-testid={`sauce-token-${id}`}
             onClick={() => add(id)}
           >
-            {label}
+            <i aria-hidden="true" className={`food-icon ${id}`} />
+            <span>{label}</span>
           </button>
         ))}
       </div>
-      <button className="mortar-pad" data-testid="mortar-pad" onClick={mash}>
-        <span>{added.length < items.length ? 'Add all sauce ingredients' : 'Tap to mash sauce'}</span>
+      <div
+        className={`mortar-pad sauce-pound ${added.length >= items.length ? 'ready' : ''}`}
+        data-testid="mortar-pad"
+        role="button"
+        tabIndex={0}
+        onPointerDown={startMash}
+        onPointerMove={moveMash}
+        onPointerUp={endMash}
+        onPointerCancel={endMash}
+      >
+        <i aria-hidden="true" className="pestle-track">
+          <b style={{ transform: `translate(-50%, ${press * 72}px) rotate(-10deg)` }} />
+        </i>
+        <span>{added.length < items.length ? 'Add all sauce ingredients' : 'Pull down, release'}</span>
         <strong>{mashes}/4</strong>
-      </button>
+      </div>
       <ProgressBar value={(added.length / items.length) * 0.55 + (mashes / 4) * 0.45} />
     </div>
   );
