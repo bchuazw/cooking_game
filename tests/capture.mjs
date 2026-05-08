@@ -17,7 +17,7 @@ async function main() {
   });
   await page.goto(BASE, { waitUntil: 'networkidle' });
   await page.screenshot({ path: join(OUT, 'voxel-menu-mobile.png'), fullPage: false });
-  await page.getByTestId('dish-chicken-rice').click();
+  await page.getByTestId('start-chicken-rice').click();
   await page.waitForTimeout(500);
   await page.screenshot({ path: join(OUT, 'voxel-cooking-mobile.png'), fullPage: false });
   await browser.close();
