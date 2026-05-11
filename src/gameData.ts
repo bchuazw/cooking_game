@@ -51,7 +51,7 @@ export const CHICKEN_RICE: DishDefinition = {
       kind: 'simmer',
       title: 'Poach the Chicken',
       shortTitle: 'Poach',
-      instruction: 'Drag the heat handle into the green simmer zone, then swipe the spoon across foam on the stock.',
+      instruction: 'Drag the heat handle into the green simmer zone, then drag circles on the stock to stir gently.',
       lesson: 'Chicken rice uses gentle poaching, not a hard boil, so the meat stays silky.',
       target: 3,
     },

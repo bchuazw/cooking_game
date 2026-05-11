@@ -11,6 +11,18 @@ async function drag(page, from, to, steps = 12) {
   await page.mouse.up();
 }
 
+async function circleDrag(page, center, radius, loops = 1, stepsPerLoop = 28) {
+  await page.mouse.move(center.x + radius, center.y);
+  await page.mouse.down();
+  await page.waitForTimeout(45);
+  const total = Math.max(8, Math.round(loops * stepsPerLoop));
+  for (let i = 1; i <= total; i++) {
+    const angle = (Math.PI * 2 * loops * i) / total;
+    await page.mouse.move(center.x + Math.cos(angle) * radius, center.y + Math.sin(angle) * radius);
+  }
+  await page.mouse.up();
+}
+
 async function playPrep(page) {
   for (let i = 0; i < 4; i++) {
     await page.getByTestId('chop-button').click();
@@ -33,12 +45,12 @@ async function playSimmer(page) {
   if (!rail) throw new Error('simmer slider missing');
   const target = { x: rail.x + rail.width / 2, y: rail.y + rail.height * 0.36 };
   await drag(page, { x: target.x, y: rail.y + rail.height * 0.82 }, target, 12);
+  const pot = await page.getByTestId('stir-pot').boundingBox();
+  if (!pot) throw new Error('stir pot missing');
+  const center = { x: pot.x + pot.width * 0.5, y: pot.y + pot.height * 0.42 };
+  const radius = Math.min(pot.width, pot.height) * 0.24;
   for (let i = 0; i < 3; i++) {
-    const skim = page.locator('[data-testid="bubble-button"][data-bubble-ready="true"]');
-    await skim.waitFor({ timeout: 3600 });
-    const pad = await page.getByTestId('bubble-button').boundingBox();
-    if (!pad) throw new Error('skim pad missing');
-    await drag(page, { x: pad.x + pad.width * 0.16, y: pad.y + pad.height * 0.48 }, { x: pad.x + pad.width * 0.84, y: pad.y + pad.height * 0.42 }, 10);
+    await circleDrag(page, center, radius, 1.08, 30);
     await page.waitForTimeout(260);
   }
 }

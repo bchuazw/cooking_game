@@ -19,9 +19,12 @@ export interface VisualState {
   simmerHits?: number;
   simmerReady?: boolean;
   simmerBubble?: number;
+  simmerStir?: number;
+  simmerStirAngle?: number;
   sauceItems?: string[];
   mashCount?: number;
   mashPress?: number;
+  mashPound?: number;
   plateItems?: string[];
 }
 
@@ -754,17 +757,20 @@ function updateDynamics(d: DynamicRefs, state: VisualState, t: number) {
     d.heatMercury.scale.y = 0.18 + heat * 0.95;
     d.heatMercury.position.y = 0.16 + d.heatMercury.scale.y * 0.5;
   }
+  const simmerStir = state.simmerStir ?? 0;
+  const simmerStirAngle = state.simmerStirAngle ?? 0;
   if (d.potChicken) {
-    d.potChicken.position.y = Math.sin(t * 2.6) * 0.025 + (state.simmerReady ? 0.06 : 0);
-    d.potChicken.rotation.z = Math.sin(t * 1.2) * 0.025;
+    d.potChicken.position.y = Math.sin(t * 2.6) * 0.025 + (state.simmerReady ? 0.06 : 0) + simmerStir * 0.018;
+    d.potChicken.rotation.y = simmerStirAngle * 0.04;
+    d.potChicken.rotation.z = Math.sin(t * 1.2) * 0.025 + simmerStir * Math.sin(simmerStirAngle) * 0.035;
   }
   d.waterRipples.forEach((ring, i) => {
     const base = baseScale(ring);
-    const shimmer = 1 + Math.sin(t * (0.9 + i * 0.22) + i) * 0.018 + (state.simmerReady ? 0.016 : 0);
+    const shimmer = 1 + Math.sin(t * (0.9 + i * 0.22) + i) * 0.018 + (state.simmerReady ? 0.016 : 0) + simmerStir * 0.035;
     ring.scale.set(base.x * shimmer, base.y * (1 + (shimmer - 1) * 0.7), base.z);
-    ring.rotation.z = Math.sin(t * 0.45 + i) * 0.06;
+    ring.rotation.z = Math.sin(t * 0.45 + i) * 0.06 + simmerStirAngle * (0.03 + i * 0.01);
     const material = ring.material as THREE.MeshBasicMaterial;
-    material.opacity = ((ring.userData.baseOpacity as number | undefined) ?? 0.3) * (0.8 + Math.sin(t * 1.4 + i) * 0.16 + (state.simmerReady ? 0.14 : 0));
+    material.opacity = ((ring.userData.baseOpacity as number | undefined) ?? 0.3) * (0.8 + Math.sin(t * 1.4 + i) * 0.16 + (state.simmerReady ? 0.14 : 0) + simmerStir * 0.18);
   });
   d.potSteam.forEach((steam, i) => {
     const base = basePosition(steam);
@@ -788,28 +794,52 @@ function updateDynamics(d: DynamicRefs, state: VisualState, t: number) {
   });
 
   const sauceItems = new Set(state.sauceItems ?? []);
+  const mash = state.mashCount ?? 0;
+  const mashPress = state.mashPress ?? 0;
+  const poundAge = state.mashPound ? t - state.mashPound / 1000 : 999;
+  const strike = poundAge >= 0 && poundAge < 0.24 ? Math.sin((1 - poundAge / 0.24) * Math.PI) : 0;
+  const mortarTargets: Record<string, THREE.Vector3> = {
+    chili: new THREE.Vector3(-0.17, 1.14, 0.43),
+    ginger: new THREE.Vector3(0.06, 1.16, 0.34),
+    garlic: new THREE.Vector3(0.18, 1.14, 0.52),
+    lime: new THREE.Vector3(-0.04, 1.17, 0.62),
+  };
   Object.entries(d.sauceItems).forEach(([id, parts], i) => {
     const added = sauceItems.has(id);
     parts.forEach((part, p) => {
       const base = basePosition(part);
-      part.visible = !added;
-      part.position.set(base.x, base.y + Math.sin(t * 3 + i + p) * 0.012, base.z);
+      const scale = baseScale(part);
+      part.visible = true;
+      if (added) {
+        const target = mortarTargets[id] ?? new THREE.Vector3(0, 1.14, 0.5);
+        const spreadX = ((p % 3) - 1) * 0.08;
+        const spreadZ = (Math.floor(p / 3) - 0.35) * 0.08;
+        const settle = clamp(mash / 4 + mashPress * 0.16 + strike * 0.12, 0, 0.82);
+        const chunkScale = 1 - settle * 0.58;
+        part.position.set(
+          target.x + spreadX + Math.sin(t * 2.2 + p) * 0.008,
+          target.y + Math.sin(t * 4 + i + p) * 0.008 - mashPress * 0.035 - strike * 0.045,
+          target.z + spreadZ + Math.cos(t * 2 + p) * 0.008,
+        );
+        part.scale.set(scale.x * chunkScale, scale.y * Math.max(0.28, chunkScale), scale.z * chunkScale);
+        part.rotation.y = ((part.userData.baseRotationY as number | undefined) ?? i) + mash * 0.25 + p * 0.2;
+      } else {
+        part.position.set(base.x, base.y + Math.sin(t * 3 + i + p) * 0.012, base.z);
+        part.scale.copy(scale);
+      }
     });
   });
   if (d.pestle) {
-    const mash = state.mashCount ?? 0;
-    const press = state.mashPress ?? 0;
-    d.pestle.position.y = Math.sin(t * 5 + mash) * 0.04 - mash * 0.018 - press * 0.34;
-    d.pestle.rotation.z = -0.08 + Math.sin(t * 3) * 0.035 + press * 0.12;
+    d.pestle.position.y = Math.sin(t * 5 + mash) * 0.04 - mash * 0.018 - mashPress * 0.34 - strike * 0.24;
+    d.pestle.rotation.z = -0.08 + Math.sin(t * 3) * 0.035 + mashPress * 0.12 - strike * 0.08;
   }
   if (d.sauceMortar) {
-    const mash = state.mashCount ?? 0;
     const scale = baseScale(d.sauceMortar);
-    const pulse = 1 + Math.sin(t * 12) * 0.018 * mash;
+    const pulse = 1 + Math.sin(t * 12) * 0.018 * mash + strike * 0.06;
     d.sauceMortar.scale.set(scale.x * pulse, scale.y, scale.z * pulse);
   }
   if (d.saucePaste) {
-    const amount = (state.sauceItems?.length ?? 0) / 4 + (state.mashCount ?? 0) / 10 + (state.mashPress ?? 0) * 0.06;
+    const amount = (state.sauceItems?.length ?? 0) / 4 + mash / 10 + mashPress * 0.06 + strike * 0.04;
     d.saucePaste.scale.set(0.42 + amount * 0.24, 0.08 + amount * 0.04, 0.3 + amount * 0.16);
   }
 
@@ -836,4 +866,8 @@ function baseScale(object: THREE.Object3D) {
     object.userData.baseScale = object.scale.clone();
   }
   return object.userData.baseScale as THREE.Vector3;
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
 }

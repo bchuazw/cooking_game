@@ -177,6 +177,7 @@ p {
 .token-grid button:active,
 .bubble-button:active,
 .stock-skim-pad:active,
+.stock-stir-pad:active,
 .mortar-pad:active,
 .chop-button:active {
   transform: translateY(2px) scale(0.99);
@@ -629,7 +630,8 @@ p {
     #d9efcf;
 }
 
-.stock-skim-pad {
+.stock-skim-pad,
+.stock-stir-pad {
   position: relative;
   min-height: 188px;
   overflow: hidden;
@@ -647,13 +649,15 @@ p {
   touch-action: none;
 }
 
-.stock-skim-pad.ready {
+.stock-skim-pad.ready,
+.stock-stir-pad.ready {
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(255, 229, 153, 0.42)),
     #f8e4ad;
 }
 
-.stock-skim-pad.skim-now {
+.stock-skim-pad.skim-now,
+.stock-stir-pad.ready {
   box-shadow: inset 0 -6px rgba(33, 26, 23, 0.06), 0 0 0 3px rgba(47, 159, 137, 0.28);
 }
 
@@ -710,21 +714,70 @@ p {
 }
 
 .stock-skim-pad span,
-.stock-skim-pad strong {
+.stock-skim-pad strong,
+.stock-stir-pad span,
+.stock-stir-pad strong {
   position: relative;
   z-index: 4;
 }
 
-.stock-skim-pad span {
+.stock-skim-pad span,
+.stock-stir-pad span {
   padding: 7px 10px;
   border-radius: 999px;
   background: rgba(255, 250, 240, 0.88);
   font-size: 13px;
 }
 
-.stock-skim-pad strong {
+.stock-skim-pad strong,
+.stock-stir-pad strong {
   color: #1e403e;
   font-size: 28px;
+}
+
+.stir-path {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  top: 74px;
+  width: 124px;
+  height: 88px;
+  border: 4px dashed rgba(30, 64, 62, 0.26);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.stir-path::after {
+  content: "";
+  position: absolute;
+  right: 4px;
+  top: 13px;
+  width: 0;
+  height: 0;
+  border-top: 8px solid transparent;
+  border-bottom: 8px solid transparent;
+  border-left: 14px solid rgba(30, 64, 62, 0.56);
+  transform: rotate(34deg);
+}
+
+.stir-spoon {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  top: 74px;
+  width: 88px;
+  height: 18px;
+  border-radius: 999px 6px 6px 999px;
+  background: linear-gradient(90deg, #f7eee0 0 38%, #a66a3d 39% 100%);
+  box-shadow: 0 7px 12px rgba(66, 40, 26, 0.22);
+  transform-origin: 50% 50%;
+  transition: transform 80ms ease-out;
+  pointer-events: none;
+}
+
+.stock-stir-pad:active .stir-spoon {
+  filter: brightness(1.05);
 }
 
 .bubble-button {
@@ -834,6 +887,57 @@ p {
     linear-gradient(90deg, #d8422d, #b5322a 55%, #e77f36);
   box-shadow: 0 4px 8px rgba(84, 32, 24, 0.26);
   transition: width 260ms ease;
+}
+
+.bowl-chunks {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  pointer-events: none;
+}
+
+.food-chip {
+  position: absolute;
+  left: 50%;
+  top: 49%;
+  display: block;
+  width: 22px;
+  height: 16px;
+  border-radius: 7px;
+  background: #d8422d;
+  box-shadow: 0 3px 5px rgba(76, 37, 28, 0.2);
+  transform: translate(-50%, -50%);
+}
+
+.food-chip.chili {
+  margin-left: -42px;
+  margin-top: -7px;
+  width: 34px;
+  height: 10px;
+  border-radius: 999px;
+  background: #d8422d;
+  transform: translate(-50%, -50%) rotate(-14deg);
+}
+
+.food-chip.ginger {
+  margin-left: -14px;
+  margin-top: 7px;
+  background: #d99a43;
+}
+
+.food-chip.garlic {
+  margin-left: 16px;
+  margin-top: -4px;
+  border-radius: 50%;
+  background: #fff0bf;
+}
+
+.food-chip.lime {
+  margin-left: 42px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: #66aa54;
+  box-shadow: inset 0 0 0 5px #d8f08a, 0 3px 5px rgba(76, 37, 28, 0.2);
 }
 
 .sauce-bowl span {
@@ -985,14 +1089,37 @@ p {
   touch-action: none;
 }
 
+.sauce-pound::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 46px;
+  width: 146px;
+  height: 42px;
+  border-radius: 50%;
+  background:
+    radial-gradient(ellipse at 50% 44%, rgba(216, 66, 45, 0.68) 0 34%, transparent 35%),
+    radial-gradient(ellipse at 50% 54%, #6b574b 0 42%, #3f3833 43% 62%, transparent 63%);
+  box-shadow: 0 8px 12px rgba(54, 36, 26, 0.16);
+}
+
 .sauce-pound.ready {
   background:
     radial-gradient(ellipse at 50% 70%, rgba(216, 66, 45, 0.36), transparent 35%),
     linear-gradient(180deg, #fff1c7, #ead1a4);
 }
 
+.sauce-pound.is-pounding {
+  animation: pound-flash 220ms ease-out;
+}
+
+.sauce-pound.is-pounding::before {
+  transform: translateX(-50%) scale(1.08);
+}
+
 .pestle-track {
   position: absolute;
+  z-index: 1;
   top: 12px;
   bottom: 42px;
   left: 50%;
@@ -1026,6 +1153,20 @@ p {
 .sauce-pound strong {
   position: relative;
   z-index: 1;
+}
+
+@keyframes pound-flash {
+  0% {
+    box-shadow: inset 0 -6px rgba(33, 26, 23, 0.06), 0 0 0 0 rgba(216, 66, 45, 0);
+  }
+
+  45% {
+    box-shadow: inset 0 -6px rgba(33, 26, 23, 0.06), 0 0 0 4px rgba(216, 66, 45, 0.22);
+  }
+
+  100% {
+    box-shadow: inset 0 -6px rgba(33, 26, 23, 0.06), 0 0 0 0 rgba(216, 66, 45, 0);
+  }
 }
 
 .token-grid {

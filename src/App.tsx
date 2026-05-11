@@ -457,29 +457,27 @@ function StirGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => vo
 
 function SimmerGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => void; onFinish: (score: number) => void }) {
   const railRef = useRef<HTMLDivElement>(null);
-  const skimRef = useRef<HTMLDivElement>(null);
+  const stirRef = useRef<HTMLDivElement>(null);
   const [heat, setHeat] = useState(0.22);
   const [hold, setHold] = useState(0);
-  const [hits, setHits] = useState(0);
-  const [bubble, setBubble] = useState(0);
-  const [spoon, setSpoon] = useState(0.18);
+  const [turns, setTurns] = useState(0);
+  const [stirAngle, setStirAngle] = useState(-0.6);
+  const [stirPower, setStirPower] = useState(0);
   const [cue, setCue] = useState('Warm the pot');
   const done = useRef(false);
   const startedAt = useRef(performance.now());
   const heatRef = useRef(0.22);
-  const hitsRef = useRef(0);
-  const bubbleRef = useRef(0);
+  const turnsRef = useRef(0);
+  const stirAngleRef = useRef(-0.6);
+  const stirPowerRef = useRef(0);
   const bubbleStartedAt = useRef(performance.now());
-  const skimDrag = useRef<{ startX: number; pointerId: number } | null>(null);
-  const skimLocked = useRef(false);
+  const stirDrag = useRef<{ lastAngle: number; accumulated: number; pointerId: number } | null>(null);
   const scoresRef = useRef<number[]>([]);
 
   const inZone = heat >= 0.55 && heat <= 0.72;
-  const bubbleReady = inZone && bubble >= 0.64 && bubble <= 0.9;
-  const bubbleX = clamp(0.5 + Math.sin(bubble * Math.PI * 1.4 + hits * 0.9) * 0.18, 0.24, 0.76);
   const temperature = Math.round(44 + heat * 42);
-  const targetHits = 3;
-  const progress = clamp((hold / 2400) * 0.58 + (hits / targetHits) * 0.42, 0, 1);
+  const targetTurns = 3;
+  const progress = clamp((hold / 1800) * 0.48 + (turns / targetTurns) * 0.52, 0, 1);
 
   useEffect(() => {
     let raf = 0;
@@ -489,13 +487,18 @@ function SimmerGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => 
       last = now;
       const liveInZone = heatRef.current >= 0.55 && heatRef.current <= 0.72;
       setHold((value) => {
-        const next = liveInZone ? Math.min(2400, value + dt) : Math.max(0, value - dt * 0.9);
+        const next = liveInZone ? Math.min(1800, value + dt) : Math.max(0, value - dt * 0.9);
         return next;
       });
       const nextBubble = ((now - bubbleStartedAt.current) % 1900) / 1900;
-      bubbleRef.current = nextBubble;
-      setBubble(nextBubble);
-      onVisual({ simmerHeat: heatRef.current, simmerHits: hitsRef.current, simmerReady: liveInZone, simmerBubble: nextBubble });
+      onVisual({
+        simmerHeat: heatRef.current,
+        simmerHits: turnsRef.current,
+        simmerReady: liveInZone,
+        simmerBubble: nextBubble,
+        simmerStir: stirPowerRef.current,
+        simmerStirAngle: stirAngleRef.current,
+      });
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
@@ -503,13 +506,13 @@ function SimmerGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => 
   }, [onVisual]);
 
   useEffect(() => {
-    if (!done.current && hold >= 2400 && hits >= targetHits) {
+    if (!done.current && hold >= 1800 && turns >= targetTurns) {
       done.current = true;
       const elapsed = performance.now() - startedAt.current;
       const timingScore = avg(scoresRef.current);
       onFinish(timingScore * (elapsed < 8500 ? 1 : elapsed < 12500 ? 0.9 : 0.78));
     }
-  }, [hits, hold, onFinish]);
+  }, [turns, hold, onFinish]);
 
   const updateHeat = (clientY: number) => {
     const rect = railRef.current?.getBoundingClientRect();
@@ -521,60 +524,65 @@ function SimmerGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => 
     onVisual({ simmerHeat: next, simmerReady: next >= 0.55 && next <= 0.72 });
   };
 
-  const skimFoam = () => {
-    if (done.current || skimLocked.current) return;
+  const angleFromPoint = (clientX: number, clientY: number) => {
+    const rect = stirRef.current?.getBoundingClientRect();
+    if (!rect) return stirAngle;
+    return Math.atan2(clientY - (rect.top + rect.height * 0.42), clientX - (rect.left + rect.width * 0.5));
+  };
+
+  const finishStirTurn = () => {
     if (!inZone) {
-      setCue('Set simmer first');
+      setCue('Keep heat in simmer');
       onVisual({ pulse: performance.now() });
       return;
     }
-    const liveBubble = bubbleRef.current;
-
-    skimLocked.current = true;
-    const accuracy = 1 - Math.min(1, Math.abs(liveBubble - 0.78) / 0.34);
-    scoresRef.current.push(clamp(0.58 + accuracy * 0.42, 0.58, 1));
-    const next = Math.min(targetHits, hitsRef.current + 1);
-    hitsRef.current = next;
-    setHits(next);
-    setCue(accuracy > 0.82 ? 'Clean skim' : accuracy > 0.5 ? 'Good skim' : 'Rough skim');
-    bubbleStartedAt.current = performance.now();
-    setBubble(0);
-    onVisual({ simmerHits: next, simmerBubble: 0, pulse: performance.now() });
-    window.setTimeout(() => {
-      skimLocked.current = false;
-    }, 280);
+    const next = Math.min(targetTurns, turnsRef.current + 1);
+    turnsRef.current = next;
+    setTurns(next);
+    scoresRef.current.push(clamp(0.72 + heatRef.current * 0.32, 0.72, 1));
+    setCue(next >= targetTurns ? 'Chicken poached' : 'Good stir');
+    onVisual({ simmerHits: next, simmerStir: 1, simmerStirAngle: stirAngleRef.current, pulse: performance.now() });
   };
 
-  const updateSpoon = (clientX: number) => {
-    const rect = skimRef.current?.getBoundingClientRect();
-    if (!rect) return 0.5;
-    const next = clamp((clientX - rect.left) / rect.width, 0.08, 0.92);
-    setSpoon(next);
-    return next;
-  };
-
-  const startSkim = (event: ReactPointerEvent<HTMLDivElement>) => {
+  const startStir = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (done.current) return;
     event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId);
-    const x = updateSpoon(event.clientX);
-    skimDrag.current = { startX: x, pointerId: event.pointerId };
-    setCue(inZone ? 'Swipe over foam' : 'Set simmer first');
+    const angle = angleFromPoint(event.clientX, event.clientY);
+    stirDrag.current = { lastAngle: angle, accumulated: 0, pointerId: event.pointerId };
+    stirAngleRef.current = angle;
+    stirPowerRef.current = 0.12;
+    setStirAngle(angle);
+    setStirPower(0.12);
+    setCue(inZone ? 'Spin the spoon' : 'Set simmer first');
+    onVisual({ simmerStir: 0.12, simmerStirAngle: angle });
   };
 
-  const moveSkim = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const drag = skimDrag.current;
+  const moveStir = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = stirDrag.current;
     if (!drag || done.current) return;
     event.preventDefault();
-    const x = updateSpoon(event.clientX);
-    if (Math.abs(x - drag.startX) > 0.34) {
-      skimDrag.current = null;
-      skimFoam();
+    const angle = angleFromPoint(event.clientX, event.clientY);
+    let delta = angle - drag.lastAngle;
+    if (delta > Math.PI) delta -= Math.PI * 2;
+    if (delta < -Math.PI) delta += Math.PI * 2;
+    drag.lastAngle = angle;
+    drag.accumulated += Math.abs(delta);
+    const turnProgress = clamp(drag.accumulated / (Math.PI * 2), 0, 1);
+    stirAngleRef.current = angle;
+    stirPowerRef.current = turnProgress;
+    setStirAngle(angle);
+    setStirPower(turnProgress);
+    setCue(inZone ? 'Keep stirring' : 'Set simmer first');
+    onVisual({ simmerStir: turnProgress, simmerStirAngle: angle });
+    while (drag.accumulated >= Math.PI * 2) {
+      drag.accumulated -= Math.PI * 2;
+      finishStirTurn();
     }
   };
 
-  const endSkim = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const drag = skimDrag.current;
+  const endStir = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = stirDrag.current;
     if (!drag) return;
     event.preventDefault();
     try {
@@ -582,7 +590,10 @@ function SimmerGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => 
     } catch {
       // Pointer capture can already be gone after touch cancellation.
     }
-    skimDrag.current = null;
+    stirDrag.current = null;
+    stirPowerRef.current = 0;
+    setStirPower(0);
+    onVisual({ simmerStir: 0, simmerStirAngle: stirAngleRef.current });
   };
 
   return (
@@ -610,22 +621,25 @@ function SimmerGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => 
           <b style={{ bottom: `calc(${heat * 100}% - 18px)` }}>heat</b>
         </div>
         <div
-          ref={skimRef}
-          className={`stock-skim-pad ${inZone ? 'ready' : ''} ${bubbleReady ? 'skim-now' : ''}`}
-          data-testid="bubble-button"
-          data-bubble-ready={bubbleReady ? 'true' : 'false'}
+          ref={stirRef}
+          className={`stock-stir-pad ${inZone ? 'ready' : ''}`}
+          data-testid="stir-pot"
           role="button"
           tabIndex={0}
-          onPointerDown={startSkim}
-          onPointerMove={moveSkim}
-          onPointerUp={endSkim}
-          onPointerCancel={endSkim}
+          onPointerDown={startStir}
+          onPointerMove={moveStir}
+          onPointerUp={endStir}
+          onPointerCancel={endStir}
         >
           <i aria-hidden="true" className="stock-surface" />
-          <b aria-hidden="true" className="foam-bubble" style={{ left: `${bubbleX * 100}%`, bottom: `${24 + bubble * 104}px` }} />
-          <em aria-hidden="true" className="skim-spoon" style={{ left: `${spoon * 100}%` }} />
-          <span>{inZone ? 'Swipe spoon over foam' : 'Warm stock gently'}</span>
-          <strong>{hits}/{targetHits}</strong>
+          <b aria-hidden="true" className="stir-path" />
+          <em
+            aria-hidden="true"
+            className="stir-spoon"
+            style={{ transform: `translate(-50%, -50%) rotate(${stirAngle}rad) translateX(52px) rotate(18deg)` }}
+          />
+          <span>{inZone ? 'Drag circles to stir' : 'Warm stock gently'}</span>
+          <strong>{turns}/{targetTurns}</strong>
         </div>
       </div>
       <ProgressBar value={progress} />
@@ -643,6 +657,7 @@ function SauceGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => v
   const [added, setAdded] = useState<string[]>([]);
   const [mashes, setMashes] = useState(0);
   const [press, setPress] = useState(0);
+  const [pounding, setPounding] = useState(false);
   const [cue, setCue] = useState('Add ingredients');
   const startedAt = useRef(performance.now());
   const done = useRef(false);
@@ -664,8 +679,10 @@ function SauceGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => v
     const next = mashesRef.current + 1;
     mashesRef.current = next;
     setMashes(next);
+    setPounding(true);
     setCue(next >= 4 ? 'Sauce ready' : 'Pull pestle down');
-    onVisual({ mashCount: next, mashPress: 0, sauceItems: added, pulse: performance.now() });
+    onVisual({ mashCount: next, mashPress: 0, mashPound: performance.now(), sauceItems: added, pulse: performance.now() });
+    window.setTimeout(() => setPounding(false), 220);
     if (next >= 4) {
       done.current = true;
       const elapsed = performance.now() - startedAt.current;
@@ -727,6 +744,11 @@ function SauceGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => v
               opacity: added.length ? 1 : 0,
             }}
           />
+          <div className="bowl-chunks" aria-hidden="true">
+            {added.map((id) => (
+              <em key={id} className={`food-chip ${id}`} />
+            ))}
+          </div>
           <span>{added.length < items.length ? 'Mortar is waiting' : 'Ingredients in mortar'}</span>
         </div>
       </div>
@@ -744,7 +766,7 @@ function SauceGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => v
         ))}
       </div>
       <div
-        className={`mortar-pad sauce-pound ${added.length >= items.length ? 'ready' : ''}`}
+        className={`mortar-pad sauce-pound ${added.length >= items.length ? 'ready' : ''} ${pounding ? 'is-pounding' : ''}`}
         data-testid="mortar-pad"
         role="button"
         tabIndex={0}
@@ -754,7 +776,7 @@ function SauceGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => v
         onPointerCancel={endMash}
       >
         <i aria-hidden="true" className="pestle-track">
-          <b style={{ transform: `translate(-50%, ${press * 72}px) rotate(-10deg)` }} />
+          <b style={{ transform: `translate(-50%, ${pounding ? 74 : press * 72}px) rotate(-10deg)` }} />
         </i>
         <span>{added.length < items.length ? 'Add all sauce ingredients' : 'Pull down, release'}</span>
         <strong>{mashes}/4</strong>
