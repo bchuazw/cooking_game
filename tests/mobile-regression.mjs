@@ -79,10 +79,10 @@ async function sampleFps(page) {
 async function playPrep(page, viewportName) {
   await page.getByTestId('chop-timing').click();
   const cue = await page.getByTestId('chop-timing').innerText();
-  if (!/(Perfect|Good|Too early|Too late)/.test(cue)) fail(`${viewportName}: chop timing tap did not show immediate feedback (${cue})`);
+  if (!/(Perfect|Good|Too early|Too late)/i.test(cue)) fail(`${viewportName}: chop timing tap did not show immediate feedback (${cue})`);
   await page.waitForTimeout(620);
   for (let i = 1; i < 4; i++) {
-    await page.getByTestId('chop-button').click();
+    await page.getByTestId('chop-timing').click();
     await page.waitForTimeout(650);
   }
   await page.getByRole('heading', { name: 'Toast the Rice' }).waitFor({ timeout: 5000 });
@@ -112,21 +112,19 @@ async function playPoach(page, viewportName) {
 }
 
 async function playSauce(page) {
-  const firstMortar = await page.getByTestId('mortar-pad').boundingBox();
-  const chili = await page.getByTestId('sauce-token-chili').boundingBox();
-  if (!firstMortar || !chili) fail('sauce: mortar or chili token missing');
-  await drag(
-    page,
-    { x: chili.x + chili.width / 2, y: chili.y + chili.height / 2 },
-    { x: firstMortar.x + firstMortar.width / 2, y: firstMortar.y + firstMortar.height / 2 },
-    12,
-  );
-  await page.waitForTimeout(160);
-  const chiliAdded = await page.getByTestId('sauce-token-chili').evaluate((node) => node.classList.contains('done'));
-  if (!chiliAdded) fail('sauce: dragging chili did not add it to the mortar');
-  for (const id of ['ginger', 'garlic', 'lime']) {
-    await page.getByTestId(`sauce-token-${id}`).click();
-    await page.waitForTimeout(90);
+  for (const id of ['chili', 'ginger', 'garlic', 'lime']) {
+    const mortar = await page.getByTestId('mortar-pad').boundingBox();
+    const token = await page.getByTestId(`sauce-token-${id}`).boundingBox();
+    if (!mortar || !token) fail(`sauce: mortar or ${id} token missing`);
+    await drag(
+      page,
+      { x: token.x + token.width / 2, y: token.y + token.height / 2 },
+      { x: mortar.x + mortar.width / 2, y: mortar.y + mortar.height / 2 },
+      12,
+    );
+    await page.waitForTimeout(130);
+    const added = await page.getByTestId(`sauce-token-${id}`).evaluate((node) => node.classList.contains('done'));
+    if (!added) fail(`sauce: dragging ${id} did not add it to the mortar`);
   }
   const pad = await page.getByTestId('mortar-pad').boundingBox();
   if (!pad) fail('sauce: mortar pad missing');
@@ -136,10 +134,10 @@ async function playSauce(page) {
 
 async function playPlate(page, viewportName) {
   const targets = {
-    rice: { x: 0.28, y: 0.52 },
-    chicken: { x: 0.56, y: 0.5 },
-    cucumber: { x: 0.5, y: 0.78 },
-    chili: { x: 0.78, y: 0.68 },
+    rice: { x: 0.38, y: 0.58 },
+    chicken: { x: 0.58, y: 0.56 },
+    cucumber: { x: 0.52, y: 0.76 },
+    chili: { x: 0.73, y: 0.7 },
   };
   let plate = await page.getByTestId('plate-drop').boundingBox();
   let rice = await page.getByTestId('plate-token-rice').boundingBox();
@@ -151,7 +149,7 @@ async function playPlate(page, viewportName) {
     14,
   );
   await page.waitForTimeout(220);
-  const plateText = await page.getByTestId('plate-drop').innerText();
+  const plateText = await page.locator('.plate-status').innerText();
   if (!/1\/4/.test(plateText)) fail(`${viewportName}: plate drag did not place rice (${plateText})`);
   for (const id of ['chicken', 'cucumber', 'chili']) {
     plate = await page.getByTestId('plate-drop').boundingBox();

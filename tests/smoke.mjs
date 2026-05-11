@@ -24,7 +24,7 @@ async function scrubVertical(page, x, topY, bottomY, cycles = 9) {
 
 async function playPrep(page) {
   for (let i = 0; i < 4; i++) {
-    await page.getByTestId('chop-button').click();
+    await page.getByTestId('chop-timing').click();
     await page.waitForTimeout(720);
   }
 }
@@ -50,19 +50,17 @@ async function playSimmer(page) {
 }
 
 async function playSauce(page) {
-  const mortar = await page.getByTestId('mortar-pad').boundingBox();
-  const chili = await page.getByTestId('sauce-token-chili').boundingBox();
-  if (!mortar || !chili) throw new Error('sauce drag targets missing');
-  await drag(
-    page,
-    { x: chili.x + chili.width / 2, y: chili.y + chili.height / 2 },
-    { x: mortar.x + mortar.width / 2, y: mortar.y + mortar.height / 2 },
-    12,
-  );
-  await page.waitForTimeout(180);
-  for (const id of ['ginger', 'garlic', 'lime']) {
-    await page.getByTestId(`sauce-token-${id}`).click();
-    await page.waitForTimeout(140);
+  for (const id of ['chili', 'ginger', 'garlic', 'lime']) {
+    const mortar = await page.getByTestId('mortar-pad').boundingBox();
+    const token = await page.getByTestId(`sauce-token-${id}`).boundingBox();
+    if (!mortar || !token) throw new Error(`sauce drag targets missing for ${id}`);
+    await drag(
+      page,
+      { x: token.x + token.width / 2, y: token.y + token.height / 2 },
+      { x: mortar.x + mortar.width / 2, y: mortar.y + mortar.height / 2 },
+      12,
+    );
+    await page.waitForTimeout(170);
   }
   const pad = await page.getByTestId('mortar-pad').boundingBox();
   if (!pad) throw new Error('mortar pad missing');
@@ -71,10 +69,10 @@ async function playSauce(page) {
 
 async function playPlate(page) {
   const targets = {
-    rice: { x: 0.28, y: 0.52 },
-    chicken: { x: 0.56, y: 0.5 },
-    cucumber: { x: 0.5, y: 0.78 },
-    chili: { x: 0.78, y: 0.68 },
+    rice: { x: 0.38, y: 0.58 },
+    chicken: { x: 0.58, y: 0.56 },
+    cucumber: { x: 0.52, y: 0.76 },
+    chili: { x: 0.73, y: 0.7 },
   };
   for (const id of ['rice', 'chicken', 'cucumber', 'chili']) {
     const plate = await page.getByTestId('plate-drop').boundingBox();

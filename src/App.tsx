@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { CHICKEN_RICE, starsFromAverage, tierFromScore, type StepDefinition, type Tier } from './gameData';
 import { VoxelCanvas, type VisualState } from './VoxelCanvas';
 
@@ -11,6 +11,11 @@ interface StepResult {
 }
 
 type Screen = 'menu' | 'cook' | 'result';
+type GameProps = {
+  step: StepDefinition;
+  onVisual: (patch: VisualState) => void;
+  onFinish: (score: number) => void;
+};
 
 const BEST_KEY = 'hawker-mama:fresh-redesign:v1';
 const FILLED_STAR = '\u2605';
@@ -211,14 +216,7 @@ function CookScreen({
         <strong>{stepIndex + 1}/{totalSteps}</strong>
       </div>
 
-      <section key={step.id} className="play-panel">
-        <div className="step-copy">
-          <p className="eyebrow">{CHICKEN_RICE.name}</p>
-          <h2>{step.title}</h2>
-          <p>{step.instruction}</p>
-        </div>
-        <MiniGame key={step.id} step={step} onVisual={onVisual} onFinish={onFinish} />
-      </section>
+      <MiniGame key={step.id} step={step} onVisual={onVisual} onFinish={onFinish} />
 
       {feedback && (
         <div className={`feedback ${feedback.tier}`} role="status">
@@ -235,19 +233,28 @@ function MiniGame({
   step,
   onVisual,
   onFinish,
-}: {
-  step: StepDefinition;
-  onVisual: (patch: VisualState) => void;
-  onFinish: (score: number) => void;
-}) {
-  if (step.kind === 'prep') return <PrepGame onVisual={onVisual} onFinish={onFinish} />;
-  if (step.kind === 'stir') return <StirGame onVisual={onVisual} onFinish={onFinish} />;
-  if (step.kind === 'simmer') return <SimmerGame onVisual={onVisual} onFinish={onFinish} />;
-  if (step.kind === 'mash') return <SauceGame onVisual={onVisual} onFinish={onFinish} />;
-  return <PlateGame onVisual={onVisual} onFinish={onFinish} />;
+}: GameProps) {
+  if (step.kind === 'prep') return <PrepGame step={step} onVisual={onVisual} onFinish={onFinish} />;
+  if (step.kind === 'stir') return <StirGame step={step} onVisual={onVisual} onFinish={onFinish} />;
+  if (step.kind === 'simmer') return <SimmerGame step={step} onVisual={onVisual} onFinish={onFinish} />;
+  if (step.kind === 'mash') return <SauceGame step={step} onVisual={onVisual} onFinish={onFinish} />;
+  return <PlateGame step={step} onVisual={onVisual} onFinish={onFinish} />;
 }
 
-function PrepGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => void; onFinish: (score: number) => void }) {
+function StepPanel({ step, children }: { step: StepDefinition; children: ReactNode }) {
+  return (
+    <section className="play-panel stage-panel">
+      <div className="step-copy">
+        <p className="eyebrow">{CHICKEN_RICE.name}</p>
+        <h2>{step.title}</h2>
+        <p>{step.instruction}</p>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function PrepGame({ step, onVisual, onFinish }: GameProps) {
   const ingredients = ['Garlic', 'Ginger', 'Pandan', 'Shallot'];
   const ingredientIds = ['garlic', 'ginger', 'pandan', 'shallot'];
   const firstPhase = useRef(Math.random());
@@ -324,13 +331,9 @@ function PrepGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => vo
   };
 
   return (
-    <div className="mini prep-mini">
-      <div className="status-row">
-        <span>{Math.min(active + 1, ingredients.length)}/{ingredients.length}</span>
-        <strong>{ingredients[active] ?? 'Ready'}</strong>
-      </div>
+    <>
       <div
-        className={`chop-timing ${chopQuality}`}
+        className={`stage-touch-zone prep-stage-zone ${chopQuality}`}
         data-testid="chop-timing"
         role="button"
         tabIndex={0}
@@ -339,26 +342,30 @@ function PrepGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => vo
           if (event.key === 'Enter' || event.key === ' ') chop();
         }}
       >
-        <i className="target-zone" />
-        <i aria-hidden="true" className={`prep-board-object ${ingredientIds[active] ?? 'done'} ${cutting ? 'is-cut' : ''}`} />
-        <b style={{ left: `calc(${blade * 100}% - 8px)` }} />
+        <i className="stage-cut-target" />
+        <b className="stage-blade-marker" style={{ left: `calc(${blade * 100}% - 8px)` }} />
         <span>{chopCue}</span>
         <CoachHand visible={showHint && !cutting} variant="tap" />
       </div>
-      <div className="prep-ingredient-strip" aria-hidden="true">
-        {ingredients.map((name, index) => (
-          <i key={name} className={`prep-ingredient-dot ${ingredientIds[index]} ${index < cuts ? 'done' : index === active ? 'active' : ''}`} />
-        ))}
-      </div>
-      <button className="chop-button" data-testid="chop-button" onClick={chop} disabled={cutting}>
-        {cutting ? 'Chopped!' : `Chop ${ingredients[active] ?? ''}`}
-      </button>
-      <ProgressBar value={cuts / ingredients.length} />
-    </div>
+      <StepPanel step={step}>
+        <div className="mini prep-mini stage-mini">
+          <div className="status-row">
+            <span>{chopCue}</span>
+            <strong>{Math.min(cuts, ingredients.length)}/{ingredients.length}</strong>
+          </div>
+          <div className="prep-ingredient-strip" aria-hidden="true">
+            {ingredients.map((name, index) => (
+              <i key={name} className={`prep-ingredient-dot ${ingredientIds[index]} ${index < cuts ? 'done' : index === active ? 'active' : ''}`} />
+            ))}
+          </div>
+          <ProgressBar value={cuts / ingredients.length} />
+        </div>
+      </StepPanel>
+    </>
   );
 }
 
-function StirGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => void; onFinish: (score: number) => void }) {
+function StirGame({ step, onVisual, onFinish }: GameProps) {
   const startedAt = useRef(performance.now());
   const scoresRef = useRef<number[]>([]);
   const strokesRef = useRef(0);
@@ -466,14 +473,9 @@ function StirGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => vo
   };
 
   return (
-    <div className="mini rice-mini">
-      <div className="status-row">
-        <span>{cue}</span>
-        <strong>{Math.min(strokes, targetStrokes)}/{targetStrokes}</strong>
-      </div>
-      <div className="timing-caption">Drag the spoon left and right through the wok to toast rice with garlic and ginger.</div>
+    <>
       <div
-        className={`gesture-pad rice-stir-pad target-${targetSide} ${dragging ? 'is-dragging' : ''}`}
+        className={`stage-touch-zone rice-stage-zone target-${targetSide} ${dragging ? 'is-dragging' : ''}`}
         data-testid="toss-pad"
         style={{ '--spoon-x': `${spoon.x * 100}%`, '--spoon-y': `${spoon.y * 100}%`, '--toast-progress': progress } as CSSProperties}
         onPointerDown={startStir}
@@ -481,24 +483,26 @@ function StirGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => vo
         onPointerUp={endStir}
         onPointerCancel={endStir}
       >
-        <div className="rice-stir-scene" aria-hidden="true">
-          <i className="rice-stir-wok" />
-          <i className="rice-stir-grain-cloud" />
-          <i className="rice-stir-aromatics" />
-          <i className="rice-stir-spoon" />
-          <b className="rice-stir-target left">left</b>
-          <b className="rice-stir-target right">right</b>
-        </div>
+        <b className="stage-side-target left">left</b>
+        <b className="stage-side-target right">right</b>
         <span>{cue}</span>
         <CoachHand visible={showHint && !dragging && strokes === 0} variant="swipe" />
       </div>
-      <ProgressBar value={progress} />
-    </div>
+      <StepPanel step={step}>
+        <div className="mini rice-mini stage-mini">
+          <div className="status-row">
+            <span>{cue}</span>
+            <strong>{Math.min(strokes, targetStrokes)}/{targetStrokes}</strong>
+          </div>
+          <ProgressBar value={progress} />
+        </div>
+      </StepPanel>
+    </>
   );
 }
 
-function SimmerGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => void; onFinish: (score: number) => void }) {
-  const railRef = useRef<HTMLDivElement>(null);
+function SimmerGame({ step, onVisual, onFinish }: GameProps) {
+  const stageRef = useRef<HTMLDivElement>(null);
   const [heat, setHeat] = useState(0.22);
   const [hold, setHold] = useState(0);
   const [cue, setCue] = useState('Warm the pot');
@@ -553,7 +557,7 @@ function SimmerGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => 
   }, [onFinish, onVisual]);
 
   const updateHeat = (clientY: number) => {
-    const rect = railRef.current?.getBoundingClientRect();
+    const rect = stageRef.current?.getBoundingClientRect();
     if (!rect) return;
     const next = 1 - clamp((clientY - rect.top) / rect.height, 0, 1);
     dismissHint();
@@ -587,44 +591,36 @@ function SimmerGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => 
   };
 
   return (
-    <div className="mini poach-mini">
-      <div className="status-row">
-        <span>{cue}</span>
-        <strong>{temperature}C</strong>
+    <>
+      <div
+        ref={stageRef}
+        className={`stage-touch-zone poach-stage-zone ${inZone ? 'ready' : 'waiting'}`}
+        data-testid="simmer-slider"
+        style={{ '--heat': heat, '--poach-progress': progress } as CSSProperties}
+        onPointerDown={startHeat}
+        onPointerMove={moveHeat}
+        onPointerUp={endHeat}
+        onPointerCancel={endHeat}
+      >
+        <i className="stage-simmer-zone">green zone</i>
+        <b className="stage-heat-handle" style={{ bottom: `calc(${heat * 100}% - 18px)` }}>drag</b>
+        <span>{inZone ? 'Hold it steady' : 'Drag heat into green'}</span>
+        <CoachHand visible={showHint && !inZone} variant="drag-heat" />
       </div>
-      <div className="poach-control">
-        <div
-          ref={railRef}
-          className="heat-rail"
-          data-testid="simmer-slider"
-          onPointerDown={startHeat}
-          onPointerMove={moveHeat}
-          onPointerUp={endHeat}
-          onPointerCancel={endHeat}
-        >
-          <i className="simmer-zone">target</i>
-          <b style={{ bottom: `calc(${heat * 100}% - 18px)` }}>drag</b>
-          <CoachHand visible={showHint && !inZone} variant="drag-heat" />
+      <StepPanel step={step}>
+        <div className="mini poach-mini stage-mini" data-testid="stir-pot">
+          <div className="status-row">
+            <span>{inZone ? 'Keep thermometer in green' : cue}</span>
+            <strong>{temperature}C</strong>
+          </div>
+          <ProgressBar value={progress} />
         </div>
-        <div
-          className={`stock-stir-pad poach-hold-pad ${inZone ? 'ready' : 'waiting'}`}
-          style={{ '--poach-progress': progress } as CSSProperties}
-          data-testid="stir-pot"
-        >
-          <i aria-hidden="true" className="stock-surface" />
-          <i aria-hidden="true" className={`stock-chicken ${inZone ? 'warm' : ''}`} />
-          <b aria-hidden="true" className="poach-thermometer"><i style={{ height: `${heat * 100}%` }} /></b>
-          <em aria-hidden="true" className="poach-progress-ring" />
-          <span>{inZone ? 'Keep thermometer in green' : 'Set heat in green zone'}</span>
-          <strong>{Math.round(progress * 100)}%</strong>
-        </div>
-      </div>
-      <ProgressBar value={progress} />
-    </div>
+      </StepPanel>
+    </>
   );
 }
 
-function SauceGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => void; onFinish: (score: number) => void }) {
+function SauceGame({ step, onVisual, onFinish }: GameProps) {
   const items = [
     ['chili', 'Sliced chili', 'red strips'],
     ['ginger', 'Ginger slices', 'warm bite'],
@@ -696,7 +692,7 @@ function SauceGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => v
     const overMortar = rect
       ? event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom
       : false;
-    if (!drag.moved || overMortar) {
+    if (overMortar) {
       add(drag.id);
       return;
     }
@@ -788,58 +784,29 @@ function SauceGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => v
   };
 
   return (
-    <div className="mini sauce-mini">
-      <div className="status-row">
-        <span>{cue}</span>
-        <strong>{added.length < items.length ? `${added.length}/4` : `${Math.min(mashes, SAUCE_MASH_TARGET)}/${SAUCE_MASH_TARGET}`}</strong>
-      </div>
-      <div className="sauce-flow" aria-hidden="true">
-        <i className={added.length < items.length ? 'active' : 'done'}><b>1</b><span>Add</span></i>
-        <i className={added.length >= items.length ? 'active' : ''}><b>2</b><span>Grind</span></i>
-      </div>
-      <div
-        ref={mortarRef}
-        className={`mortar-pad sauce-mortar-workpad ${added.length >= items.length ? 'ready' : ''} ${pounding ? 'is-pounding' : ''}`}
-        data-testid="mortar-pad"
-        role="button"
-        tabIndex={0}
-        onPointerDown={startMash}
-        onPointerMove={moveMash}
-        onPointerUp={endMash}
-        onPointerCancel={endMash}
-      >
-        <div className="mortar-scene" aria-hidden="true">
-          <i className="mortar-shadow" />
-          <i className="mortar-bowl" />
-          <b
-            className="sauce-paste"
-            style={{
-              width: `${Math.max(0, (added.length / items.length) * 34 + (mashes / SAUCE_MASH_TARGET) * 46)}%`,
-              opacity: added.length >= items.length || mashes ? 1 : 0,
-            }}
-          />
-          <div className="bowl-chunks" aria-hidden="true">
-            {added.map((id) => (
-              <em key={id} className={`food-chip ${id}`} />
-            ))}
-          </div>
-          <i className="pestle-track">
-            <em />
-            <b style={{ transform: `translate(-50%, ${pounding ? 92 : press * 88}px) rotate(-10deg)` }} />
-          </i>
+    <>
+      <div className={`stage-touch-zone sauce-stage-zone ${added.length >= items.length ? 'grind-mode' : 'add-mode'}`}>
+        <div
+          ref={mortarRef}
+          className={`stage-mortar-zone ${added.length >= items.length ? 'ready' : ''} ${pounding ? 'is-pounding' : ''}`}
+          data-testid="mortar-pad"
+          role="button"
+          tabIndex={0}
+          onPointerDown={startMash}
+          onPointerMove={moveMash}
+          onPointerUp={endMash}
+          onPointerCancel={endMash}
+        >
+          <span>{added.length < items.length ? 'drop here' : 'grind here'}</span>
+          <CoachHand visible={showHint && added.length >= items.length && !pounding && press === 0} variant="drag-down" />
         </div>
-        <span>{added.length < items.length ? 'Drop ingredients here' : 'Hold and grind up/down'}</span>
-        <strong>{Math.min(mashes, SAUCE_MASH_TARGET)}/{SAUCE_MASH_TARGET}</strong>
-        <CoachHand visible={showHint && added.length >= items.length && !pounding && press === 0} variant="drag-down" />
-      </div>
-      <div className="sauce-tray">
-        {items.map(([id, label, detail]) => (
+        {items.map(([id, label]) => (
           <button
             type="button"
             key={id}
-            className={`sauce-token ${id} ${added.includes(id) ? 'done' : ''}`}
+            className={`stage-ingredient-hotspot ${id} ${added.includes(id) ? 'done' : ''}`}
             data-testid={`sauce-token-${id}`}
-            aria-label={`Add ${label} to mortar`}
+            aria-label={`Drag ${label} into mortar`}
             onPointerDown={(event) => startIngredient(event, id)}
             onPointerMove={moveIngredient}
             onPointerUp={endIngredient}
@@ -848,24 +815,34 @@ function SauceGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => v
               if (event.key === 'Enter' || event.key === ' ') add(id);
             }}
           >
-            <i aria-hidden="true" className={`food-icon ${id}`} />
-            <span>{label}</span>
-            <small>{added.includes(id) ? 'in mortar' : detail}</small>
+            {label}
           </button>
         ))}
         <CoachHand visible={showHint && added.length < items.length && !dragging} variant="tap-token" />
       </div>
+      <StepPanel step={step}>
+        <div className="mini sauce-mini stage-mini">
+          <div className="status-row">
+            <span>{cue}</span>
+            <strong>{added.length < items.length ? `${added.length}/4` : `${Math.min(mashes, SAUCE_MASH_TARGET)}/${SAUCE_MASH_TARGET}`}</strong>
+          </div>
+          <div className="sauce-flow" aria-hidden="true">
+            <i className={added.length < items.length ? 'active' : 'done'}><b>1</b><span>Add</span></i>
+            <i className={added.length >= items.length ? 'active' : ''}><b>2</b><span>Grind</span></i>
+          </div>
+          <ProgressBar value={(added.length / items.length) * 0.48 + (mashes / SAUCE_MASH_TARGET) * 0.52} />
+        </div>
+      </StepPanel>
       {dragging && (
         <div className={`sauce-drag-ghost ${dragging.id}`} style={{ left: dragging.x, top: dragging.y }} aria-hidden="true">
           <i className={`food-icon ${dragging.id}`} />
         </div>
       )}
-      <ProgressBar value={(added.length / items.length) * 0.48 + (mashes / SAUCE_MASH_TARGET) * 0.52} />
-    </div>
+    </>
   );
 }
 
-function PlateGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => void; onFinish: (score: number) => void }) {
+function PlateGame({ step, onVisual, onFinish }: GameProps) {
   const items = [
     ['rice', 'Rice'],
     ['chicken', 'Chicken'],
@@ -873,10 +850,10 @@ function PlateGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => v
     ['chili', 'Chili'],
   ] as const;
   const plateTargets: Record<string, { x: number; y: number; label: string }> = {
-    rice: { x: 0.28, y: 0.52, label: 'rice mound' },
-    chicken: { x: 0.56, y: 0.5, label: 'chicken slices' },
-    cucumber: { x: 0.5, y: 0.78, label: 'cucumber row' },
-    chili: { x: 0.78, y: 0.68, label: 'chili saucer' },
+    rice: { x: 0.38, y: 0.58, label: 'rice mound' },
+    chicken: { x: 0.58, y: 0.56, label: 'chicken slices' },
+    cucumber: { x: 0.52, y: 0.76, label: 'cucumber row' },
+    chili: { x: 0.73, y: 0.7, label: 'chili saucer' },
   };
   const [placed, setPlaced] = useState<string[]>([]);
   const [cue, setCue] = useState('Drag rice to its spot');
@@ -998,27 +975,12 @@ function PlateGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => v
   };
 
   return (
-    <div className="mini plate-mini">
-      <div className="status-row plate-status">
-        <span>{cue}</span>
-        <strong>{placed.length}/4</strong>
-      </div>
-      <div className={`plate-drop plate-stage ${dragGhost ? 'is-catching' : ''}`} data-testid="plate-drop" ref={plateRef}>
-        <div className="plate-model" aria-hidden="true">
-          <i className="plated-rim" />
-          {expectedId && <i className={`plate-target ${expectedId}`} />}
-          <i className={`plated-piece rice ${placed.includes('rice') ? 'in' : ''}`} />
-          <i className={`plated-piece chicken ${placed.includes('chicken') ? 'in' : ''}`} />
-          <i className={`plated-piece cucumber ${placed.includes('cucumber') ? 'in' : ''}`} />
-          <i className={`plated-piece chili ${placed.includes('chili') ? 'in' : ''}`} />
-        </div>
-        <strong>{placed.length >= items.length ? 'Ready to serve' : `${placed.length}/4 on plate`}</strong>
-        <CoachHand visible={showHint && placed.length === 0 && !dragGhost} variant="tap" />
-      </div>
-      <div className="plate-active-tray">
+    <>
+      <div className={`stage-touch-zone plate-stage-zone ${dragGhost ? 'is-catching' : ''}`} data-testid="plate-drop" ref={plateRef}>
+        {expectedId && <i className={`stage-plate-target ${expectedId}`} />}
         {expectedId && expectedLabel && (
           <button
-            className={`plate-token plate-current-token ${expectedId} ${dragGhost?.id === expectedId ? 'dragging' : ''}`}
+            className={`stage-plate-source ${expectedId} ${dragGhost?.id === expectedId ? 'dragging' : ''}`}
             data-testid={`plate-token-${expectedId}`}
             onPointerDown={(event) => startDrag(event, expectedId)}
             onPointerMove={moveDrag}
@@ -1029,18 +991,19 @@ function PlateGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => v
           >
             <i aria-hidden="true" className={`plate-icon ${expectedId}`} />
             <span>{expectedLabel}</span>
-            <small>{plateTargets[expectedId].label}</small>
           </button>
         )}
-        <div className="plate-queue" aria-hidden="true">
-          {items.slice(placed.length + 1).map(([id, label]) => (
-            <i key={id} className={id}>
-              <b className={`plate-icon ${id}`} />
-              <span>{label}</span>
-            </i>
-          ))}
-        </div>
+        <CoachHand visible={showHint && placed.length === 0 && !dragGhost} variant="tap" />
       </div>
+      <StepPanel step={step}>
+        <div className="mini plate-mini stage-mini">
+          <div className="status-row plate-status">
+            <span>{cue}</span>
+            <strong>{placed.length}/4</strong>
+          </div>
+          <ProgressBar value={placed.length / items.length} />
+        </div>
+      </StepPanel>
       {dragGhost && (
         <div
           className={`plate-ghost ${dragGhost.id}`}
@@ -1050,8 +1013,7 @@ function PlateGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => v
           <i className={`plate-icon ${dragGhost.id}`} />
         </div>
       )}
-      <ProgressBar value={placed.length / items.length} />
-    </div>
+    </>
   );
 }
 

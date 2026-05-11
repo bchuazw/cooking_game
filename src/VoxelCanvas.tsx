@@ -138,6 +138,8 @@ export function VoxelCanvas({ mode, stepId, visualState = {} }: VoxelCanvasProps
       root.position.y = 0.38;
     } else if (mode === 'cook' && stepId === 'make-chili') {
       root.position.y = 1.7;
+    } else if (mode === 'cook' && stepId === 'plate-set') {
+      root.position.y = 0.88;
     }
 
     const resize = () => {
