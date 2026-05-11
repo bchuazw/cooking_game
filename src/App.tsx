@@ -14,6 +14,10 @@ type Screen = 'menu' | 'cook' | 'result';
 const BEST_KEY = 'hawker-mama:fresh-redesign:v1';
 const FILLED_STAR = '\u2605';
 const EMPTY_STAR = '\u2606';
+const SIMMER_MIN = 0.48;
+const SIMMER_MAX = 0.76;
+const STIR_TURN_TARGET = Math.PI * 1.45;
+const MASH_READY_PRESS = 0.55;
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>('menu');
@@ -246,6 +250,8 @@ function PrepGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => vo
   const [cuts, setCuts] = useState(0);
   const [blade, setBlade] = useState(firstBlade.current);
   const [cutting, setCutting] = useState(false);
+  const [chopCue, setChopCue] = useState('Line up the blade');
+  const [chopQuality, setChopQuality] = useState<'idle' | 'perfect' | 'good' | 'off'>('idle');
   const bladeRef = useRef(firstBlade.current);
   const scoresRef = useRef<number[]>([]);
   const startedAt = useRef(performance.now());
@@ -278,6 +284,9 @@ function PrepGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => vo
     if (active >= ingredients.length || cutting) return;
     const accuracy = 1 - Math.min(1, Math.abs(bladeRef.current - 0.5) / 0.5);
     const quality = clamp(0.72 + accuracy * 0.28, 0.72, 1);
+    const label = accuracy > 0.82 ? 'Perfect chop' : accuracy > 0.48 ? 'Good chop' : bladeRef.current < 0.5 ? 'Too early, still chopped' : 'Too late, still chopped';
+    setChopCue(label);
+    setChopQuality(accuracy > 0.82 ? 'perfect' : accuracy > 0.48 ? 'good' : 'off');
     scoresRef.current.push(quality);
     const next = active + 1;
     setCutting(true);
@@ -298,6 +307,8 @@ function PrepGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => vo
       const nextBlade = trianglePhase(phaseOffset.current);
       bladeRef.current = nextBlade;
       setBlade(nextBlade);
+      setChopCue('Line up the blade');
+      setChopQuality('idle');
       onVisual({ prepCuts: next, prepActive: next, prepBlade: nextBlade });
     }, 520);
   };
@@ -308,10 +319,19 @@ function PrepGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => vo
         <span>{Math.min(active + 1, ingredients.length)}/{ingredients.length}</span>
         <strong>{ingredients[active] ?? 'Ready'}</strong>
       </div>
-      <div className="chop-timing" data-testid="chop-timing">
+      <div
+        className={`chop-timing ${chopQuality}`}
+        data-testid="chop-timing"
+        role="button"
+        tabIndex={0}
+        onClick={chop}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') chop();
+        }}
+      >
         <i className="target-zone" />
         <b style={{ left: `calc(${blade * 100}% - 8px)` }} />
-        <span>Line up the blade</span>
+        <span>{chopCue}</span>
       </div>
       <button className="chop-button" data-testid="chop-button" onClick={chop} disabled={cutting}>
         {cutting ? 'Chopped!' : `Chop ${ingredients[active] ?? ''}`}
@@ -436,7 +456,7 @@ function StirGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => vo
         <span>{tossing ? cue : 'Toast the rice'}</span>
         <strong>{Math.min(tosses, targetTosses)}/{targetTosses}</strong>
       </div>
-      <div className="timing-caption">{tossing ? 'The rice jumps and turns in the wok.' : 'Pull to the gold band, then release.'}</div>
+      <div className="timing-caption">{tossing ? 'The rice jumps and turns in the wok.' : 'Pull up into the gold band, then release.'}</div>
       <div
         className={`gesture-pad swipe-pad ${tossing ? 'is-tossing' : ''}`}
         data-testid="toss-pad"
@@ -471,10 +491,10 @@ function SimmerGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => 
   const stirAngleRef = useRef(-0.6);
   const stirPowerRef = useRef(0);
   const bubbleStartedAt = useRef(performance.now());
-  const stirDrag = useRef<{ lastAngle: number; accumulated: number; pointerId: number } | null>(null);
+  const stirDrag = useRef<{ lastAngle: number; lastX: number; lastY: number; accumulated: number; pointerId: number } | null>(null);
   const scoresRef = useRef<number[]>([]);
 
-  const inZone = heat >= 0.55 && heat <= 0.72;
+  const inZone = isSimmerHeat(heat);
   const temperature = Math.round(44 + heat * 42);
   const targetTurns = 3;
   const progress = clamp((hold / 1800) * 0.48 + (turns / targetTurns) * 0.52, 0, 1);
@@ -485,7 +505,7 @@ function SimmerGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => 
     const tick = (now: number) => {
       const dt = now - last;
       last = now;
-      const liveInZone = heatRef.current >= 0.55 && heatRef.current <= 0.72;
+      const liveInZone = isSimmerHeat(heatRef.current);
       setHold((value) => {
         const next = liveInZone ? Math.min(1800, value + dt) : Math.max(0, value - dt * 0.9);
         return next;
@@ -520,8 +540,8 @@ function SimmerGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => 
     const next = 1 - clamp((clientY - rect.top) / rect.height, 0, 1);
     heatRef.current = next;
     setHeat(next);
-    setCue(next >= 0.55 && next <= 0.72 ? 'Gentle simmer' : next < 0.55 ? 'Too cool' : 'Too hot');
-    onVisual({ simmerHeat: next, simmerReady: next >= 0.55 && next <= 0.72 });
+    setCue(isSimmerHeat(next) ? 'Now stir circles' : next < SIMMER_MIN ? 'Drag heat up' : 'Lower heat');
+    onVisual({ simmerHeat: next, simmerReady: isSimmerHeat(next) });
   };
 
   const angleFromPoint = (clientX: number, clientY: number) => {
@@ -531,8 +551,8 @@ function SimmerGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => 
   };
 
   const finishStirTurn = () => {
-    if (!inZone) {
-      setCue('Keep heat in simmer');
+    if (!isSimmerHeat(heatRef.current)) {
+      setCue('Set heat in green zone');
       onVisual({ pulse: performance.now() });
       return;
     }
@@ -549,12 +569,12 @@ function SimmerGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => 
     event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId);
     const angle = angleFromPoint(event.clientX, event.clientY);
-    stirDrag.current = { lastAngle: angle, accumulated: 0, pointerId: event.pointerId };
+    stirDrag.current = { lastAngle: angle, lastX: event.clientX, lastY: event.clientY, accumulated: 0, pointerId: event.pointerId };
     stirAngleRef.current = angle;
     stirPowerRef.current = 0.12;
     setStirAngle(angle);
     setStirPower(0.12);
-    setCue(inZone ? 'Spin the spoon' : 'Set simmer first');
+    setCue(isSimmerHeat(heatRef.current) ? 'Stir circles here' : 'Set heat in green zone');
     onVisual({ simmerStir: 0.12, simmerStirAngle: angle });
   };
 
@@ -566,17 +586,20 @@ function SimmerGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => 
     let delta = angle - drag.lastAngle;
     if (delta > Math.PI) delta -= Math.PI * 2;
     if (delta < -Math.PI) delta += Math.PI * 2;
+    const travel = Math.hypot(event.clientX - drag.lastX, event.clientY - drag.lastY);
     drag.lastAngle = angle;
-    drag.accumulated += Math.abs(delta);
-    const turnProgress = clamp(drag.accumulated / (Math.PI * 2), 0, 1);
+    drag.lastX = event.clientX;
+    drag.lastY = event.clientY;
+    drag.accumulated += Math.abs(delta) + clamp(travel / 170, 0, 0.16);
+    const turnProgress = clamp(drag.accumulated / STIR_TURN_TARGET, 0, 1);
     stirAngleRef.current = angle;
     stirPowerRef.current = turnProgress;
     setStirAngle(angle);
     setStirPower(turnProgress);
-    setCue(inZone ? 'Keep stirring' : 'Set simmer first');
+    setCue(isSimmerHeat(heatRef.current) ? (turnProgress > 0.55 ? 'Keep circling' : 'Stir circles here') : 'Set heat in green zone');
     onVisual({ simmerStir: turnProgress, simmerStirAngle: angle });
-    while (drag.accumulated >= Math.PI * 2) {
-      drag.accumulated -= Math.PI * 2;
+    while (drag.accumulated >= STIR_TURN_TARGET) {
+      drag.accumulated -= STIR_TURN_TARGET;
       finishStirTurn();
     }
   };
@@ -617,12 +640,12 @@ function SimmerGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => 
             if (event.buttons || event.pointerType === 'touch') updateHeat(event.clientY);
           }}
         >
-          <i className="simmer-zone">simmer</i>
-          <b style={{ bottom: `calc(${heat * 100}% - 18px)` }}>heat</b>
+          <i className="simmer-zone">target</i>
+          <b style={{ bottom: `calc(${heat * 100}% - 18px)` }}>drag</b>
         </div>
         <div
           ref={stirRef}
-          className={`stock-stir-pad ${inZone ? 'ready' : ''}`}
+          className={`stock-stir-pad ${inZone ? 'ready' : 'waiting'}`}
           data-testid="stir-pot"
           role="button"
           tabIndex={0}
@@ -638,7 +661,7 @@ function SimmerGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => 
             className="stir-spoon"
             style={{ transform: `translate(-50%, -50%) rotate(${stirAngle}rad) translateX(52px) rotate(18deg)` }}
           />
-          <span>{inZone ? 'Drag circles to stir' : 'Warm stock gently'}</span>
+          <span>{inZone ? 'Circle here to stir' : 'Set heat in green zone'}</span>
           <strong>{turns}/{targetTurns}</strong>
         </div>
       </div>
@@ -706,10 +729,10 @@ function SauceGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => v
     const drag = mashDrag.current;
     if (!drag || done.current) return;
     event.preventDefault();
-    const nextPress = clamp((event.clientY - drag.startY) / 104, 0, 1);
+    const nextPress = clamp((event.clientY - drag.startY) / 86, 0, 1);
     drag.press = nextPress;
     setPress(nextPress);
-    setCue(nextPress > 0.68 ? 'Release to pound' : 'Pull pestle down');
+    setCue(nextPress >= MASH_READY_PRESS ? 'Release to pound' : 'Pull down lower');
     onVisual({ mashPress: nextPress, sauceItems: added });
   };
 
@@ -723,8 +746,8 @@ function SauceGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => v
       // Pointer capture can already be gone after touch cancellation.
     }
     mashDrag.current = null;
-    if (drag.press > 0.68) completeMash();
-    else setCue('Pull further');
+    if (drag.press >= MASH_READY_PRESS) completeMash();
+    else setCue('Pull lower');
     setPress(0);
     onVisual({ mashPress: 0, sauceItems: added });
   };
@@ -776,9 +799,10 @@ function SauceGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => v
         onPointerCancel={endMash}
       >
         <i aria-hidden="true" className="pestle-track">
+          <em />
           <b style={{ transform: `translate(-50%, ${pounding ? 74 : press * 72}px) rotate(-10deg)` }} />
         </i>
-        <span>{added.length < items.length ? 'Add all sauce ingredients' : 'Pull down, release'}</span>
+        <span>{added.length < items.length ? 'Tap ingredients first' : press >= MASH_READY_PRESS ? 'Release to pound' : 'Pull pestle down'}</span>
         <strong>{mashes}/4</strong>
       </div>
       <ProgressBar value={(added.length / items.length) * 0.55 + (mashes / 4) * 0.45} />
@@ -961,6 +985,10 @@ function avg(values: number[]) {
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
+}
+
+function isSimmerHeat(value: number) {
+  return value >= SIMMER_MIN && value <= SIMMER_MAX;
 }
 
 function trianglePhase(phase: number) {

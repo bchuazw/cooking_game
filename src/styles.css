@@ -357,6 +357,7 @@ p {
   position: relative;
   min-height: 74px;
   overflow: hidden;
+  cursor: pointer;
   background:
     linear-gradient(90deg, rgba(214, 83, 58, 0.16), rgba(255, 211, 109, 0.22) 42% 58%, rgba(47, 159, 137, 0.16)),
     #fff0c7;
@@ -387,6 +388,23 @@ p {
   padding: 7px 12px;
   border-radius: 999px;
   background: rgba(255, 250, 240, 0.86);
+  transition: background 160ms ease, color 160ms ease, transform 160ms ease;
+}
+
+.chop-timing.perfect span,
+.chop-timing.good span {
+  color: #163833;
+  background: #d9f0c7;
+  transform: scale(1.04);
+}
+
+.chop-timing.off {
+  animation: chop-nudge 180ms ease;
+}
+
+.chop-timing.off span {
+  color: #4c241d;
+  background: #ffe0bd;
 }
 
 .timing-caption {
@@ -572,13 +590,13 @@ p {
   height: 188px;
   border-radius: 8px;
   background:
-    linear-gradient(180deg, #df5b3b, #f5c75f 45%, #7bc26c 64%, #6b9fe5 100%);
+    linear-gradient(180deg, #df5b3b 0 20%, #f5c75f 23% 25%, #6fcf73 26% 52%, #6b9fe5 100%);
   box-shadow: inset 0 0 0 1px rgba(33, 26, 23, 0.18);
   touch-action: none;
 }
 
 .heat-rail::before {
-  content: "heat";
+  content: "drag heat";
   position: absolute;
   top: 7px;
   left: 0;
@@ -594,13 +612,13 @@ p {
   position: absolute;
   left: 7px;
   right: 7px;
-  bottom: 55%;
-  height: 17%;
+  bottom: 48%;
+  height: 28%;
   display: grid;
   place-items: center;
-  border-block: 2px solid rgba(255, 250, 240, 0.92);
-  background: rgba(255, 250, 240, 0.18);
-  color: var(--paper);
+  border-block: 2px solid rgba(255, 250, 240, 0.98);
+  background: rgba(19, 112, 72, 0.32);
+  color: #fffdf2;
   font-size: 10px;
   font-style: normal;
   font-weight: 950;
@@ -619,6 +637,7 @@ p {
   box-shadow: 0 8px 14px rgba(0, 0, 0, 0.24);
   font-size: 10px;
   text-transform: uppercase;
+  transition: bottom 90ms ease-out, transform 160ms ease;
 }
 
 .mortar-pad {
@@ -649,6 +668,12 @@ p {
   touch-action: none;
 }
 
+.stock-stir-pad.waiting {
+  background:
+    linear-gradient(180deg, rgba(255, 250, 240, 0.86), rgba(228, 237, 225, 0.82)),
+    #e3eadf;
+}
+
 .stock-skim-pad.ready,
 .stock-stir-pad.ready {
   background:
@@ -659,6 +684,20 @@ p {
 .stock-skim-pad.skim-now,
 .stock-stir-pad.ready {
   box-shadow: inset 0 -6px rgba(33, 26, 23, 0.06), 0 0 0 3px rgba(47, 159, 137, 0.28);
+}
+
+.stock-stir-pad.ready .stir-path {
+  border-color: rgba(30, 64, 62, 0.48);
+  animation: target-pulse 900ms ease-in-out infinite;
+}
+
+.stock-stir-pad.ready .stir-path::after {
+  border-left-color: rgba(30, 64, 62, 0.78);
+}
+
+.stock-stir-pad.waiting .stir-path,
+.stock-stir-pad.waiting .stir-spoon {
+  opacity: 0.52;
 }
 
 .stock-surface {
@@ -727,6 +766,13 @@ p {
   border-radius: 999px;
   background: rgba(255, 250, 240, 0.88);
   font-size: 13px;
+  transition: background 180ms ease, color 180ms ease, transform 180ms ease;
+}
+
+.stock-stir-pad.ready span {
+  color: #163833;
+  background: #fff2bd;
+  transform: translateY(-1px);
 }
 
 .stock-skim-pad strong,
@@ -1107,6 +1153,7 @@ p {
   background:
     radial-gradient(ellipse at 50% 70%, rgba(216, 66, 45, 0.36), transparent 35%),
     linear-gradient(180deg, #fff1c7, #ead1a4);
+  box-shadow: inset 0 -6px rgba(33, 26, 23, 0.06), 0 0 0 3px rgba(216, 66, 45, 0.16);
 }
 
 .sauce-pound.is-pounding {
@@ -1134,7 +1181,19 @@ p {
   left: 50%;
   top: 8px;
   bottom: 10px;
-  border-left: 2px dashed rgba(33, 26, 23, 0.2);
+  border-left: 3px dashed rgba(33, 26, 23, 0.26);
+}
+
+.pestle-track em {
+  position: absolute;
+  left: 50%;
+  bottom: 22px;
+  width: 76px;
+  height: 30px;
+  border-radius: 999px;
+  background: rgba(216, 66, 45, 0.18);
+  box-shadow: 0 0 0 3px rgba(255, 250, 240, 0.62);
+  transform: translateX(-50%);
 }
 
 .pestle-track b {
@@ -1512,6 +1571,19 @@ p {
   100% {
     opacity: 1;
     transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes chop-nudge {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  35% {
+    transform: translateX(-4px);
+  }
+  70% {
+    transform: translateX(4px);
   }
 }
 
