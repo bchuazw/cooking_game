@@ -1,89 +1,103 @@
-export type StepKind = 'prep' | 'stir' | 'simmer' | 'mash' | 'plate';
-export type Tier = 'gold' | 'silver' | 'bronze';
+export type StationId =
+  | 'fridge'
+  | 'pantry'
+  | 'board'
+  | 'riceCooker'
+  | 'pot'
+  | 'mortar'
+  | 'plate'
+  | 'serve'
+  | 'trash';
 
-export interface StepDefinition {
-  id: string;
-  kind: StepKind;
-  title: string;
-  shortTitle: string;
-  instruction: string;
-  lesson: string;
-  target: number;
-}
+export type HeldItem =
+  | 'rawRice'
+  | 'cookedRice'
+  | 'rawChicken'
+  | 'cutChicken'
+  | 'poachedChicken'
+  | 'chiliSauce'
+  | 'chickenRice';
 
-export interface DishDefinition {
-  id: 'chicken-rice';
+export type StationItem =
+  | 'rawRice'
+  | 'cookingRice'
+  | 'cookedRice'
+  | 'overcookedRice'
+  | 'rawChicken'
+  | 'cutChicken'
+  | 'poachingChicken'
+  | 'poachedChicken'
+  | 'overcookedChicken'
+  | 'chiliIngredients'
+  | 'chiliSauce';
+
+export type PlateComponent = 'rice' | 'chicken' | 'sauce';
+
+export interface StationDefinition {
+  id: StationId;
   name: string;
   shortName: string;
-  tagline: string;
-  learning: string;
-  steps: StepDefinition[];
+  x: number;
+  z: number;
+  uiX: number;
+  uiY: number;
 }
 
-export const CHICKEN_RICE: DishDefinition = {
-  id: 'chicken-rice',
+export const DISH = {
   name: 'Hainanese Chicken Rice',
   shortName: 'Chicken Rice',
-  tagline: 'Prep aromatics, cook fragrant rice, poach chicken, make chili, then plate the hawker classic.',
+  goal: 'Cook rice, poach chicken, pound chili, plate the set, and serve it hot.',
   learning:
-    'Singapore-style chicken rice is built from gentle poached chicken, rice cooked with chicken fat and aromatics, clear stock, cucumber, and chili-ginger sauce.',
-  steps: [
-    {
-      id: 'prep-aromatics',
-      kind: 'prep',
-      title: 'Prep the Aromatics',
-      shortTitle: 'Prep',
-      instruction: 'Tap the 3D cutting board when the cleaver is centered over the ingredient.',
-      lesson: 'Garlic, ginger, pandan, and shallot perfume both the broth and the chicken-fat rice.',
-      target: 4,
-    },
-    {
-      id: 'toast-rice',
-      kind: 'stir',
-      title: 'Toast the Rice',
-      shortTitle: 'Rice',
-      instruction: 'Drag across the 3D wok to move the spoon through the rice and aromatics.',
-      lesson: 'Toasting rice in fat and aromatics before cooking gives chicken rice its signature fragrance.',
-      target: 3,
-    },
-    {
-      id: 'poach-chicken',
-      kind: 'simmer',
-      title: 'Poach the Chicken',
-      shortTitle: 'Poach',
-      instruction: 'Drag on the 3D thermometer until the heat sits in the green zone, then keep it steady.',
-      lesson: 'Chicken rice uses gentle poaching, not a hard boil, so the meat stays silky.',
-      target: 3,
-    },
-    {
-      id: 'make-chili',
-      kind: 'mash',
-      title: 'Make the Chili Sauce',
-      shortTitle: 'Sauce',
-      instruction: 'Drag the visible ingredients into the mortar, then hold and grind the pestle up and down.',
-      lesson: 'A bright chili-ginger sauce balances the rich rice and tender chicken.',
-      target: 4,
-    },
-    {
-      id: 'plate-set',
-      kind: 'plate',
-      title: 'Plate the Set',
-      shortTitle: 'Plate',
-      instruction: 'Drag the current item onto the glowing spot on the 3D plate.',
-      lesson: 'A classic plate needs fragrant rice, sliced chicken, cucumber, chili, and often a bowl of broth.',
-      target: 4,
-    },
-  ],
+    'Hainanese chicken rice is built from fragrant rice, gently poached chicken, and a sharp chili-garlic sauce. Timing matters because the rice and chicken are best served just cooked.',
 };
 
-export function tierFromScore(score: number): Tier {
-  if (score >= 0.86) return 'gold';
-  if (score >= 0.64) return 'silver';
-  return 'bronze';
-}
+export const STATIONS: StationDefinition[] = [
+  { id: 'fridge', name: 'Fridge', shortName: 'Fridge', x: -3.15, z: -1.25, uiX: 18, uiY: 34 },
+  { id: 'pantry', name: 'Rice Pantry', shortName: 'Pantry', x: -1.6, z: -2.0, uiX: 34, uiY: 26 },
+  { id: 'board', name: 'Cutting Board', shortName: 'Board', x: 0.05, z: -2.0, uiX: 50, uiY: 26 },
+  { id: 'riceCooker', name: 'Rice Cooker', shortName: 'Rice', x: 1.75, z: -2.0, uiX: 68, uiY: 26 },
+  { id: 'pot', name: 'Stock Pot', shortName: 'Pot', x: 3.1, z: -0.35, uiX: 79, uiY: 45 },
+  { id: 'mortar', name: 'Chili Mortar', shortName: 'Sauce', x: -2.4, z: 1.6, uiX: 27, uiY: 69 },
+  { id: 'plate', name: 'Plate Station', shortName: 'Plate', x: -0.15, z: 2.0, uiX: 50, uiY: 75 },
+  { id: 'serve', name: 'Serve Window', shortName: 'Serve', x: 1.75, z: 2.0, uiX: 70, uiY: 75 },
+  { id: 'trash', name: 'Trash Bin', shortName: 'Trash', x: -3.3, z: 0.65, uiX: 15, uiY: 57 },
+];
 
-export function starsFromAverage(score: number): 1 | 2 | 3 {
-  if (score >= 0.86) return 3;
-  if (score >= 0.64) return 2;
-  return 1;
-}
+export const STATION_BY_ID = Object.fromEntries(STATIONS.map((station) => [station.id, station])) as Record<StationId, StationDefinition>;
+
+export const ITEM_LABELS: Record<HeldItem | StationItem, string> = {
+  rawRice: 'Uncooked rice',
+  cookingRice: 'Cooking rice',
+  cookedRice: 'Fragrant rice',
+  overcookedRice: 'Dry rice',
+  rawChicken: 'Raw chicken',
+  cutChicken: 'Cut chicken',
+  poachingChicken: 'Poaching chicken',
+  poachedChicken: 'Poached chicken',
+  overcookedChicken: 'Tough chicken',
+  chiliIngredients: 'Chili ingredients',
+  chiliSauce: 'Chili sauce',
+  chickenRice: 'Chicken rice',
+};
+
+export const PLATE_LABELS: Record<PlateComponent, string> = {
+  rice: 'Rice',
+  chicken: 'Chicken',
+  sauce: 'Chili',
+};
+
+export const TIMERS = {
+  chopChicken: 1500,
+  poundSauce: 1700,
+  riceCook: 5200,
+  riceOvercook: 16000,
+  chickenPoach: 5600,
+  chickenOvercook: 18000,
+};
+
+export const WORLD_LIMITS = {
+  minX: -3.65,
+  maxX: 3.55,
+  minZ: -2.25,
+  maxZ: 2.25,
+};

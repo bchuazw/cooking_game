@@ -1,155 +1,667 @@
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
-import { CHICKEN_RICE, starsFromAverage, tierFromScore, type StepDefinition, type Tier } from './gameData';
-import { VoxelCanvas, type VisualState } from './VoxelCanvas';
+import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import {
+  DISH,
+  ITEM_LABELS,
+  PLATE_LABELS,
+  STATION_BY_ID,
+  STATIONS,
+  TIMERS,
+  WORLD_LIMITS,
+  type HeldItem,
+  type PlateComponent,
+  type StationId,
+  type StationItem,
+} from './gameData';
+import { VoxelCanvas, type KitchenVisualState, type VisualStationState } from './VoxelCanvas';
 
-interface StepResult {
-  id: string;
-  title: string;
-  score: number;
-  tier: Tier;
-  note: string;
+type Screen = 'menu' | 'play' | 'result';
+
+interface PlayerState {
+  x: number;
+  z: number;
+  facing: number;
+  moving: boolean;
 }
 
-type Screen = 'menu' | 'cook' | 'result';
-type GameProps = {
-  step: StepDefinition;
-  onVisual: (patch: VisualState) => void;
-  onFinish: (score: number) => void;
-};
+interface StationSlot {
+  item: StationItem;
+  startedAt?: number;
+  readyAt?: number;
+  overcookAt?: number;
+}
 
-const BEST_KEY = 'hawker-mama:fresh-redesign:v1';
-const FILLED_STAR = '\u2605';
-const EMPTY_STAR = '\u2606';
-const SIMMER_MIN = 0.48;
-const SIMMER_MAX = 0.76;
-const POACH_HOLD_TARGET = 2600;
-const SAUCE_MASH_TARGET = 8;
+type StationSlots = Partial<Record<StationId, StationSlot>>;
+type PlateState = Record<PlateComponent, boolean>;
+
+type Action =
+  | { enabled: true; label: string; station: StationId; kind: 'instant'; run: () => void }
+  | { enabled: true; label: string; station: StationId; kind: 'hold'; duration: number; run: () => void }
+  | { enabled: false; label: string };
+
+interface ActiveHold {
+  station: StationId;
+  startedAt: number;
+  duration: number;
+}
+
+const BEST_KEY = 'hawker-rush:overcooked:v1';
+const INTERACT_RADIUS = 0.82;
+const MOVE_SPEED = 2.85;
+const AUTO_DWELL_MS = 1500;
+const START_PLAYER: PlayerState = { x: 0, z: 0.05, facing: Math.PI, moving: false };
+
+const EMPTY_PLATE: PlateState = { rice: false, chicken: false, sauce: false };
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>('menu');
-  const [stepIndex, setStepIndex] = useState(0);
-  const [results, setResults] = useState<StepResult[]>([]);
-  const [visualState, setVisualState] = useState<VisualState>({});
-  const [feedback, setFeedback] = useState<StepResult | null>(null);
-  const [best, setBest] = useState(() => loadBest());
-  const [musicOn, setMusicOn] = useState(false);
-  const completingRef = useRef(false);
-  const musicRef = useRef<MusicLoop | null>(null);
+  const [player, setPlayer] = useState<PlayerState>(START_PLAYER);
+  const [held, setHeld] = useState<HeldItem | null>(null);
+  const [stations, setStations] = useState<StationSlots>({});
+  const [plate, setPlate] = useState<PlateState>(EMPTY_PLATE);
+  const [nearStation, setNearStation] = useState<StationId | null>(null);
+  const [activeHold, setActiveHold] = useState<ActiveHold | null>(null);
+  const [activeProgress, setActiveProgress] = useState(0);
+  const [dwell, setDwell] = useState<ActiveHold | null>(null);
+  const [dwellProgress, setDwellProgress] = useState(0);
+  const [feedback, setFeedback] = useState('Move with the joystick. Cook the order on the ticket.');
+  const [startedAt, setStartedAt] = useState(0);
+  const [servedAt, setServedAt] = useState(0);
+  const [nowTick, setNowTick] = useState(() => performance.now());
+  const [mistakes, setMistakes] = useState(0);
+  const [best, setBest] = useState(() => Number(localStorage.getItem(BEST_KEY) ?? 0));
+  const [pulse, setPulse] = useState<{ station: StationId; key: number } | null>(null);
 
-  const step = CHICKEN_RICE.steps[stepIndex];
-  const average = results.length ? results.reduce((sum, item) => sum + item.score, 0) / results.length : 0;
-  const stars = results.length ? starsFromAverage(average) : 1;
+  const joystickRef = useRef({ x: 0, z: 0 });
+  const keysRef = useRef({ left: false, right: false, up: false, down: false });
+  const holdFrameRef = useRef<number | null>(null);
+  const dwellFrameRef = useRef<number | null>(null);
+  const holdDoneRef = useRef(false);
+  const autoCooldownRef = useRef({ key: '', until: 0 });
 
-  const startMusic = useCallback(async () => {
-    try {
-      if (!musicRef.current) {
-        musicRef.current = createMusicLoop();
-      }
-      await musicRef.current.start();
-      setMusicOn(true);
-    } catch {
-      musicRef.current = null;
-      setMusicOn(false);
-    }
+  const elapsed = screen === 'play' ? nowTick - startedAt : servedAt ? servedAt - startedAt : 0;
+  const orderComplete = plate.rice && plate.chicken && plate.sauce;
+  const stars = scoreStars(elapsed, mistakes);
+
+  const visualStations = useMemo(() => buildVisualStationState(stations, nowTick), [stations, nowTick]);
+
+  const begin = useCallback(() => {
+    const now = performance.now();
+    setScreen('play');
+    setPlayer(START_PLAYER);
+    setHeld(null);
+    setStations({});
+    setPlate(EMPTY_PLATE);
+    setNearStation(null);
+    setActiveHold(null);
+    setActiveProgress(0);
+    setDwell(null);
+    setDwellProgress(0);
+    setFeedback('Get rice from the pantry or chicken from the fridge.');
+    setStartedAt(now);
+    setServedAt(0);
+    setNowTick(now);
+    setMistakes(0);
+    setPulse(null);
+    autoCooldownRef.current = { key: '', until: 0 };
+    joystickRef.current = { x: 0, z: 0 };
+    keysRef.current = { left: false, right: false, up: false, down: false };
   }, []);
 
-  const stopMusic = useCallback(() => {
-    musicRef.current?.stop();
-    musicRef.current = null;
-    setMusicOn(false);
+  const pulseStation = useCallback((station: StationId) => {
+    setPulse({ station, key: performance.now() });
   }, []);
 
-  const toggleMusic = useCallback(() => {
-    if (musicRef.current && musicOn) {
-      stopMusic();
-      return;
-    }
-    void startMusic();
-  }, [musicOn, startMusic, stopMusic]);
-
-  const begin = () => {
-    void startMusic();
-    completingRef.current = false;
-    setStepIndex(0);
-    setResults([]);
-    setVisualState({ stepId: CHICKEN_RICE.steps[0].id });
-    setFeedback(null);
-    setScreen('cook');
-  };
-
-  const patchVisual = useCallback((patch: VisualState) => {
-    setVisualState((prev) => ({ ...prev, ...patch }));
+  const clearStation = useCallback((station: StationId) => {
+    setStations((prev) => {
+      const next = { ...prev };
+      delete next[station];
+      return next;
+    });
   }, []);
 
-  const finishStep = useCallback((rawScore: number) => {
-    if (completingRef.current) return;
-    completingRef.current = true;
-    const score = clamp(rawScore, 0.35, 1);
-    const result = {
-      id: step.id,
-      title: step.title,
-      score,
-      tier: tierFromScore(score),
-      note: feedbackNote(step.id, score),
-    };
-    playSfx(score >= 0.86 ? 'gold' : 'success');
-    haptic(score >= 0.86 ? 28 : 18);
-    setFeedback(result);
-    setResults((prev) => [...prev, result]);
+  const setStationItem = useCallback((station: StationId, slot: StationSlot) => {
+    setStations((prev) => ({ ...prev, [station]: slot }));
+  }, []);
 
-    window.setTimeout(() => {
-      completingRef.current = false;
-      setFeedback(null);
-      if (stepIndex + 1 < CHICKEN_RICE.steps.length) {
-        const next = CHICKEN_RICE.steps[stepIndex + 1];
-        setStepIndex((value) => value + 1);
-        setVisualState({ stepId: next.id });
-      } else {
-        setScreen('result');
-      }
-    }, 620);
-  }, [step, stepIndex]);
-
-  useEffect(() => {
-    if (screen !== 'result') return;
+  const finishOrder = useCallback(() => {
+    const now = performance.now();
+    setServedAt(now);
+    const finalStars = scoreStars(now - startedAt, mistakes);
     setBest((prev) => {
-      const next = Math.max(prev, stars);
+      const next = Math.max(prev, finalStars);
       localStorage.setItem(BEST_KEY, String(next));
       return next;
     });
-  }, [screen, stars]);
+    setScreen('result');
+    setFeedback('Order served.');
+    pulseStation('serve');
+    playSfx('success');
+    haptic(35);
+  }, [mistakes, pulseStation, startedAt]);
+
+  const action = useMemo<Action>(() => {
+    if (!nearStation) return { enabled: false, label: 'Move to a station' };
+    const slot = stations[nearStation];
+
+    if (nearStation === 'trash') {
+      if (held) {
+        return {
+          enabled: true,
+          label: `Discard ${ITEM_LABELS[held]}`,
+          station: 'trash',
+          kind: 'instant',
+          run: () => {
+            setHeld(null);
+            setMistakes((value) => value + 1);
+            setFeedback('Thrown away. Grab a fresh ingredient.');
+            pulseStation('trash');
+            playSfx('drop');
+          },
+        };
+      }
+      return { enabled: false, label: 'Nothing to throw away' };
+    }
+
+    if (nearStation === 'pantry') {
+      const riceStarted = Boolean(stations.riceCooker) || plate.rice || held === 'cookedRice' || held === 'rawRice';
+      if (!held && !riceStarted) {
+        return {
+          enabled: true,
+          label: 'Pick up uncooked rice',
+          station: 'pantry',
+          kind: 'instant',
+          run: () => {
+            setHeld('rawRice');
+            setFeedback('Carry rice to the rice cooker.');
+            pulseStation('pantry');
+            playSfx('pickup');
+          },
+        };
+      }
+      return { enabled: false, label: held ? 'Hands full' : 'Rice already started' };
+    }
+
+    if (nearStation === 'fridge') {
+      const chickenStarted = Boolean(stations.board) || Boolean(stations.pot) || plate.chicken || held === 'rawChicken' || held === 'cutChicken' || held === 'poachedChicken';
+      if (!held && !chickenStarted) {
+        return {
+          enabled: true,
+          label: 'Pick up raw chicken',
+          station: 'fridge',
+          kind: 'instant',
+          run: () => {
+            setHeld('rawChicken');
+            setFeedback('Carry chicken to the cutting board.');
+            pulseStation('fridge');
+            playSfx('pickup');
+          },
+        };
+      }
+      return { enabled: false, label: held ? 'Hands full' : 'Chicken already started' };
+    }
+
+    if (nearStation === 'board') {
+      if (held === 'rawChicken' && !slot) {
+        return {
+          enabled: true,
+          label: 'Place chicken on board',
+          station: 'board',
+          kind: 'instant',
+          run: () => {
+            setHeld(null);
+            setStationItem('board', { item: 'rawChicken' });
+            setFeedback('Stay by the board to chop the chicken.');
+            pulseStation('board');
+            playSfx('drop');
+          },
+        };
+      }
+      if (slot?.item === 'rawChicken') {
+        return {
+          enabled: true,
+          label: 'Chopping chicken...',
+          station: 'board',
+          kind: 'hold',
+          duration: TIMERS.chopChicken,
+          run: () => {
+            setStationItem('board', { item: 'cutChicken' });
+            setFeedback('Chicken is cut. Pick it up and poach it.');
+            pulseStation('board');
+            playSfx('chop');
+          },
+        };
+      }
+      if (!held && slot?.item === 'cutChicken') {
+        return {
+          enabled: true,
+          label: 'Pick up cut chicken',
+          station: 'board',
+          kind: 'instant',
+          run: () => {
+            clearStation('board');
+            setHeld('cutChicken');
+            setFeedback('Carry cut chicken to the stock pot.');
+            pulseStation('board');
+            playSfx('pickup');
+          },
+        };
+      }
+      return { enabled: false, label: held ? 'Board needs raw chicken' : 'Bring chicken here' };
+    }
+
+    if (nearStation === 'riceCooker') {
+      if (held === 'rawRice' && !slot) {
+        return {
+          enabled: true,
+          label: 'Place rice in cooker',
+          station: 'riceCooker',
+          kind: 'instant',
+          run: () => {
+            const now = performance.now();
+            setHeld(null);
+            setStationItem('riceCooker', {
+              item: 'cookingRice',
+              startedAt: now,
+              readyAt: now + TIMERS.riceCook,
+              overcookAt: now + TIMERS.riceOvercook,
+            });
+            setFeedback('Rice is cooking. Come back when it is ready.');
+            pulseStation('riceCooker');
+            playSfx('drop');
+          },
+        };
+      }
+      if (slot?.item === 'cookingRice') return { enabled: false, label: 'Rice cooking...' };
+      if (!held && (slot?.item === 'cookedRice' || slot?.item === 'overcookedRice')) {
+        return {
+          enabled: true,
+          label: slot.item === 'overcookedRice' ? 'Pick up dry rice' : 'Pick up cooked rice',
+          station: 'riceCooker',
+          kind: 'instant',
+          run: () => {
+            clearStation('riceCooker');
+            setHeld('cookedRice');
+            setFeedback('Carry rice to the plate station.');
+            pulseStation('riceCooker');
+            playSfx('pickup');
+          },
+        };
+      }
+      return { enabled: false, label: held ? 'Cooker needs uncooked rice' : 'Bring rice here' };
+    }
+
+    if (nearStation === 'pot') {
+      if (held === 'cutChicken' && !slot) {
+        return {
+          enabled: true,
+          label: 'Place chicken in pot',
+          station: 'pot',
+          kind: 'instant',
+          run: () => {
+            const now = performance.now();
+            setHeld(null);
+            setStationItem('pot', {
+              item: 'poachingChicken',
+              startedAt: now,
+              readyAt: now + TIMERS.chickenPoach,
+              overcookAt: now + TIMERS.chickenOvercook,
+            });
+            setFeedback('Chicken is poaching. Watch the pot.');
+            pulseStation('pot');
+            playSfx('drop');
+          },
+        };
+      }
+      if (slot?.item === 'poachingChicken') return { enabled: false, label: 'Chicken poaching...' };
+      if (!held && (slot?.item === 'poachedChicken' || slot?.item === 'overcookedChicken')) {
+        return {
+          enabled: true,
+          label: slot.item === 'overcookedChicken' ? 'Pick up tough chicken' : 'Pick up poached chicken',
+          station: 'pot',
+          kind: 'instant',
+          run: () => {
+            clearStation('pot');
+            setHeld('poachedChicken');
+            setFeedback('Carry chicken to the plate station.');
+            pulseStation('pot');
+            playSfx('pickup');
+          },
+        };
+      }
+      return { enabled: false, label: held ? 'Pot needs cut chicken' : 'Bring cut chicken here' };
+    }
+
+    if (nearStation === 'mortar') {
+      if (!held && !slot && !plate.sauce) {
+        return {
+          enabled: true,
+          label: 'Add chili ingredients',
+          station: 'mortar',
+          kind: 'instant',
+          run: () => {
+            setStationItem('mortar', { item: 'chiliIngredients' });
+            setFeedback('Stay by the mortar to pound the chili sauce.');
+            pulseStation('mortar');
+            playSfx('drop');
+          },
+        };
+      }
+      if (slot?.item === 'chiliIngredients') {
+        return {
+          enabled: true,
+          label: 'Pounding chili sauce...',
+          station: 'mortar',
+          kind: 'hold',
+          duration: TIMERS.poundSauce,
+          run: () => {
+            setStationItem('mortar', { item: 'chiliSauce' });
+            setFeedback('Sauce is ready. Pick it up for plating.');
+            pulseStation('mortar');
+            playSfx('pound');
+          },
+        };
+      }
+      if (!held && slot?.item === 'chiliSauce') {
+        return {
+          enabled: true,
+          label: 'Pick up chili sauce',
+          station: 'mortar',
+          kind: 'instant',
+          run: () => {
+            clearStation('mortar');
+            setHeld('chiliSauce');
+            setFeedback('Carry chili sauce to the plate station.');
+            pulseStation('mortar');
+            playSfx('pickup');
+          },
+        };
+      }
+      return { enabled: false, label: held ? 'Hands full' : 'Sauce already done' };
+    }
+
+    if (nearStation === 'plate') {
+      if (held === 'cookedRice' && !plate.rice) return plateAction('rice');
+      if (held === 'poachedChicken' && !plate.chicken) return plateAction('chicken');
+      if (held === 'chiliSauce' && !plate.sauce) return plateAction('sauce');
+      if (!held && orderComplete) {
+        return {
+          enabled: true,
+          label: 'Pick up completed plate',
+          station: 'plate',
+          kind: 'instant',
+          run: () => {
+            setHeld('chickenRice');
+            setFeedback('Serve the chicken rice at the window.');
+            pulseStation('plate');
+            playSfx('pickup');
+          },
+        };
+      }
+      return { enabled: false, label: held ? 'That item is already plated' : 'Bring cooked parts here' };
+    }
+
+    if (nearStation === 'serve') {
+      if (held === 'chickenRice') {
+        return {
+          enabled: true,
+          label: 'Serve chicken rice',
+          station: 'serve',
+          kind: 'instant',
+          run: finishOrder,
+        };
+      }
+      return { enabled: false, label: 'Bring the completed plate' };
+    }
+
+    return { enabled: false, label: 'Move to a station' };
+
+    function plateAction(component: PlateComponent): Action {
+      return {
+        enabled: true,
+        label: `Plate ${PLATE_LABELS[component]}`,
+        station: 'plate',
+        kind: 'instant',
+        run: () => {
+          setPlate((prev) => ({ ...prev, [component]: true }));
+          setHeld(null);
+          setFeedback(component === 'sauce' ? 'Plate complete. Pick it up and serve.' : `${PLATE_LABELS[component]} plated.`);
+          pulseStation('plate');
+          playSfx('plate');
+        },
+      };
+    }
+  }, [clearStation, finishOrder, held, nearStation, orderComplete, plate, pulseStation, setStationItem, stations]);
 
   useEffect(() => {
+    if (screen !== 'play' || !action.enabled) return;
+    if (activeHold || dwell || player.moving) return;
+    const key = `${action.station}:${action.label}`;
+    const now = performance.now();
+    if (autoCooldownRef.current.key === key && autoCooldownRef.current.until > now) return;
+    startDwell(action);
+    // The state-derived action is the trigger; startAction is intentionally not a dependency.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [action, activeHold, dwell, player.moving, screen]);
+
+  useEffect(() => {
+    if (screen !== 'play') return undefined;
+    const interval = window.setInterval(() => {
+      const now = performance.now();
+      setNowTick(now);
+      let penalty = 0;
+      setStations((prev) => {
+        let changed = false;
+        const next: StationSlots = { ...prev };
+        const rice = next.riceCooker;
+        if (rice?.item === 'cookingRice' && rice.readyAt && now >= rice.readyAt) {
+          next.riceCooker = { ...rice, item: 'cookedRice' };
+          changed = true;
+          playSfx('ready');
+        } else if (rice?.item === 'cookedRice' && rice.overcookAt && now >= rice.overcookAt) {
+          next.riceCooker = { ...rice, item: 'overcookedRice' };
+          changed = true;
+          penalty += 1;
+        }
+
+        const chicken = next.pot;
+        if (chicken?.item === 'poachingChicken' && chicken.readyAt && now >= chicken.readyAt) {
+          next.pot = { ...chicken, item: 'poachedChicken' };
+          changed = true;
+          playSfx('ready');
+        } else if (chicken?.item === 'poachedChicken' && chicken.overcookAt && now >= chicken.overcookAt) {
+          next.pot = { ...chicken, item: 'overcookedChicken' };
+          changed = true;
+          penalty += 1;
+        }
+        return changed ? next : prev;
+      });
+      if (penalty) {
+        setMistakes((value) => value + penalty);
+        setFeedback('Food overcooked. You can still serve it, but the score drops.');
+      }
+    }, 140);
+    return () => window.clearInterval(interval);
+  }, [screen]);
+
+  useEffect(() => {
+    if (screen !== 'play') return undefined;
+    let frame = 0;
+    let last = performance.now();
+    const tick = (now: number) => {
+      const dt = Math.min(0.04, (now - last) / 1000);
+      last = now;
+      const keyX = (keysRef.current.right ? 1 : 0) - (keysRef.current.left ? 1 : 0);
+      const keyZ = (keysRef.current.down ? 1 : 0) - (keysRef.current.up ? 1 : 0);
+      let x = joystickRef.current.x + keyX;
+      let z = joystickRef.current.z + keyZ;
+      const length = Math.hypot(x, z);
+      if (length > 1) {
+        x /= length;
+        z /= length;
+      }
+      setPlayer((prev) => {
+        const moving = Math.hypot(x, z) > 0.05;
+        if (!moving) return prev.moving ? { ...prev, moving: false } : prev;
+        return {
+          x: clamp(prev.x + x * MOVE_SPEED * dt, WORLD_LIMITS.minX, WORLD_LIMITS.maxX),
+          z: clamp(prev.z + z * MOVE_SPEED * dt, WORLD_LIMITS.minZ, WORLD_LIMITS.maxZ),
+          facing: Math.atan2(x, z),
+          moving: true,
+        };
+      });
+      frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [screen]);
+
+  useEffect(() => {
+    if (screen !== 'play') return;
+    setNearStation(getNearestStation(player));
+  }, [player, screen]);
+
+  useEffect(() => {
+    if (dwell && (nearStation !== dwell.station || player.moving)) cancelDwell();
+    if (activeHold && nearStation !== activeHold.station) cancelHold();
+    // These cancellation helpers read current progress state and should only react to proximity/movement.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nearStation, activeHold, dwell, player.moving]);
+
+  useEffect(() => {
+    const down = (event: KeyboardEvent) => {
+      if (event.key === 'ArrowLeft' || event.key.toLowerCase() === 'a') keysRef.current.left = true;
+      if (event.key === 'ArrowRight' || event.key.toLowerCase() === 'd') keysRef.current.right = true;
+      if (event.key === 'ArrowUp' || event.key.toLowerCase() === 'w') keysRef.current.up = true;
+      if (event.key === 'ArrowDown' || event.key.toLowerCase() === 's') keysRef.current.down = true;
+    };
+    const up = (event: KeyboardEvent) => {
+      if (event.key === 'ArrowLeft' || event.key.toLowerCase() === 'a') keysRef.current.left = false;
+      if (event.key === 'ArrowRight' || event.key.toLowerCase() === 'd') keysRef.current.right = false;
+      if (event.key === 'ArrowUp' || event.key.toLowerCase() === 'w') keysRef.current.up = false;
+      if (event.key === 'ArrowDown' || event.key.toLowerCase() === 's') keysRef.current.down = false;
+    };
+    window.addEventListener('keydown', down);
+    window.addEventListener('keyup', up);
     return () => {
-      musicRef.current?.stop();
+      window.removeEventListener('keydown', down);
+      window.removeEventListener('keyup', up);
     };
   }, []);
+
+  const startAction = (nextAction = action) => {
+    if (!nextAction.enabled) {
+      setFeedback(nextAction.label);
+      playSfx('error');
+      return;
+    }
+    pulseStation(nextAction.station);
+    if (nextAction.kind === 'instant') {
+      nextAction.run();
+      haptic(10);
+      return;
+    }
+    if (holdFrameRef.current) cancelAnimationFrame(holdFrameRef.current);
+    holdDoneRef.current = false;
+    const started = performance.now();
+    setActiveHold({ station: nextAction.station, startedAt: started, duration: nextAction.duration });
+    setActiveProgress(0);
+    playSfx('work');
+    const tick = (now: number) => {
+      const value = clamp((now - started) / nextAction.duration, 0, 1);
+      setActiveProgress(value);
+      if (value >= 1) {
+        holdDoneRef.current = true;
+        holdFrameRef.current = null;
+        setActiveHold(null);
+        setActiveProgress(0);
+        nextAction.run();
+        haptic(18);
+        return;
+      }
+      holdFrameRef.current = requestAnimationFrame(tick);
+    };
+    holdFrameRef.current = requestAnimationFrame(tick);
+  };
+
+  const startDwell = (nextAction: Action) => {
+    if (!nextAction.enabled) return;
+    if (dwellFrameRef.current) cancelAnimationFrame(dwellFrameRef.current);
+    const started = performance.now();
+    setDwell({ station: nextAction.station, startedAt: started, duration: AUTO_DWELL_MS });
+    setDwellProgress(0);
+    const tick = (now: number) => {
+      const value = clamp((now - started) / AUTO_DWELL_MS, 0, 1);
+      setDwellProgress(value);
+      if (value >= 1) {
+        dwellFrameRef.current = null;
+        setDwell(null);
+        setDwellProgress(0);
+        autoCooldownRef.current = {
+          key: `${nextAction.station}:${nextAction.label}`,
+          until: now + (nextAction.kind === 'hold' ? nextAction.duration + 450 : 450),
+        };
+        startAction(nextAction);
+        return;
+      }
+      dwellFrameRef.current = requestAnimationFrame(tick);
+    };
+    dwellFrameRef.current = requestAnimationFrame(tick);
+  };
+
+  const cancelDwell = () => {
+    if (dwellFrameRef.current) cancelAnimationFrame(dwellFrameRef.current);
+    dwellFrameRef.current = null;
+    if (dwell) setFeedback('Stop at the station to work.');
+    autoCooldownRef.current = { key: '', until: 0 };
+    setDwell(null);
+    setDwellProgress(0);
+  };
+
+  const cancelHold = () => {
+    if (holdFrameRef.current) cancelAnimationFrame(holdFrameRef.current);
+    holdFrameRef.current = null;
+    if (activeHold && !holdDoneRef.current) setFeedback('Keep holding until the station finishes.');
+    setActiveHold(null);
+    setActiveProgress(0);
+  };
+
+  const visualState: KitchenVisualState = {
+    player,
+    held,
+    stations: visualStations,
+    plate,
+    nearStation,
+    activeStation: activeHold?.station ?? dwell?.station ?? null,
+    activeProgress: activeHold ? activeProgress : dwellProgress,
+    pulseStation: pulse?.station ?? null,
+    pulseKey: pulse?.key ?? 0,
+    served: screen === 'result',
+  };
 
   return (
     <main className="app-shell">
       {screen === 'menu' && <MenuScreen best={best} onBegin={begin} />}
-      {screen === 'cook' && (
-        <CookScreen
-          step={step}
-          stepIndex={stepIndex}
-          totalSteps={CHICKEN_RICE.steps.length}
-          visualState={visualState}
-          feedback={feedback}
-          musicOn={musicOn}
-          onToggleMusic={toggleMusic}
-          onVisual={patchVisual}
-          onFinish={finishStep}
-          onExit={() => setScreen('menu')}
-        />
+      {screen === 'play' && (
+        <section className="screen play-screen">
+          <VoxelCanvas state={visualState} />
+          <StationLabels near={nearStation} active={activeHold?.station ?? dwell?.station ?? null} />
+          <TopHud elapsed={elapsed} held={held} mistakes={mistakes} plate={plate} />
+          <WorkflowGuide held={held} stations={stations} plate={plate} />
+          <MovePad onMove={(vector) => { joystickRef.current = vector; }} />
+          <div className="auto-panel">
+            <div className="near-pill">
+              <span data-testid="nearby-station">{nearStation ? STATION_BY_ID[nearStation].name : 'No station'}</span>
+            </div>
+            <div className={`auto-task ${action.enabled ? 'ready' : ''}`} data-testid="auto-task">
+              <i style={{ transform: `scaleX(${activeHold ? activeProgress : dwellProgress})` }} />
+              <strong>{action.enabled ? activeHold ? 'Working' : dwell ? 'Stay' : 'Stop' : ''}</strong>
+            </div>
+            <p data-testid="feedback-text">{feedback}</p>
+          </div>
+          <span className="sr-only" data-testid="player-position">{player.x.toFixed(2)},{player.z.toFixed(2)}</span>
+        </section>
       )}
-      {screen === 'result' && (
-        <ResultScreen
-          results={results}
-          stars={stars}
-          onReplay={begin}
-          onMenu={() => setScreen('menu')}
-        />
-      )}
+      {screen === 'result' && <ResultScreen elapsed={elapsed} mistakes={mistakes} stars={stars} onReplay={begin} />}
     </main>
   );
 }
@@ -157,1132 +669,287 @@ export default function App() {
 function MenuScreen({ best, onBegin }: { best: number; onBegin: () => void }) {
   return (
     <section className="screen menu-screen">
-      <VoxelCanvas mode="menu" />
-      <div className="menu-shade" />
-      <header className="menu-card">
-        <p className="eyebrow">Singapore cooking game</p>
-        <h1>Hawker Mama</h1>
-        <p>{CHICKEN_RICE.tagline}</p>
-        <div className="best-line" aria-label={`best score ${best} stars`}>
-          <span>Best</span>
-          <strong>{renderStars(best)}</strong>
+      <VoxelCanvas state={null} />
+      <div className="menu-vignette" />
+      <div className="menu-card">
+        <p className="eyebrow">Singapore kitchen rush</p>
+        <h1>Hawker Rush</h1>
+        <p>{DISH.goal}</p>
+        <div className="best-row">
+          <span>Best shift</span>
+          <strong>{renderStars(best || 1)}</strong>
         </div>
-        <button className="primary-button" data-testid="start-chicken-rice" onClick={onBegin}>
-          Cook Chicken Rice
-        </button>
-      </header>
+        <button className="primary-button" data-testid="start-chicken-rice" onClick={onBegin}>Start chicken rice</button>
+      </div>
     </section>
   );
 }
 
-function CookScreen({
-  step,
-  stepIndex,
-  totalSteps,
-  visualState,
-  feedback,
-  musicOn,
-  onToggleMusic,
-  onVisual,
-  onFinish,
-  onExit,
-}: {
-  step: StepDefinition;
-  stepIndex: number;
-  totalSteps: number;
-  visualState: VisualState;
-  feedback: StepResult | null;
-  musicOn: boolean;
-  onToggleMusic: () => void;
-  onVisual: (patch: VisualState) => void;
-  onFinish: (score: number) => void;
-  onExit: () => void;
-}) {
+function TopHud({ elapsed, held, mistakes, plate }: { elapsed: number; held: HeldItem | null; mistakes: number; plate: PlateState }) {
   return (
-    <section className="screen cook-screen">
-      <VoxelCanvas mode="cook" stepId={step.id} visualState={visualState} />
-      <div className="top-hud">
-        <button className="exit-button" onClick={onExit}>Exit</button>
-        <button className="music-button" aria-label="Toggle music" aria-pressed={musicOn} onClick={onToggleMusic}>
-          {musicOn ? 'On' : 'Off'}
-        </button>
-        <div className="step-pips" aria-label={`step ${stepIndex + 1} of ${totalSteps}`}>
-          {CHICKEN_RICE.steps.map((item, i) => (
-            <span key={item.id} className={i < stepIndex ? 'done' : i === stepIndex ? 'active' : ''}>
-              {item.shortTitle}
-            </span>
-          ))}
+    <header className="top-hud">
+      <section className="order-ticket">
+        <div>
+          <p className="eyebrow">Order</p>
+          <h2>{DISH.shortName}</h2>
         </div>
-        <strong>{stepIndex + 1}/{totalSteps}</strong>
-      </div>
-
-      <MiniGame key={step.id} step={step} onVisual={onVisual} onFinish={onFinish} />
-
-      {feedback && (
-        <div className={`feedback ${feedback.tier}`} role="status">
-          <strong>{feedback.tier}</strong>
-          <em>{feedback.note}</em>
-          <span>{Math.round(feedback.score * 100)}%</span>
-        </div>
-      )}
-    </section>
+        <OrderChip done={plate.rice} label="Rice" />
+        <OrderChip done={plate.chicken} label="Chicken" />
+        <OrderChip done={plate.sauce} label="Chili" />
+      </section>
+      <section className="status-strip">
+        <strong data-testid="timer-text">{formatTime(elapsed)}</strong>
+        <span data-testid="held-item">{held ? ITEM_LABELS[held] : 'Empty hands'}</span>
+        <em>{mistakes ? `${mistakes} mistake${mistakes > 1 ? 's' : ''}` : 'Clean'}</em>
+      </section>
+    </header>
   );
 }
 
-function MiniGame({
-  step,
-  onVisual,
-  onFinish,
-}: GameProps) {
-  if (step.kind === 'prep') return <PrepGame step={step} onVisual={onVisual} onFinish={onFinish} />;
-  if (step.kind === 'stir') return <StirGame step={step} onVisual={onVisual} onFinish={onFinish} />;
-  if (step.kind === 'simmer') return <SimmerGame step={step} onVisual={onVisual} onFinish={onFinish} />;
-  if (step.kind === 'mash') return <SauceGame step={step} onVisual={onVisual} onFinish={onFinish} />;
-  return <PlateGame step={step} onVisual={onVisual} onFinish={onFinish} />;
-}
-
-function StepPanel({ step, children }: { step: StepDefinition; children: ReactNode }) {
+function OrderChip({ done, label }: { done: boolean; label: string }) {
   return (
-    <section className="play-panel stage-panel">
-      <div className="step-copy">
-        <p className="eyebrow">{CHICKEN_RICE.name}</p>
-        <h2>{step.title}</h2>
-        <p>{step.instruction}</p>
-      </div>
-      {children}
-    </section>
+    <span className={`order-chip ${done ? 'done' : ''} order-${label.toLowerCase()}`}>
+      <i />
+      <b className="sr-only">{done ? 'Done ' : ''}{label}</b>
+    </span>
   );
 }
 
-function PrepGame({ step, onVisual, onFinish }: GameProps) {
-  const ingredients = ['Garlic', 'Ginger', 'Pandan', 'Shallot'];
-  const ingredientIds = ['garlic', 'ginger', 'pandan', 'shallot'];
-  const firstPhase = useRef(Math.random());
-  const firstBlade = useRef(trianglePhase(firstPhase.current));
-  const [active, setActive] = useState(0);
-  const [cuts, setCuts] = useState(0);
-  const [blade, setBlade] = useState(firstBlade.current);
-  const [cutting, setCutting] = useState(false);
-  const [chopCue, setChopCue] = useState('Line up the blade');
-  const [chopQuality, setChopQuality] = useState<'idle' | 'perfect' | 'good' | 'off'>('idle');
-  const bladeRef = useRef(firstBlade.current);
-  const scoresRef = useRef<number[]>([]);
-  const startedAt = useRef(performance.now());
-  const roundStarted = useRef(performance.now());
-  const phaseOffset = useRef(firstPhase.current);
-  const [showHint, dismissHint] = useCoachHint(`${active}:${cutting}`, 1300);
-
-  useEffect(() => {
-    onVisual({ prepCuts: cuts, prepActive: active, prepBlade: bladeRef.current });
-  }, [active, cuts, onVisual]);
-
-  useEffect(() => {
-    let raf = 0;
-    let last = 0;
-    const tick = (now: number) => {
-      if (!cutting && now - last > 33) {
-        last = now;
-        const phase = (((now - roundStarted.current) / 1800) + phaseOffset.current) % 1;
-        const next = trianglePhase(phase);
-        bladeRef.current = next;
-        setBlade(next);
-        onVisual({ prepBlade: next });
-      }
-      raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [cutting, onVisual]);
-
-  const chop = () => {
-    if (active >= ingredients.length || cutting) return;
-    dismissHint();
-    playSfx('chop');
-    haptic(12);
-    const accuracy = 1 - Math.min(1, Math.abs(bladeRef.current - 0.5) / 0.5);
-    const quality = clamp(0.72 + accuracy * 0.28, 0.72, 1);
-    const label = accuracy > 0.82 ? 'Perfect chop' : accuracy > 0.48 ? 'Good chop' : bladeRef.current < 0.5 ? 'Too early, still chopped' : 'Too late, still chopped';
-    setChopCue(label);
-    setChopQuality(accuracy > 0.82 ? 'perfect' : accuracy > 0.48 ? 'good' : 'off');
-    scoresRef.current.push(quality);
-    const next = active + 1;
-    setCutting(true);
-    setCuts(next);
-    onVisual({ prepCuts: next, prepActive: active, prepBlade: bladeRef.current, prepChop: performance.now(), pulse: performance.now() });
-
-    window.setTimeout(() => {
-      if (next >= ingredients.length) {
-        const elapsed = performance.now() - startedAt.current;
-        const speed = elapsed < 9000 ? 1 : elapsed < 12500 ? 0.92 : 0.82;
-        onFinish(avg(scoresRef.current) * speed);
-        return;
-      }
-      setActive(next);
-      setCutting(false);
-      roundStarted.current = performance.now();
-      phaseOffset.current = Math.random();
-      const nextBlade = trianglePhase(phaseOffset.current);
-      bladeRef.current = nextBlade;
-      setBlade(nextBlade);
-      setChopCue('Line up the blade');
-      setChopQuality('idle');
-      onVisual({ prepCuts: next, prepActive: next, prepBlade: nextBlade });
-    }, 520);
-  };
+function WorkflowGuide({ held, stations, plate }: { held: HeldItem | null; stations: StationSlots; plate: PlateState }) {
+  const active = getActiveWorkflowStep(held, stations, plate);
+  const complete = plate.rice && plate.chicken && plate.sauce;
+  const steps = [
+    { id: 'rice', label: 'Rice', done: plate.rice },
+    { id: 'chicken', label: 'Chicken', done: plate.chicken },
+    { id: 'chili', label: 'Chili', done: plate.sauce },
+    { id: 'plate', label: 'Plate', done: held === 'chickenRice' },
+    { id: 'serve', label: 'Serve', done: false },
+  ];
 
   return (
-    <>
-      <div
-        className={`stage-touch-zone prep-stage-zone ${chopQuality}`}
-        data-testid="chop-timing"
-        role="button"
-        tabIndex={0}
-        onClick={chop}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter' || event.key === ' ') chop();
-        }}
-      >
-        <i className="stage-cut-target" />
-        <b className="stage-blade-marker" style={{ left: `calc(${blade * 100}% - 8px)` }} />
-        <span>{chopCue}</span>
-        <CoachHand visible={showHint && !cutting} variant="tap" />
-      </div>
-      <StepPanel step={step}>
-        <div className="mini prep-mini stage-mini">
-          <div className="status-row">
-            <span>{chopCue}</span>
-            <strong>{Math.min(cuts, ingredients.length)}/{ingredients.length}</strong>
-          </div>
-          <div className="prep-ingredient-strip" aria-hidden="true">
-            {ingredients.map((name, index) => (
-              <i key={name} className={`prep-ingredient-dot ${ingredientIds[index]} ${index < cuts ? 'done' : index === active ? 'active' : ''}`} />
-            ))}
-          </div>
-          <ProgressBar value={cuts / ingredients.length} />
-        </div>
-      </StepPanel>
-    </>
-  );
-}
-
-function StirGame({ step, onVisual, onFinish }: GameProps) {
-  const startedAt = useRef(performance.now());
-  const scoresRef = useRef<number[]>([]);
-  const strokesRef = useRef(0);
-  const targetStrokes = 4;
-  const [progress, setProgress] = useState(0);
-  const [strokes, setStrokes] = useState(0);
-  const [cue, setCue] = useState('Drag spoon right');
-  const [dragging, setDragging] = useState(false);
-  const [targetSide, setTargetSide] = useState<'left' | 'right'>('right');
-  const [spoon, setSpoon] = useState({ x: 0.38, y: 0.58 });
-  const dragRef = useRef<{ lastX: number; lastY: number; travel: number; pointerId: number } | null>(null);
-  const targetSideRef = useRef<'left' | 'right'>('right');
-  const done = useRef(false);
-  const [showHint, dismissHint] = useCoachHint(`${strokes}:${targetSide}:${dragging}`, 1300);
-
-  const resetDrag = (event?: ReactPointerEvent<HTMLDivElement>) => {
-    const drag = dragRef.current;
-    if (drag && event) {
-      try {
-        event.currentTarget.releasePointerCapture(drag.pointerId);
-      } catch {
-        // Pointer capture can already be gone after touch cancellation.
-      }
-    }
-    dragRef.current = null;
-    setDragging(false);
-    onVisual({ stirPull: 0.5 });
-  };
-
-  const completeStroke = (normY: number) => {
-    if (done.current) return;
-    const yScore = 1 - Math.min(1, Math.abs(normY - 0.58) / 0.34);
-    const quality = clamp(0.68 + yScore * 0.32, 0.68, 1);
-    scoresRef.current.push(quality);
-    playSfx('stir');
-    haptic(12);
-    const next = strokesRef.current + 1;
-    strokesRef.current = next;
-    setStrokes(next);
-    const nextProgress = clamp(next / targetStrokes, 0, 1);
-    setProgress(nextProgress);
-    const nextSide = targetSideRef.current === 'right' ? 'left' : 'right';
-    targetSideRef.current = nextSide;
-    setTargetSide(nextSide);
-    setCue(next >= targetStrokes ? 'Rice toasted' : `Good pass. Drag ${nextSide}`);
-    onVisual({
-      stirProgress: nextProgress,
-      stirTurns: next,
-      stirMarker: nextSide === 'right' ? 1 : 0,
-      stirPull: spoon.x,
-      pulse: performance.now(),
-    });
-    if (next >= targetStrokes) {
-      done.current = true;
-      resetDrag();
-      const elapsed = performance.now() - startedAt.current;
-      window.setTimeout(() => onFinish(avg(scoresRef.current) * (elapsed < 9000 ? 1 : elapsed < 12500 ? 0.92 : 0.82)), 360);
-    }
-  };
-
-  const pointFromEvent = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const rect = event.currentTarget.getBoundingClientRect();
-    return {
-      x: clamp((event.clientX - rect.left) / rect.width, 0, 1),
-      y: clamp((event.clientY - rect.top) / rect.height, 0, 1),
-    };
-  };
-
-  const startStir = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (done.current) return;
-    event.preventDefault();
-    dismissHint();
-    event.currentTarget.setPointerCapture(event.pointerId);
-    const point = pointFromEvent(event);
-    dragRef.current = { lastX: event.clientX, lastY: event.clientY, travel: 0, pointerId: event.pointerId };
-    setDragging(true);
-    setSpoon(point);
-    setCue(`Drag spoon ${targetSideRef.current}`);
-    onVisual({ stirPull: point.x, stirMarker: targetSideRef.current === 'right' ? 1 : 0 });
-  };
-
-  const moveStir = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const drag = dragRef.current;
-    if (!drag || done.current) return;
-    event.preventDefault();
-    const point = pointFromEvent(event);
-    const travel = Math.hypot(event.clientX - drag.lastX, event.clientY - drag.lastY);
-    drag.lastX = event.clientX;
-    drag.lastY = event.clientY;
-    drag.travel += travel;
-    setSpoon(point);
-    const inWok = point.y >= 0.24 && point.y <= 0.88;
-    const hitTarget = targetSideRef.current === 'right' ? point.x > 0.77 : point.x < 0.23;
-    setCue(inWok ? `Drag spoon ${targetSideRef.current}` : 'Keep spoon in wok');
-    onVisual({ stirPull: point.x, stirMarker: targetSideRef.current === 'right' ? 1 : 0 });
-    if (inWok && hitTarget && drag.travel > 70) {
-      drag.travel = 0;
-      completeStroke(point.y);
-    }
-  };
-
-  const endStir = (event: ReactPointerEvent<HTMLDivElement>) => {
-    resetDrag(event);
-    if (!done.current && strokesRef.current < targetStrokes) setCue(`Drag spoon ${targetSideRef.current}`);
-  };
-
-  return (
-    <>
-      <div
-        className={`stage-touch-zone rice-stage-zone target-${targetSide} ${dragging ? 'is-dragging' : ''}`}
-        data-testid="toss-pad"
-        style={{ '--spoon-x': `${spoon.x * 100}%`, '--spoon-y': `${spoon.y * 100}%`, '--toast-progress': progress } as CSSProperties}
-        onPointerDown={startStir}
-        onPointerMove={moveStir}
-        onPointerUp={endStir}
-        onPointerCancel={endStir}
-      >
-        <b className="stage-side-target left">left</b>
-        <b className="stage-side-target right">right</b>
-        <span>{cue}</span>
-        <CoachHand visible={showHint && !dragging && strokes === 0} variant="swipe" />
-      </div>
-      <StepPanel step={step}>
-        <div className="mini rice-mini stage-mini">
-          <div className="status-row">
-            <span>{cue}</span>
-            <strong>{Math.min(strokes, targetStrokes)}/{targetStrokes}</strong>
-          </div>
-          <ProgressBar value={progress} />
-        </div>
-      </StepPanel>
-    </>
-  );
-}
-
-function SimmerGame({ step, onVisual, onFinish }: GameProps) {
-  const stageRef = useRef<HTMLDivElement>(null);
-  const [heat, setHeat] = useState(0.22);
-  const [hold, setHold] = useState(0);
-  const [cue, setCue] = useState('Warm the pot');
-  const [draggingHeat, setDraggingHeat] = useState(false);
-  const done = useRef(false);
-  const startedAt = useRef(performance.now());
-  const heatRef = useRef(0.22);
-  const holdRef = useRef(0);
-  const goodMs = useRef(0);
-  const badMs = useRef(0);
-  const bubbleStartedAt = useRef(performance.now());
-  const inZone = isSimmerHeat(heat);
-  const [showHint, dismissHint] = useCoachHint(`${inZone}:${Math.round(hold / 400)}:${draggingHeat}`, 1300);
-  const temperature = Math.round(44 + heat * 42);
-  const progress = clamp(hold / POACH_HOLD_TARGET, 0, 1);
-
-  useEffect(() => {
-    let raf = 0;
-    let last = performance.now();
-    const tick = (now: number) => {
-      const dt = now - last;
-      last = now;
-      const liveInZone = isSimmerHeat(heatRef.current);
-      setHold((value) => {
-        const next = liveInZone ? Math.min(POACH_HOLD_TARGET, value + dt) : Math.max(0, value - dt * 0.7);
-        holdRef.current = next;
-        if (liveInZone) goodMs.current += dt;
-        else badMs.current += dt;
-        if (!done.current && next >= POACH_HOLD_TARGET) {
-          done.current = true;
-          const elapsed = performance.now() - startedAt.current;
-          const steadiness = goodMs.current / Math.max(1, goodMs.current + badMs.current);
-          const score = clamp(0.72 + steadiness * 0.28, 0.72, 1) * (elapsed < 8500 ? 1 : elapsed < 12000 ? 0.92 : 0.82);
-          setCue('Chicken poached');
-          window.setTimeout(() => onFinish(score), 360);
-        }
-        return next;
-      });
-      const nextBubble = ((now - bubbleStartedAt.current) % 1900) / 1900;
-      onVisual({
-        simmerHeat: heatRef.current,
-        simmerHits: Math.round(clamp(holdRef.current / POACH_HOLD_TARGET, 0, 1) * 3),
-        simmerReady: liveInZone,
-        simmerBubble: nextBubble,
-        simmerStir: clamp(holdRef.current / POACH_HOLD_TARGET, 0, 1),
-        simmerStirAngle: 0,
-      });
-      raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [onFinish, onVisual]);
-
-  const updateHeat = (clientY: number) => {
-    const rect = stageRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    const next = 1 - clamp((clientY - rect.top) / rect.height, 0, 1);
-    dismissHint();
-    heatRef.current = next;
-    setHeat(next);
-    setCue(isSimmerHeat(next) ? 'Hold it in green' : next < SIMMER_MIN ? 'Drag heat up' : 'Lower heat');
-    onVisual({ simmerHeat: next, simmerReady: isSimmerHeat(next) });
-  };
-
-  const startHeat = (event: ReactPointerEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    setDraggingHeat(true);
-    event.currentTarget.setPointerCapture(event.pointerId);
-    updateHeat(event.clientY);
-  };
-
-  const moveHeat = (event: ReactPointerEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    if (draggingHeat || event.buttons || event.pointerType === 'touch') {
-      updateHeat(event.clientY);
-    }
-  };
-
-  const endHeat = (event: ReactPointerEvent<HTMLDivElement>) => {
-    setDraggingHeat(false);
-    try {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    } catch {
-      // Pointer capture can already be gone after touch cancellation.
-    }
-  };
-
-  return (
-    <>
-      <div
-        ref={stageRef}
-        className={`stage-touch-zone poach-stage-zone ${inZone ? 'ready' : 'waiting'}`}
-        data-testid="simmer-slider"
-        style={{ '--heat': heat, '--poach-progress': progress } as CSSProperties}
-        onPointerDown={startHeat}
-        onPointerMove={moveHeat}
-        onPointerUp={endHeat}
-        onPointerCancel={endHeat}
-      >
-        <i className="stage-simmer-zone">green zone</i>
-        <b className="stage-heat-handle" style={{ bottom: `calc(${heat * 100}% - 18px)` }}>drag</b>
-        <span>{inZone ? 'Hold it steady' : 'Drag heat into green'}</span>
-        <CoachHand visible={showHint && !inZone} variant="drag-heat" />
-      </div>
-      <StepPanel step={step}>
-        <div className="mini poach-mini stage-mini" data-testid="stir-pot">
-          <div className="status-row">
-            <span>{inZone ? 'Keep thermometer in green' : cue}</span>
-            <strong>{temperature}C</strong>
-          </div>
-          <ProgressBar value={progress} />
-        </div>
-      </StepPanel>
-    </>
-  );
-}
-
-function SauceGame({ step, onVisual, onFinish }: GameProps) {
-  const items = [
-    ['chili', 'Sliced chili', 'red strips'],
-    ['ginger', 'Ginger slices', 'warm bite'],
-    ['garlic', 'Garlic cloves', 'aroma'],
-    ['lime', 'Lime juice', 'squeeze'],
-  ] as const;
-  const [added, setAdded] = useState<string[]>([]);
-  const [mashes, setMashes] = useState(0);
-  const [press, setPress] = useState(0);
-  const [pounding, setPounding] = useState(false);
-  const [cue, setCue] = useState('Drag ingredients into mortar');
-  const [dragging, setDragging] = useState<{ id: string; x: number; y: number } | null>(null);
-  const startedAt = useRef(performance.now());
-  const done = useRef(false);
-  const mashesRef = useRef(0);
-  const mortarRef = useRef<HTMLDivElement>(null);
-  const ingredientDrag = useRef<{ id: string; startX: number; startY: number; pointerId: number; moved: boolean } | null>(null);
-  const mashDrag = useRef<{ lastY: number; pointerId: number; direction: -1 | 0 | 1; travel: number } | null>(null);
-  const [showHint, dismissHint] = useCoachHint(`${added.length}:${mashes}:${press > 0}:${dragging?.id ?? ''}`, 1300);
-
-  const add = (id: string) => {
-    if (done.current || added.includes(id)) return;
-    dismissHint();
-    playSfx('tap');
-    haptic(8);
-    setAdded((prev) => {
-      if (prev.includes(id)) return prev;
-      const next = [...prev, id];
-      const item = items.find(([itemId]) => itemId === id);
-      setCue(next.length >= items.length ? 'All in. Grind up and down' : `${item?.[1] ?? 'Ingredient'} in mortar`);
-      const now = performance.now();
-      onVisual({ sauceItems: next, sauceLastItem: id, sauceDropAt: now, pulse: now });
-      return next;
-    });
-  };
-
-  const startIngredient = (event: ReactPointerEvent<HTMLButtonElement>, id: string) => {
-    if (done.current || added.includes(id)) return;
-    event.preventDefault();
-    dismissHint();
-    event.currentTarget.setPointerCapture(event.pointerId);
-    ingredientDrag.current = { id, startX: event.clientX, startY: event.clientY, pointerId: event.pointerId, moved: false };
-    setDragging({ id, x: event.clientX, y: event.clientY });
-    const item = items.find(([itemId]) => itemId === id);
-    setCue(`Drop ${item?.[1] ?? 'ingredient'} into mortar`);
-  };
-
-  const moveIngredient = (event: ReactPointerEvent<HTMLButtonElement>) => {
-    const drag = ingredientDrag.current;
-    if (!drag || done.current) return;
-    event.preventDefault();
-    const distance = Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY);
-    drag.moved = drag.moved || distance > 6;
-    setDragging({ id: drag.id, x: event.clientX, y: event.clientY });
-  };
-
-  const endIngredient = (event: ReactPointerEvent<HTMLButtonElement>) => {
-    const drag = ingredientDrag.current;
-    if (!drag) return;
-    event.preventDefault();
-    try {
-      event.currentTarget.releasePointerCapture(drag.pointerId);
-    } catch {
-      // Pointer capture can already be gone after touch cancellation.
-    }
-    ingredientDrag.current = null;
-    setDragging(null);
-    const rect = mortarRef.current?.getBoundingClientRect();
-    const overMortar = rect
-      ? event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom
-      : false;
-    if (overMortar) {
-      add(drag.id);
-      return;
-    }
-    playSfx('tap');
-    haptic(8);
-    setCue('Drop it inside the mortar');
-  };
-
-  const cancelIngredient = (event: ReactPointerEvent<HTMLButtonElement>) => {
-    const drag = ingredientDrag.current;
-    if (!drag) return;
-    try {
-      event.currentTarget.releasePointerCapture(drag.pointerId);
-    } catch {
-      // Pointer capture can already be gone after touch cancellation.
-    }
-    ingredientDrag.current = null;
-    setDragging(null);
-  };
-
-  const completeMash = () => {
-    if (added.length < items.length || done.current) return;
-    const next = mashesRef.current + 1;
-    mashesRef.current = next;
-    setMashes(next);
-    setPounding(true);
-    playSfx('pound');
-    haptic(18);
-    setCue(next >= SAUCE_MASH_TARGET ? 'Chili sauce ready' : `Grinding sauce ${next}/${SAUCE_MASH_TARGET}`);
-    onVisual({ mashCount: next, mashPress: press, mashPound: performance.now(), sauceItems: added, pulse: performance.now() });
-    window.setTimeout(() => setPounding(false), 220);
-    if (next >= SAUCE_MASH_TARGET) {
-      done.current = true;
-      const elapsed = performance.now() - startedAt.current;
-      window.setTimeout(() => onFinish(elapsed < 10500 ? 1 : elapsed < 14500 ? 0.86 : 0.72), 260);
-    }
-  };
-
-  const startMash = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (added.length < items.length || done.current) {
-      setCue('Add all ingredients first');
-      playSfx('tap');
-      return;
-    }
-    event.preventDefault();
-    dismissHint();
-    event.currentTarget.setPointerCapture(event.pointerId);
-    const rect = event.currentTarget.getBoundingClientRect();
-    const nextPress = clamp((event.clientY - rect.top) / rect.height, 0.08, 1);
-    mashDrag.current = { lastY: event.clientY, pointerId: event.pointerId, direction: 0, travel: 0 };
-    setPress(nextPress);
-    setCue('Move pestle up and down');
-    onVisual({ mashPress: nextPress, sauceItems: added });
-  };
-
-  const moveMash = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const drag = mashDrag.current;
-    if (!drag || done.current) return;
-    event.preventDefault();
-    const rect = event.currentTarget.getBoundingClientRect();
-    const nextPress = clamp((event.clientY - rect.top) / rect.height, 0.05, 1);
-    const dy = event.clientY - drag.lastY;
-    const direction: -1 | 0 | 1 = dy > 0.4 ? 1 : dy < -0.4 ? -1 : 0;
-    drag.lastY = event.clientY;
-    drag.travel += Math.abs(dy);
-    setPress(nextPress);
-    if (direction !== 0 && drag.direction !== 0 && direction !== drag.direction && drag.travel > 26) {
-      drag.travel = 0;
-      completeMash();
-    }
-    if (direction !== 0) drag.direction = direction;
-    setCue(mashesRef.current > 0 ? 'Keep grinding fast' : 'Move up and down');
-    onVisual({ mashPress: nextPress, sauceItems: added });
-  };
-
-  const endMash = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const drag = mashDrag.current;
-    if (!drag) return;
-    event.preventDefault();
-    try {
-      event.currentTarget.releasePointerCapture(drag.pointerId);
-    } catch {
-      // Pointer capture can already be gone after touch cancellation.
-    }
-    mashDrag.current = null;
-    if (!done.current) setCue(mashesRef.current ? 'Hold and grind again' : 'Scrub pestle up and down');
-    setPress(0);
-    onVisual({ mashPress: 0, sauceItems: added });
-  };
-
-  return (
-    <>
-      <div className={`stage-touch-zone sauce-stage-zone ${added.length >= items.length ? 'grind-mode' : 'add-mode'}`}>
-        <div
-          ref={mortarRef}
-          className={`stage-mortar-zone ${added.length >= items.length ? 'ready' : ''} ${pounding ? 'is-pounding' : ''}`}
-          data-testid="mortar-pad"
-          role="button"
-          tabIndex={0}
-          onPointerDown={startMash}
-          onPointerMove={moveMash}
-          onPointerUp={endMash}
-          onPointerCancel={endMash}
+    <div className="workflow-guide" aria-label="Chicken rice checklist">
+      {steps.map((step) => (
+        <span
+          key={step.id}
+          className={`workflow-step guide-${step.id} ${step.done ? 'done' : active === step.id ? 'active' : complete && step.id === 'serve' ? 'active' : ''}`}
         >
-          <span>{added.length < items.length ? 'drop here' : 'grind here'}</span>
-          <CoachHand visible={showHint && added.length >= items.length && !pounding && press === 0} variant="drag-down" />
-        </div>
-        {items.map(([id, label]) => (
-          <button
-            type="button"
-            key={id}
-            className={`stage-ingredient-hotspot ${id} ${added.includes(id) ? 'done' : ''}`}
-            data-testid={`sauce-token-${id}`}
-            aria-label={`Drag ${label} into mortar`}
-            onPointerDown={(event) => startIngredient(event, id)}
-            onPointerMove={moveIngredient}
-            onPointerUp={endIngredient}
-            onPointerCancel={cancelIngredient}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' || event.key === ' ') add(id);
-            }}
-          >
-            {label}
-          </button>
-        ))}
-        <CoachHand visible={showHint && added.length < items.length && !dragging} variant="tap-token" />
-      </div>
-      <StepPanel step={step}>
-        <div className="mini sauce-mini stage-mini">
-          <div className="status-row">
-            <span>{cue}</span>
-            <strong>{added.length < items.length ? `${added.length}/4` : `${Math.min(mashes, SAUCE_MASH_TARGET)}/${SAUCE_MASH_TARGET}`}</strong>
-          </div>
-          <div className="sauce-flow" aria-hidden="true">
-            <i className={added.length < items.length ? 'active' : 'done'}><b>1</b><span>Add</span></i>
-            <i className={added.length >= items.length ? 'active' : ''}><b>2</b><span>Grind</span></i>
-          </div>
-          <ProgressBar value={(added.length / items.length) * 0.48 + (mashes / SAUCE_MASH_TARGET) * 0.52} />
-        </div>
-      </StepPanel>
-      {dragging && (
-        <div className={`sauce-drag-ghost ${dragging.id}`} style={{ left: dragging.x, top: dragging.y }} aria-hidden="true">
-          <i className={`food-icon ${dragging.id}`} />
-        </div>
-      )}
-    </>
+          <i />
+          <b>{step.label}</b>
+        </span>
+      ))}
+    </div>
   );
 }
 
-function PlateGame({ step, onVisual, onFinish }: GameProps) {
-  const items = [
-    ['rice', 'Rice'],
-    ['chicken', 'Chicken'],
-    ['cucumber', 'Cucumber'],
-    ['chili', 'Chili'],
-  ] as const;
-  const plateTargets: Record<string, { x: number; y: number; label: string }> = {
-    rice: { x: 0.38, y: 0.58, label: 'rice mound' },
-    chicken: { x: 0.58, y: 0.56, label: 'chicken slices' },
-    cucumber: { x: 0.52, y: 0.76, label: 'cucumber row' },
-    chili: { x: 0.73, y: 0.7, label: 'chili saucer' },
-  };
-  const [placed, setPlaced] = useState<string[]>([]);
-  const [cue, setCue] = useState('Drag rice to its spot');
-  const [dragGhost, setDragGhost] = useState<{ id: string; x: number; y: number } | null>(null);
-  const startedAt = useRef(performance.now());
-  const done = useRef(false);
-  const scoresRef = useRef<number[]>([]);
-  const plateRef = useRef<HTMLDivElement>(null);
-  const dragRef = useRef<{ id: string; pointerId: number; startX: number; startY: number } | null>(null);
-  const ignoreClick = useRef(false);
-  const [showHint, dismissHint] = useCoachHint(`${placed.length}:${dragGhost?.id ?? ''}`, 1300);
-  const expectedId = items[placed.length]?.[0];
-  const expectedLabel = items[placed.length]?.[1];
+function StationLabels({ near, active }: { near: StationId | null; active: StationId | null }) {
+  return (
+    <div className="station-labels" aria-hidden>
+      {STATIONS.map((station) => (
+        <span
+          key={station.id}
+          className={`station-label station-${station.id} ${near === station.id ? 'near' : ''} ${active === station.id ? 'active' : ''}`}
+          style={{ left: `${station.uiX}%`, top: `${station.uiY}%` }}
+          data-testid={`station-label-${station.id}`}
+        >
+          <i />
+          <b className="sr-only">{station.shortName}</b>
+        </span>
+      ))}
+    </div>
+  );
+}
 
-  const place = (id: string, quality = 0.82) => {
-    if (done.current) return;
-    if (id !== expectedId) {
-      const nextLabel = expectedLabel ?? 'next item';
-      setCue(`Next is ${nextLabel}`);
-      playSfx('tap');
-      haptic(8);
-      return;
+function MovePad({ onMove }: { onMove: (vector: { x: number; z: number }) => void }) {
+  const padRef = useRef<HTMLDivElement>(null);
+  const [knob, setKnob] = useState({ x: 0, z: 0 });
+
+  const update = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const element = padRef.current;
+    if (!element) return;
+    const rect = element.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    let x = clamp((event.clientX - cx) / (rect.width / 2), -1, 1);
+    let z = clamp((event.clientY - cy) / (rect.height / 2), -1, 1);
+    const length = Math.hypot(x, z);
+    if (length > 1) {
+      x /= length;
+      z /= length;
     }
-    setPlaced((prev) => {
-      if (prev.includes(id)) return prev;
-      const next = [...prev, id];
-      scoresRef.current.push(quality);
-      const nextItem = items[next.length];
-      setCue(nextItem ? `Now place ${nextItem[1]}` : 'Ready to serve');
-      playSfx(next.length >= items.length ? 'success' : 'plate');
-      haptic(next.length >= items.length ? 18 : 10);
-      onVisual({ plateItems: next, pulse: performance.now() });
-      if (next.length >= items.length) {
-        done.current = true;
-        const elapsed = performance.now() - startedAt.current;
-        window.setTimeout(() => onFinish(avg(scoresRef.current) * (elapsed < 12000 ? 1 : elapsed < 16000 ? 0.9 : 0.78)), 360);
-      }
-      return next;
-    });
+    const vector = { x, z };
+    setKnob(vector);
+    onMove(vector);
   };
 
-  const startDrag = (event: ReactPointerEvent<HTMLButtonElement>, id: string) => {
-    if (done.current || placed.includes(id)) return;
-    if (id !== expectedId) {
-      setCue(`Next is ${expectedLabel}`);
-      playSfx('tap');
-      haptic(8);
-      return;
-    }
-    dismissHint();
-    dragRef.current = { id, pointerId: event.pointerId, startX: event.clientX, startY: event.clientY };
-    setDragGhost({ id, x: event.clientX, y: event.clientY });
-    event.currentTarget.setPointerCapture(event.pointerId);
-  };
-
-  const moveDrag = (event: ReactPointerEvent<HTMLButtonElement>) => {
-    const drag = dragRef.current;
-    if (!drag) return;
-    event.preventDefault();
-    setDragGhost({ id: drag.id, x: event.clientX, y: event.clientY });
-  };
-
-  const endDrag = (event: ReactPointerEvent<HTMLButtonElement>) => {
-    const drag = dragRef.current;
-    if (!drag) return;
-    const distance = Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY);
-    const plateBox = plateRef.current?.getBoundingClientRect();
-    const target = plateBox && plateTargets[drag.id]
-      ? {
-          x: plateBox.left + plateBox.width * plateTargets[drag.id].x,
-          y: plateBox.top + plateBox.height * plateTargets[drag.id].y,
-        }
-      : null;
-    const overPlate = Boolean(
-      plateBox &&
-        event.clientX >= plateBox.left &&
-        event.clientX <= plateBox.right &&
-        event.clientY >= plateBox.top &&
-        event.clientY <= plateBox.bottom,
-    );
-    try {
-      event.currentTarget.releasePointerCapture(drag.pointerId);
-    } catch {
-      // Capture can already be released on touch cancellation.
-    }
-    dragRef.current = null;
-    setDragGhost(null);
-    if (distance > 10) {
-      ignoreClick.current = true;
-      if (!overPlate) {
-        setCue(`Drop ${items.find(([id]) => id === expectedId)?.[1] ?? 'it'} on the plate`);
-      } else if (drag.id !== expectedId) {
-        place(drag.id);
-      } else if (target && plateBox) {
-        const targetDistance = Math.hypot(event.clientX - target.x, event.clientY - target.y);
-        const tolerance = Math.max(44, Math.min(plateBox.width, plateBox.height) * 0.26);
-        const closeness = 1 - Math.min(1, targetDistance / tolerance);
-        if (closeness < 0.18) {
-          setCue(`Aim for the ${plateTargets[drag.id].label}`);
-          playSfx('tap');
-          haptic(8);
-        } else {
-          place(drag.id, clamp(0.72 + closeness * 0.28, 0.72, 1));
-        }
-      }
-    }
-  };
-
-  const handleTokenClick = (id: string) => {
-    if (ignoreClick.current) {
-      ignoreClick.current = false;
-      return;
-    }
-    dismissHint();
-    const label = items.find(([itemId]) => itemId === id)?.[1] ?? 'item';
-    setCue(id === expectedId ? `Drag ${label} to the highlighted spot` : `Next is ${expectedLabel}`);
-    playSfx('tap');
-    haptic(8);
+  const release = () => {
+    const vector = { x: 0, z: 0 };
+    setKnob(vector);
+    onMove(vector);
   };
 
   return (
-    <>
-      <div className={`stage-touch-zone plate-stage-zone ${dragGhost ? 'is-catching' : ''}`} data-testid="plate-drop" ref={plateRef}>
-        {expectedId && <i className={`stage-plate-target ${expectedId}`} />}
-        {expectedId && expectedLabel && (
-          <button
-            className={`stage-plate-source ${expectedId} ${dragGhost?.id === expectedId ? 'dragging' : ''}`}
-            data-testid={`plate-token-${expectedId}`}
-            onPointerDown={(event) => startDrag(event, expectedId)}
-            onPointerMove={moveDrag}
-            onPointerUp={endDrag}
-            onPointerCancel={endDrag}
-            onClick={() => handleTokenClick(expectedId)}
-            aria-label={`Drag ${expectedLabel} to ${plateTargets[expectedId].label}`}
-          >
-            <i aria-hidden="true" className={`plate-icon ${expectedId}`} />
-            <span>{expectedLabel}</span>
-          </button>
-        )}
-        <CoachHand visible={showHint && placed.length === 0 && !dragGhost} variant="tap" />
-      </div>
-      <StepPanel step={step}>
-        <div className="mini plate-mini stage-mini">
-          <div className="status-row plate-status">
-            <span>{cue}</span>
-            <strong>{placed.length}/4</strong>
-          </div>
-          <ProgressBar value={placed.length / items.length} />
-        </div>
-      </StepPanel>
-      {dragGhost && (
-        <div
-          className={`plate-ghost ${dragGhost.id}`}
-          aria-hidden="true"
-          style={{ transform: `translate(${dragGhost.x - 32}px, ${dragGhost.y - 32}px)` }}
-        >
-          <i className={`plate-icon ${dragGhost.id}`} />
-        </div>
-      )}
-    </>
+    <div
+      ref={padRef}
+      className="move-pad"
+      data-testid="move-pad"
+      onPointerDown={(event) => {
+        event.currentTarget.setPointerCapture(event.pointerId);
+        update(event);
+      }}
+      onPointerMove={(event) => {
+        if (event.buttons || event.pointerType === 'touch') update(event);
+      }}
+      onPointerUp={release}
+      onPointerCancel={release}
+    >
+      <i style={{ transform: `translate(calc(-50% + ${knob.x * 26}px), calc(-50% + ${knob.z * 26}px))` }} />
+    </div>
   );
 }
 
-function ResultScreen({
-  results,
-  stars,
-  onReplay,
-  onMenu,
-}: {
-  results: StepResult[];
-  stars: 1 | 2 | 3;
-  onReplay: () => void;
-  onMenu: () => void;
-}) {
+function ResultScreen({ elapsed, mistakes, stars, onReplay }: { elapsed: number; mistakes: number; stars: number; onReplay: () => void }) {
   return (
     <section className="screen result-screen">
-      <VoxelCanvas mode="result" />
+      <VoxelCanvas
+        state={{
+          player: { x: 1.75, z: 1.55, facing: Math.PI, moving: false },
+          held: null,
+          stations: emptyVisualStations(),
+          plate: { rice: true, chicken: true, sauce: true },
+          nearStation: 'serve',
+          activeStation: null,
+          activeProgress: 0,
+          pulseStation: 'serve',
+          pulseKey: 1,
+          served: true,
+        }}
+      />
+      <div className="menu-vignette" />
       <div className="result-card">
-        <p className="eyebrow">Dish complete</p>
-        <h1>{CHICKEN_RICE.name}</h1>
+        <p className="eyebrow">Order served</p>
+        <h1>{DISH.name}</h1>
         <div className="result-stars" data-testid="result-stars">{renderStars(stars)}</div>
-        <div className="result-list">
-          {results.map((item) => (
-            <div key={item.id}>
-              <span>{item.title}</span>
-              <strong>{item.tier}</strong>
-            </div>
-          ))}
-        </div>
-        <section className="learning-card">
-          <h2>What you learned</h2>
-          <p>{CHICKEN_RICE.learning}</p>
-        </section>
-        <div className="result-actions">
-          <button className="primary-button" onClick={onReplay}>Cook again</button>
-          <button className="secondary-button" onClick={onMenu}>Menu</button>
-        </div>
+        <p className="result-meta">Time {formatTime(elapsed)} - {mistakes ? `${mistakes} mistake${mistakes > 1 ? 's' : ''}` : 'clean cook'}</p>
+        <p>{DISH.learning}</p>
+        <button className="primary-button" onClick={onReplay}>Play again</button>
       </div>
     </section>
   );
 }
 
-function CoachHand({ visible, variant }: { visible: boolean; variant: 'tap' | 'tap-token' | 'swipe' | 'swipe-up' | 'drag-heat' | 'circle' | 'drag-down' }) {
-  return <i className={`coach-hand ${variant} ${visible ? 'show' : ''}`} aria-hidden="true" />;
+function buildVisualStationState(stations: StationSlots, now: number): Record<StationId, VisualStationState> {
+  const visual = {} as Record<StationId, VisualStationState>;
+  for (const station of STATIONS) {
+    const slot = stations[station.id];
+    let progress = 0;
+    if (slot?.startedAt && slot.readyAt) {
+      progress = clamp((now - slot.startedAt) / (slot.readyAt - slot.startedAt), 0, 1);
+    } else if (slot?.item === 'cookedRice' || slot?.item === 'overcookedRice' || slot?.item === 'poachedChicken' || slot?.item === 'overcookedChicken') {
+      progress = 1;
+    }
+    visual[station.id] = {
+      item: slot?.item ?? null,
+      progress,
+      overcooked: slot?.item === 'overcookedRice' || slot?.item === 'overcookedChicken',
+    };
+  }
+  return visual;
 }
 
-function ProgressBar({ value }: { value: number }) {
-  return <div className="progress-bar"><i style={{ width: `${clamp(value, 0, 1) * 100}%` }} /></div>;
+function emptyVisualStations() {
+  return Object.fromEntries(STATIONS.map((station) => [station.id, { item: null, progress: 0, overcooked: false }])) as Record<StationId, VisualStationState>;
 }
 
-function useCoachHint(signal: string, delay = 1300) {
-  const [visible, setVisible] = useState(false);
-
-  useEffect(() => {
-    setVisible(false);
-    const timer = window.setTimeout(() => setVisible(true), delay);
-    return () => window.clearTimeout(timer);
-  }, [signal, delay]);
-
-  const dismiss = useCallback(() => setVisible(false), []);
-  return [visible, dismiss] as const;
+function getNearestStation(player: PlayerState): StationId | null {
+  let best: { id: StationId; distance: number } | null = null;
+  for (const station of STATIONS) {
+    const distance = Math.hypot(player.x - station.x, player.z - station.z);
+    if (distance <= INTERACT_RADIUS && (!best || distance < best.distance)) {
+      best = { id: station.id, distance };
+    }
+  }
+  return best?.id ?? null;
 }
 
-function loadBest() {
-  const value = Number(localStorage.getItem(BEST_KEY) ?? 0);
-  return Number.isFinite(value) ? clamp(Math.round(value), 0, 3) : 0;
+function getActiveWorkflowStep(held: HeldItem | null, stations: StationSlots, plate: PlateState) {
+  const riceMoving = held === 'rawRice' || held === 'cookedRice' || Boolean(stations.riceCooker);
+  const chickenMoving = held === 'rawChicken' || held === 'cutChicken' || held === 'poachedChicken' || Boolean(stations.board) || Boolean(stations.pot);
+  const chiliMoving = held === 'chiliSauce' || Boolean(stations.mortar);
+
+  if (held === 'chickenRice') return 'serve';
+  if (plate.rice && plate.chicken && plate.sauce) return 'plate';
+  if (!plate.rice && riceMoving) return 'rice';
+  if (!plate.chicken && chickenMoving) return 'chicken';
+  if (!plate.sauce && chiliMoving) return 'chili';
+  if (!plate.rice) return 'rice';
+  if (!plate.chicken) return 'chicken';
+  if (!plate.sauce) return 'chili';
+  return 'plate';
 }
 
-function avg(values: number[]) {
-  return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0.7;
+function scoreStars(elapsed: number, mistakes: number) {
+  let score = elapsed <= 85000 ? 3 : elapsed <= 125000 ? 2 : 1;
+  score -= mistakes;
+  return clamp(Math.round(score), 1, 3);
+}
+
+function renderStars(value: number) {
+  return '\u2605'.repeat(value) + '\u2606'.repeat(3 - value);
+}
+
+function formatTime(ms: number) {
+  const seconds = Math.max(0, Math.floor(ms / 1000));
+  const minutes = Math.floor(seconds / 60);
+  return `${minutes}:${String(seconds % 60).padStart(2, '0')}`;
 }
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
-function isSimmerHeat(value: number) {
-  return value >= SIMMER_MIN && value <= SIMMER_MAX;
-}
-
-function trianglePhase(phase: number) {
-  return phase < 0.5 ? phase * 2 : 2 - phase * 2;
-}
-
-function renderStars(value: number) {
-  return FILLED_STAR.repeat(value) + EMPTY_STAR.repeat(3 - value);
-}
-
-function feedbackNote(stepId: string, score: number) {
-  const level = score >= 0.86 ? 0 : score >= 0.64 ? 1 : 2;
-  const notes: Record<string, [string, string, string]> = {
-    'prep-aromatics': ['Sharp timing', 'Good cuts', 'Center the blade'],
-    'toast-rice': ['Great stir', 'Rice toasted', 'Use the wok'],
-    'poach-chicken': ['Silky poach', 'Heat steady', 'Watch the heat'],
-    'make-chili': ['Sauce bright', 'Good grinding', 'Move faster'],
-    'plate-set': ['Beautiful plate', 'Set plated', 'Keep assembling'],
-  };
-  return (notes[stepId] ?? ['Nice work', 'Good try', 'Try again'])[level];
-}
-
-type SfxKind = 'tap' | 'chop' | 'toss' | 'stir' | 'pound' | 'plate' | 'success' | 'gold';
-
 let sfxContext: AudioContext | null = null;
 
-function playSfx(kind: SfxKind) {
+function playSfx(kind: 'pickup' | 'drop' | 'chop' | 'pound' | 'plate' | 'work' | 'ready' | 'success' | 'error') {
   try {
     const AudioCtor = window.AudioContext ?? (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!AudioCtor) return;
-    if (!sfxContext || sfxContext.state === 'closed') {
-      sfxContext = new AudioCtor({ latencyHint: 'interactive' });
-    }
+    if (!sfxContext || sfxContext.state === 'closed') sfxContext = new AudioCtor({ latencyHint: 'interactive' });
     void sfxContext.resume();
     const ctx = sfxContext;
     const now = ctx.currentTime + 0.01;
-    const master = ctx.createGain();
-    master.gain.value = 0.55;
-    master.connect(ctx.destination);
-
-    const blip = (freq: number, delay: number, duration: number, volume: number, type: OscillatorType, slideTo?: number) => {
+    const output = ctx.createGain();
+    output.gain.value = 0.2;
+    output.connect(ctx.destination);
+    const tone = (freq: number, delay = 0, duration = 0.08, type: OscillatorType = 'square') => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
-      const start = now + delay;
       osc.type = type;
-      osc.frequency.setValueAtTime(freq, start);
-      if (slideTo) osc.frequency.exponentialRampToValueAtTime(slideTo, start + duration * 0.82);
-      gain.gain.setValueAtTime(0.0001, start);
-      gain.gain.exponentialRampToValueAtTime(volume, start + 0.01);
-      gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+      osc.frequency.setValueAtTime(freq, now + delay);
+      gain.gain.setValueAtTime(0.001, now + delay);
+      gain.gain.exponentialRampToValueAtTime(0.36, now + delay + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + delay + duration);
       osc.connect(gain);
-      gain.connect(master);
-      osc.start(start);
-      osc.stop(start + duration + 0.03);
+      gain.connect(output);
+      osc.start(now + delay);
+      osc.stop(now + delay + duration + 0.03);
     };
-
-    if (kind === 'tap') blip(520, 0, 0.06, 0.045, 'triangle', 610);
-    if (kind === 'chop') {
-      blip(190, 0, 0.055, 0.09, 'square', 95);
-      blip(760, 0.012, 0.035, 0.035, 'triangle', 520);
-    }
-    if (kind === 'toss') {
-      blip(330, 0, 0.09, 0.05, 'triangle', 560);
-      blip(660, 0.08, 0.08, 0.04, 'sine', 880);
-    }
-    if (kind === 'stir') blip(240, 0, 0.08, 0.04, 'sine', 300);
-    if (kind === 'pound') {
-      blip(140, 0, 0.07, 0.1, 'square', 80);
-      blip(360, 0.02, 0.05, 0.035, 'triangle', 220);
-    }
-    if (kind === 'plate') blip(620, 0, 0.08, 0.045, 'triangle', 760);
-    if (kind === 'success' || kind === 'gold') {
-      const chord = kind === 'gold' ? [523.25, 659.25, 783.99] : [392, 493.88, 659.25];
-      chord.forEach((freq, i) => blip(freq, i * 0.045, 0.16, 0.04, 'triangle', freq * 1.08));
-    }
-    window.setTimeout(() => master.disconnect(), 420);
+    if (kind === 'success') [523, 659, 784].forEach((freq, index) => tone(freq, index * 0.08, 0.13));
+    else if (kind === 'ready') tone(660, 0, 0.11);
+    else if (kind === 'error') tone(110, 0, 0.16, 'sawtooth');
+    else if (kind === 'work') tone(170, 0, 0.16, 'triangle');
+    else if (kind === 'chop') tone(300, 0, 0.06);
+    else if (kind === 'pound') tone(190, 0, 0.09, 'triangle');
+    else if (kind === 'plate') tone(440, 0, 0.09);
+    else tone(260, 0, 0.07);
   } catch {
-    // Sound effects are progressive enhancement; gameplay must never depend on them.
+    // Audio is optional.
   }
 }
 
-function haptic(duration: number) {
+function haptic(ms: number) {
   try {
-    const nav = navigator as Navigator & { vibrate?: (pattern: number | number[]) => boolean };
-    nav.vibrate?.(duration);
+    navigator.vibrate?.(ms);
   } catch {
-    // Vibration support varies by browser and device.
+    // Vibration is optional.
   }
-}
-
-interface MusicLoop {
-  start: () => Promise<void>;
-  stop: () => void;
-}
-
-function createMusicLoop(): MusicLoop {
-  const track = new Audio();
-  const base = import.meta.env.BASE_URL;
-  const opus = `${base}audio/happy-clappy-loop.opus`;
-  const mp3 = `${base}audio/happy-clappy-loop.mp3`;
-  track.src = track.canPlayType('audio/ogg; codecs="opus"') ? opus : mp3;
-  track.loop = true;
-  track.preload = 'auto';
-  track.volume = 0.86;
-  track.load();
-  let fallback: MusicLoop | null = null;
-
-  return {
-    start: async () => {
-      try {
-        track.volume = 0.86;
-        await track.play();
-      } catch {
-        if (!fallback) fallback = createSynthMusicLoop();
-        await fallback.start();
-      }
-    },
-    stop: () => {
-      track.pause();
-      try {
-        track.currentTime = 0;
-      } catch {
-        // Some mobile browsers disallow seeking before media metadata is ready.
-      }
-      fallback?.stop();
-      fallback = null;
-    },
-  };
-}
-
-function createSynthMusicLoop(): MusicLoop {
-  const AudioCtor = window.AudioContext ?? (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-  if (!AudioCtor) {
-    return { start: async () => undefined, stop: () => undefined };
-  }
-
-  const ctx = new AudioCtor({ latencyHint: 'playback' });
-  const master = ctx.createGain();
-  master.gain.value = 0.0001;
-  master.connect(ctx.destination);
-  const masterVolume = 0.34;
-
-  const melody = [392, 440, 523.25, 587.33, 523.25, 440, 392, 329.63];
-  const bass = [196, 246.94, 220, 174.61];
-  let step = 0;
-  let nextTime = ctx.currentTime + 0.06;
-
-  const pluck = (freq: number, time: number, duration: number, volume: number, type: OscillatorType) => {
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = type;
-    osc.frequency.setValueAtTime(freq, time);
-    gain.gain.setValueAtTime(0.0001, time);
-    gain.gain.exponentialRampToValueAtTime(volume, time + 0.018);
-    gain.gain.exponentialRampToValueAtTime(0.0001, time + duration);
-    osc.connect(gain);
-    gain.connect(master);
-    osc.start(time);
-    osc.stop(time + duration + 0.04);
-  };
-
-  const schedule = () => {
-    while (nextTime < ctx.currentTime + 0.55) {
-      const beat = step % 16;
-      if (beat % 2 === 0) {
-        pluck(melody[(step / 2) % melody.length], nextTime, 0.24, 0.06, 'triangle');
-      }
-      if (beat % 8 === 0) {
-        pluck(bass[(step / 8) % bass.length], nextTime, 0.46, 0.044, 'sine');
-      }
-      if (beat === 6 || beat === 14) {
-        pluck(880, nextTime + 0.015, 0.08, 0.024, 'sine');
-      }
-      nextTime += 0.18;
-      step += 1;
-    }
-  };
-
-  const timer = window.setInterval(schedule, 120);
-
-  return {
-    start: async () => {
-      if (ctx.state === 'suspended') await ctx.resume();
-      master.gain.cancelScheduledValues(ctx.currentTime);
-      master.gain.setTargetAtTime(masterVolume, ctx.currentTime, 0.08);
-      schedule();
-    },
-    stop: () => {
-      window.clearInterval(timer);
-      master.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.04);
-      window.setTimeout(() => void ctx.close(), 120);
-    },
-  };
 }

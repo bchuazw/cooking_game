@@ -8,43 +8,35 @@ const VIEWPORTS = [
   { name: 'compact-mobile', width: 375, height: 667 },
 ];
 
+const TARGETS = {
+  pantry: { name: 'Rice Pantry', x: -1.6, z: -2.0 },
+  riceCooker: { name: 'Rice Cooker', x: 1.75, z: -2.0 },
+  plate: { name: 'Plate Station', x: -0.15, z: 2.0 },
+  fridge: { name: 'Fridge', x: -3.15, z: -1.25 },
+  board: { name: 'Cutting Board', x: 0.05, z: -2.0 },
+  pot: { name: 'Stock Pot', x: 3.1, z: -0.35 },
+  mortar: { name: 'Chili Mortar', x: -2.4, z: 1.6 },
+  serve: { name: 'Serve Window', x: 1.75, z: 2.0 },
+};
+
 function fail(message) {
   throw new Error(message);
-}
-
-async function drag(page, from, to, steps = 12) {
-  await page.mouse.move(from.x, from.y);
-  await page.mouse.down();
-  await page.waitForTimeout(35);
-  await page.mouse.move(to.x, to.y, { steps });
-  await page.mouse.up();
-}
-
-async function scrubVertical(page, x, topY, bottomY, cycles = 9) {
-  await page.mouse.move(x, topY);
-  await page.mouse.down();
-  await page.waitForTimeout(35);
-  for (let i = 0; i < cycles; i++) {
-    await page.mouse.move(x, i % 2 ? topY : bottomY, { steps: 5 });
-    await page.waitForTimeout(35);
-  }
-  await page.mouse.up();
 }
 
 async function expectPanelFits(page, label) {
   const result = await page.evaluate(() => {
     const viewport = { width: window.innerWidth, height: window.innerHeight };
-    const selectors = ['.top-hud', '.play-panel', '.menu-card', '.result-card'];
+    const selectors = ['.top-hud', '.workflow-guide', '.move-pad', '.auto-panel', '.menu-card', '.result-card'];
     const boxes = selectors
       .map((selector) => {
         const element = document.querySelector(selector);
         if (!element) return null;
         const rect = element.getBoundingClientRect();
-        return { selector, top: rect.top, left: rect.left, right: rect.right, bottom: rect.bottom, width: rect.width, height: rect.height };
+        return { selector, top: rect.top, left: rect.left, right: rect.right, bottom: rect.bottom };
       })
       .filter(Boolean);
     const overflow = boxes.filter((box) => box.left < -1 || box.right > viewport.width + 1 || box.top < -1 || box.bottom > viewport.height + 1);
-    const crampedText = Array.from(document.querySelectorAll('button, .status-row span, .status-row strong, .step-copy h2, .step-copy p:last-child'))
+    const crampedText = Array.from(document.querySelectorAll('button, .order-ticket h2, .order-chip, .status-strip span, .status-strip em, .workflow-step b, .near-pill, .auto-task strong, .auto-panel p, .menu-card h1, .result-card h1'))
       .filter((node) => node instanceof HTMLElement)
       .filter((node) => node.scrollWidth > node.clientWidth + 2 || node.scrollHeight > node.clientHeight + 2)
       .map((node) => ({
@@ -55,7 +47,7 @@ async function expectPanelFits(page, label) {
         scrollHeight: node.scrollHeight,
         clientHeight: node.clientHeight,
       }));
-    return { viewport, overflow, crampedText };
+    return { overflow, crampedText };
   });
   if (result.overflow.length) fail(`${label}: layout overflow ${JSON.stringify(result.overflow)}`);
   if (result.crampedText.length) fail(`${label}: clipped text ${JSON.stringify(result.crampedText.slice(0, 3))}`);
@@ -76,94 +68,85 @@ async function sampleFps(page) {
   });
 }
 
-async function playPrep(page, viewportName) {
-  await page.getByTestId('chop-timing').click();
-  const cue = await page.getByTestId('chop-timing').innerText();
-  if (!/(Perfect|Good|Too early|Too late)/i.test(cue)) fail(`${viewportName}: chop timing tap did not show immediate feedback (${cue})`);
-  await page.waitForTimeout(620);
-  for (let i = 1; i < 4; i++) {
-    await page.getByTestId('chop-timing').click();
-    await page.waitForTimeout(650);
+async function readPosition(page) {
+  const text = await page.getByTestId('player-position').innerText();
+  const [x, z] = text.split(',').map(Number);
+  return { x, z };
+}
+
+async function holdKeys(page, keys, ms = 90) {
+  for (const key of keys) await page.keyboard.down(key);
+  await page.waitForTimeout(ms);
+  for (const key of keys) await page.keyboard.up(key);
+  await page.waitForTimeout(35);
+}
+
+async function moveToStation(page, id) {
+  const target = TARGETS[id];
+  for (let i = 0; i < 80; i += 1) {
+    if (await page.getByTestId('result-stars').count()) return;
+    const nearby = await page.getByTestId('nearby-station').innerText();
+    if (nearby.includes(target.name)) return;
+    const pos = await readPosition(page);
+    const dx = target.x - pos.x;
+    const dz = target.z - pos.z;
+    const keys = [];
+    if (Math.abs(dx) > 0.16) keys.push(dx > 0 ? 'ArrowRight' : 'ArrowLeft');
+    if (Math.abs(dz) > 0.16) keys.push(dz > 0 ? 'ArrowDown' : 'ArrowUp');
+    if (!keys.length) return;
+    await holdKeys(page, keys, 85);
   }
-  await page.getByRole('heading', { name: 'Toast the Rice' }).waitFor({ timeout: 5000 });
+  fail(`Could not reach ${target.name}`);
 }
 
-async function playRice(page) {
-  const pad = await page.getByTestId('toss-pad').boundingBox();
-  if (!pad) fail('rice: toss pad missing');
-  const y = pad.y + pad.height * 0.58;
-  for (let i = 0; i < 4; i++) {
-    const fromX = pad.x + pad.width * (i % 2 ? 0.82 : 0.18);
-    const toX = pad.x + pad.width * (i % 2 ? 0.18 : 0.82);
-    await drag(page, { x: fromX, y }, { x: toX, y: y + (i % 2 ? -8 : 8) }, 14);
-    await page.waitForTimeout(260);
-  }
-  await page.getByRole('heading', { name: 'Poach the Chicken' }).waitFor({ timeout: 5000 });
-}
-
-async function playPoach(page, viewportName) {
-  const rail = await page.getByTestId('simmer-slider').boundingBox();
-  if (!rail) fail('poach: heat rail missing');
-  await drag(page, { x: rail.x + rail.width / 2, y: rail.y + rail.height * 0.86 }, { x: rail.x + rail.width / 2, y: rail.y + rail.height * 0.38 }, 12);
-  await page.waitForTimeout(250);
-  const readyText = await page.getByTestId('stir-pot').innerText();
-  if (!/Keep thermometer/i.test(readyText)) fail(`${viewportName}: poach did not enter the green hold zone (${readyText})`);
-  await page.getByRole('heading', { name: 'Make the Chili Sauce' }).waitFor({ timeout: 7000 });
-}
-
-async function playSauce(page) {
-  for (const id of ['chili', 'ginger', 'garlic', 'lime']) {
-    const mortar = await page.getByTestId('mortar-pad').boundingBox();
-    const token = await page.getByTestId(`sauce-token-${id}`).boundingBox();
-    if (!mortar || !token) fail(`sauce: mortar or ${id} token missing`);
-    await drag(
-      page,
-      { x: token.x + token.width / 2, y: token.y + token.height / 2 },
-      { x: mortar.x + mortar.width / 2, y: mortar.y + mortar.height / 2 },
-      12,
-    );
-    await page.waitForTimeout(130);
-    const added = await page.getByTestId(`sauce-token-${id}`).evaluate((node) => node.classList.contains('done'));
-    if (!added) fail(`sauce: dragging ${id} did not add it to the mortar`);
-  }
-  const pad = await page.getByTestId('mortar-pad').boundingBox();
-  if (!pad) fail('sauce: mortar pad missing');
-  await scrubVertical(page, pad.x + pad.width * 0.52, pad.y + pad.height * 0.28, pad.y + pad.height * 0.84, 10);
-  await page.getByRole('heading', { name: 'Plate the Set' }).waitFor({ timeout: 7000 });
-}
-
-async function playPlate(page, viewportName) {
-  const targets = {
-    rice: { x: 0.38, y: 0.58 },
-    chicken: { x: 0.58, y: 0.56 },
-    cucumber: { x: 0.52, y: 0.76 },
-    chili: { x: 0.73, y: 0.7 },
-  };
-  let plate = await page.getByTestId('plate-drop').boundingBox();
-  let rice = await page.getByTestId('plate-token-rice').boundingBox();
-  if (!plate || !rice) fail('plate: drop target or rice token missing');
-  await drag(
-    page,
-    { x: rice.x + rice.width / 2, y: rice.y + rice.height / 2 },
-    { x: plate.x + plate.width * targets.rice.x, y: plate.y + plate.height * targets.rice.y },
-    14,
+async function waitHeld(page, text, timeout = 9000) {
+  const pattern = text instanceof RegExp ? text : new RegExp(text, 'i');
+  await page.waitForFunction(
+    ([source, flags]) => new RegExp(source, flags).test(document.querySelector('[data-testid="held-item"]')?.textContent ?? ''),
+    [pattern.source, pattern.flags],
+    { timeout },
   );
-  await page.waitForTimeout(220);
-  const plateText = await page.locator('.plate-status').innerText();
-  if (!/1\/4/.test(plateText)) fail(`${viewportName}: plate drag did not place rice (${plateText})`);
-  for (const id of ['chicken', 'cucumber', 'chili']) {
-    plate = await page.getByTestId('plate-drop').boundingBox();
-    const token = await page.getByTestId(`plate-token-${id}`).boundingBox();
-    if (!plate || !token) fail(`plate: ${id} token missing`);
-    await drag(
-      page,
-      { x: token.x + token.width / 2, y: token.y + token.height / 2 },
-      { x: plate.x + plate.width * targets[id].x, y: plate.y + plate.height * targets[id].y },
-      14,
-    );
-    await page.waitForTimeout(160);
-  }
-  await page.getByTestId('result-stars').waitFor({ timeout: 7000 });
+}
+
+async function playFullOrder(page, viewportName) {
+  await moveToStation(page, 'pantry');
+  await waitHeld(page, /uncooked rice/i);
+  await expectPanelFits(page, `${viewportName}: rice pickup`);
+
+  await moveToStation(page, 'riceCooker');
+  await waitHeld(page, /empty hands/i);
+
+  await moveToStation(page, 'fridge');
+  await waitHeld(page, /raw chicken/i);
+
+  await moveToStation(page, 'board');
+  await waitHeld(page, /cut chicken/i);
+  await expectPanelFits(page, `${viewportName}: chicken cut`);
+
+  await moveToStation(page, 'pot');
+  await waitHeld(page, /empty hands/i);
+
+  await moveToStation(page, 'mortar');
+  await waitHeld(page, /chili sauce/i);
+  await expectPanelFits(page, `${viewportName}: sauce ready`);
+
+  await moveToStation(page, 'plate');
+  await waitHeld(page, /empty hands/i);
+
+  await moveToStation(page, 'riceCooker');
+  await waitHeld(page, /fragrant rice/i, 12000);
+
+  await moveToStation(page, 'plate');
+  await waitHeld(page, /empty hands/i);
+
+  await moveToStation(page, 'pot');
+  await waitHeld(page, /poached chicken/i, 12000);
+
+  await moveToStation(page, 'plate');
+  await waitHeld(page, /chicken rice/i);
+
+  await moveToStation(page, 'serve');
+  await page.getByTestId('result-stars').waitFor({ timeout: 10000 });
 }
 
 async function runViewport(browser, viewport) {
@@ -187,17 +170,8 @@ async function runViewport(browser, viewport) {
   if (fps < 45) fail(`${viewport.name}: low frame rate sample (${fps} FPS)`);
   await page.getByTestId('start-chicken-rice').click();
   await page.waitForTimeout(350);
-  await expectPanelFits(page, `${viewport.name}: prep`);
-  await page.locator('.coach-hand.show').first().waitFor({ timeout: 2500 });
-  await playPrep(page, viewport.name);
-  await expectPanelFits(page, `${viewport.name}: rice`);
-  await playRice(page);
-  await expectPanelFits(page, `${viewport.name}: poach`);
-  await playPoach(page, viewport.name);
-  await expectPanelFits(page, `${viewport.name}: sauce`);
-  await playSauce(page);
-  await expectPanelFits(page, `${viewport.name}: plate`);
-  await playPlate(page, viewport.name);
+  await expectPanelFits(page, `${viewport.name}: kitchen`);
+  await playFullOrder(page, viewport.name);
   await expectPanelFits(page, `${viewport.name}: result`);
   const stars = await page.getByTestId('result-stars').innerText();
   await page.close();
@@ -217,7 +191,7 @@ async function main() {
     await browser.close();
   }
 
-  console.log('\n=== Mobile usability regression ===');
+  console.log('\n=== Mobile auto-station regression ===');
   for (const result of results) {
     console.log(`OK ${result.viewport}: ${result.stars} at ${result.fps} FPS sample`);
   }
