@@ -7,6 +7,7 @@ interface StepResult {
   title: string;
   score: number;
   tier: Tier;
+  note: string;
 }
 
 type Screen = 'menu' | 'cook' | 'result';
@@ -84,7 +85,10 @@ export default function App() {
       title: step.title,
       score,
       tier: tierFromScore(score),
+      note: feedbackNote(step.id, score),
     };
+    playSfx(score >= 0.86 ? 'gold' : 'success');
+    haptic(score >= 0.86 ? 28 : 18);
     setFeedback(result);
     setResults((prev) => [...prev, result]);
 
@@ -219,6 +223,7 @@ function CookScreen({
       {feedback && (
         <div className={`feedback ${feedback.tier}`} role="status">
           <strong>{feedback.tier}</strong>
+          <em>{feedback.note}</em>
           <span>{Math.round(feedback.score * 100)}%</span>
         </div>
       )}
@@ -257,6 +262,7 @@ function PrepGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => vo
   const startedAt = useRef(performance.now());
   const roundStarted = useRef(performance.now());
   const phaseOffset = useRef(firstPhase.current);
+  const [showHint, dismissHint] = useCoachHint(`${active}:${cutting}`, 1300);
 
   useEffect(() => {
     onVisual({ prepCuts: cuts, prepActive: active, prepBlade: bladeRef.current });
@@ -282,6 +288,9 @@ function PrepGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => vo
 
   const chop = () => {
     if (active >= ingredients.length || cutting) return;
+    dismissHint();
+    playSfx('chop');
+    haptic(12);
     const accuracy = 1 - Math.min(1, Math.abs(bladeRef.current - 0.5) / 0.5);
     const quality = clamp(0.72 + accuracy * 0.28, 0.72, 1);
     const label = accuracy > 0.82 ? 'Perfect chop' : accuracy > 0.48 ? 'Good chop' : bladeRef.current < 0.5 ? 'Too early, still chopped' : 'Too late, still chopped';
@@ -332,6 +341,7 @@ function PrepGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => vo
         <i className="target-zone" />
         <b style={{ left: `calc(${blade * 100}% - 8px)` }} />
         <span>{chopCue}</span>
+        <CoachHand visible={showHint && !cutting} variant="tap" />
       </div>
       <button className="chop-button" data-testid="chop-button" onClick={chop} disabled={cutting}>
         {cutting ? 'Chopped!' : `Chop ${ingredients[active] ?? ''}`}
@@ -356,6 +366,7 @@ function StirGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => vo
   const targetPowerRef = useRef(firstTarget.current);
   const dragRef = useRef<{ x: number; y: number; time: number; pointerId: number } | null>(null);
   const done = useRef(false);
+  const [showHint, dismissHint] = useCoachHint(`${tosses}:${tossing}`, 1300);
 
   const refreshTarget = () => {
     const next = randomTossTarget();
@@ -373,6 +384,8 @@ function StirGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => vo
     const closeness = 1 - Math.min(1, Math.abs(releasePower - targetPowerRef.current) / 0.42);
     const quality = clamp((0.54 + closeness * 0.46) * (0.92 + straight * 0.08), 0.54, 1);
     scoresRef.current.push(quality);
+    playSfx(closeness > 0.58 ? 'toss' : 'tap');
+    haptic(closeness > 0.58 ? 16 : 8);
     tossesRef.current += 1;
     setTosses(tossesRef.current);
     setCue(closeness > 0.84 ? 'Perfect toss' : closeness > 0.58 ? 'Good toss' : releasePower > targetPowerRef.current ? 'Too high' : 'Too low');
@@ -405,6 +418,7 @@ function StirGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => vo
   const startSwipe = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (done.current || tossing) return;
     event.preventDefault();
+    dismissHint();
     event.currentTarget.setPointerCapture(event.pointerId);
     dragRef.current = { x: event.clientX, y: event.clientY, time: performance.now(), pointerId: event.pointerId };
     setCue('Pull up');
@@ -469,6 +483,7 @@ function StirGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => vo
         <i style={{ height: `${34 + dragPower * 118}px` }} />
         <b>UP</b>
         <span>{tossing ? 'Rice tossed!' : cue}</span>
+        <CoachHand visible={showHint && !tossing && dragPower === 0} variant="swipe-up" />
       </div>
       <ProgressBar value={progress} />
     </div>
@@ -491,10 +506,10 @@ function SimmerGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => 
   const stirAngleRef = useRef(-0.6);
   const stirPowerRef = useRef(0);
   const bubbleStartedAt = useRef(performance.now());
+  const inZone = isSimmerHeat(heat);
   const stirDrag = useRef<{ lastAngle: number; lastX: number; lastY: number; accumulated: number; pointerId: number } | null>(null);
   const scoresRef = useRef<number[]>([]);
-
-  const inZone = isSimmerHeat(heat);
+  const [showHint, dismissHint] = useCoachHint(`${inZone}:${turns}:${hold > 0}`, 1300);
   const temperature = Math.round(44 + heat * 42);
   const targetTurns = 3;
   const progress = clamp((hold / 1800) * 0.48 + (turns / targetTurns) * 0.52, 0, 1);
@@ -538,6 +553,7 @@ function SimmerGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => 
     const rect = railRef.current?.getBoundingClientRect();
     if (!rect) return;
     const next = 1 - clamp((clientY - rect.top) / rect.height, 0, 1);
+    dismissHint();
     heatRef.current = next;
     setHeat(next);
     setCue(isSimmerHeat(next) ? 'Now stir circles' : next < SIMMER_MIN ? 'Drag heat up' : 'Lower heat');
@@ -559,6 +575,8 @@ function SimmerGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => 
     const next = Math.min(targetTurns, turnsRef.current + 1);
     turnsRef.current = next;
     setTurns(next);
+    playSfx('stir');
+    haptic(12);
     scoresRef.current.push(clamp(0.72 + heatRef.current * 0.32, 0.72, 1));
     setCue(next >= targetTurns ? 'Chicken poached' : 'Good stir');
     onVisual({ simmerHits: next, simmerStir: 1, simmerStirAngle: stirAngleRef.current, pulse: performance.now() });
@@ -566,7 +584,14 @@ function SimmerGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => 
 
   const startStir = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (done.current) return;
+    if (!isSimmerHeat(heatRef.current)) {
+      setCue('Set heat in green zone');
+      playSfx('tap');
+      onVisual({ pulse: performance.now() });
+      return;
+    }
     event.preventDefault();
+    dismissHint();
     event.currentTarget.setPointerCapture(event.pointerId);
     const angle = angleFromPoint(event.clientX, event.clientY);
     stirDrag.current = { lastAngle: angle, lastX: event.clientX, lastY: event.clientY, accumulated: 0, pointerId: event.pointerId };
@@ -642,6 +667,7 @@ function SimmerGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => 
         >
           <i className="simmer-zone">target</i>
           <b style={{ bottom: `calc(${heat * 100}% - 18px)` }}>drag</b>
+          <CoachHand visible={showHint && !inZone} variant="drag-heat" />
         </div>
         <div
           ref={stirRef}
@@ -663,6 +689,7 @@ function SimmerGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => 
           />
           <span>{inZone ? 'Circle here to stir' : 'Set heat in green zone'}</span>
           <strong>{turns}/{targetTurns}</strong>
+          <CoachHand visible={showHint && inZone && turns < targetTurns} variant="circle" />
         </div>
       </div>
       <ProgressBar value={progress} />
@@ -686,8 +713,12 @@ function SauceGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => v
   const done = useRef(false);
   const mashesRef = useRef(0);
   const mashDrag = useRef<{ startY: number; pointerId: number; press: number } | null>(null);
+  const [showHint, dismissHint] = useCoachHint(`${added.length}:${mashes}:${press > 0}`, 1300);
 
   const add = (id: string) => {
+    dismissHint();
+    playSfx('tap');
+    haptic(8);
     setAdded((prev) => {
       if (prev.includes(id)) return prev;
       const next = [...prev, id];
@@ -703,6 +734,8 @@ function SauceGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => v
     mashesRef.current = next;
     setMashes(next);
     setPounding(true);
+    playSfx('pound');
+    haptic(18);
     setCue(next >= 4 ? 'Sauce ready' : 'Pull pestle down');
     onVisual({ mashCount: next, mashPress: 0, mashPound: performance.now(), sauceItems: added, pulse: performance.now() });
     window.setTimeout(() => setPounding(false), 220);
@@ -719,6 +752,7 @@ function SauceGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => v
       return;
     }
     event.preventDefault();
+    dismissHint();
     event.currentTarget.setPointerCapture(event.pointerId);
     mashDrag.current = { startY: event.clientY, pointerId: event.pointerId, press: 0 };
     setPress(0.08);
@@ -787,6 +821,7 @@ function SauceGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => v
             <span>{label}</span>
           </button>
         ))}
+        <CoachHand visible={showHint && added.length < items.length} variant="tap-token" />
       </div>
       <div
         className={`mortar-pad sauce-pound ${added.length >= items.length ? 'ready' : ''} ${pounding ? 'is-pounding' : ''}`}
@@ -804,6 +839,7 @@ function SauceGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => v
         </i>
         <span>{added.length < items.length ? 'Tap ingredients first' : press >= MASH_READY_PRESS ? 'Release to pound' : 'Pull pestle down'}</span>
         <strong>{mashes}/4</strong>
+        <CoachHand visible={showHint && added.length >= items.length && !pounding && press === 0} variant="drag-down" />
       </div>
       <ProgressBar value={(added.length / items.length) * 0.55 + (mashes / 4) * 0.45} />
     </div>
@@ -824,12 +860,15 @@ function PlateGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => v
   const plateRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ id: string; pointerId: number; startX: number; startY: number } | null>(null);
   const ignoreClick = useRef(false);
+  const [showHint, dismissHint] = useCoachHint(`${placed.length}:${dragGhost?.id ?? ''}`, 1300);
 
   const place = (id: string) => {
     if (done.current) return;
     setPlaced((prev) => {
       if (prev.includes(id)) return prev;
       const next = [...prev, id];
+      playSfx(next.length >= items.length ? 'success' : 'plate');
+      haptic(next.length >= items.length ? 18 : 10);
       onVisual({ plateItems: next, pulse: performance.now() });
       if (next.length >= items.length) {
         done.current = true;
@@ -842,6 +881,7 @@ function PlateGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => v
 
   const startDrag = (event: ReactPointerEvent<HTMLButtonElement>, id: string) => {
     if (done.current || placed.includes(id)) return;
+    dismissHint();
     dragRef.current = { id, pointerId: event.pointerId, startX: event.clientX, startY: event.clientY };
     setDragGhost({ id, x: event.clientX, y: event.clientY });
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -884,6 +924,7 @@ function PlateGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => v
       ignoreClick.current = false;
       return;
     }
+    dismissHint();
     place(id);
   };
 
@@ -898,6 +939,7 @@ function PlateGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => v
           <i className={`plated-piece chili ${placed.includes('chili') ? 'in' : ''}`} />
         </div>
         <strong>{placed.length >= items.length ? 'Ready to serve' : `${placed.length}/4 on plate`}</strong>
+        <CoachHand visible={showHint && placed.length === 0 && !dragGhost} variant="tap" />
       </div>
       <div className="token-grid plate-tray">
         {items.map(([id, label]) => (
@@ -970,8 +1012,25 @@ function ResultScreen({
   );
 }
 
+function CoachHand({ visible, variant }: { visible: boolean; variant: 'tap' | 'tap-token' | 'swipe-up' | 'drag-heat' | 'circle' | 'drag-down' }) {
+  return <i className={`coach-hand ${variant} ${visible ? 'show' : ''}`} aria-hidden="true" />;
+}
+
 function ProgressBar({ value }: { value: number }) {
   return <div className="progress-bar"><i style={{ width: `${clamp(value, 0, 1) * 100}%` }} /></div>;
+}
+
+function useCoachHint(signal: string, delay = 1300) {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    setVisible(false);
+    const timer = window.setTimeout(() => setVisible(true), delay);
+    return () => window.clearTimeout(timer);
+  }, [signal, delay]);
+
+  const dismiss = useCallback(() => setVisible(false), []);
+  return [visible, dismiss] as const;
 }
 
 function loadBest() {
@@ -1001,6 +1060,86 @@ function randomTossTarget() {
 
 function renderStars(value: number) {
   return FILLED_STAR.repeat(value) + EMPTY_STAR.repeat(3 - value);
+}
+
+function feedbackNote(stepId: string, score: number) {
+  const level = score >= 0.86 ? 0 : score >= 0.64 ? 1 : 2;
+  const notes: Record<string, [string, string, string]> = {
+    'prep-aromatics': ['Sharp timing', 'Good cuts', 'Center the blade'],
+    'toast-rice': ['Great toss', 'Rice toasted', 'Aim for gold'],
+    'poach-chicken': ['Silky poach', 'Heat steady', 'Watch the heat'],
+    'make-chili': ['Sauce bright', 'Good pounding', 'Pull lower'],
+    'plate-set': ['Beautiful plate', 'Set plated', 'Keep assembling'],
+  };
+  return (notes[stepId] ?? ['Nice work', 'Good try', 'Try again'])[level];
+}
+
+type SfxKind = 'tap' | 'chop' | 'toss' | 'stir' | 'pound' | 'plate' | 'success' | 'gold';
+
+let sfxContext: AudioContext | null = null;
+
+function playSfx(kind: SfxKind) {
+  try {
+    const AudioCtor = window.AudioContext ?? (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioCtor) return;
+    if (!sfxContext || sfxContext.state === 'closed') {
+      sfxContext = new AudioCtor({ latencyHint: 'interactive' });
+    }
+    void sfxContext.resume();
+    const ctx = sfxContext;
+    const now = ctx.currentTime + 0.01;
+    const master = ctx.createGain();
+    master.gain.value = 0.55;
+    master.connect(ctx.destination);
+
+    const blip = (freq: number, delay: number, duration: number, volume: number, type: OscillatorType, slideTo?: number) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const start = now + delay;
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, start);
+      if (slideTo) osc.frequency.exponentialRampToValueAtTime(slideTo, start + duration * 0.82);
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(volume, start + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+      osc.connect(gain);
+      gain.connect(master);
+      osc.start(start);
+      osc.stop(start + duration + 0.03);
+    };
+
+    if (kind === 'tap') blip(520, 0, 0.06, 0.045, 'triangle', 610);
+    if (kind === 'chop') {
+      blip(190, 0, 0.055, 0.09, 'square', 95);
+      blip(760, 0.012, 0.035, 0.035, 'triangle', 520);
+    }
+    if (kind === 'toss') {
+      blip(330, 0, 0.09, 0.05, 'triangle', 560);
+      blip(660, 0.08, 0.08, 0.04, 'sine', 880);
+    }
+    if (kind === 'stir') blip(240, 0, 0.08, 0.04, 'sine', 300);
+    if (kind === 'pound') {
+      blip(140, 0, 0.07, 0.1, 'square', 80);
+      blip(360, 0.02, 0.05, 0.035, 'triangle', 220);
+    }
+    if (kind === 'plate') blip(620, 0, 0.08, 0.045, 'triangle', 760);
+    if (kind === 'success' || kind === 'gold') {
+      const chord = kind === 'gold' ? [523.25, 659.25, 783.99] : [392, 493.88, 659.25];
+      chord.forEach((freq, i) => blip(freq, i * 0.045, 0.16, 0.04, 'triangle', freq * 1.08));
+    }
+    window.setTimeout(() => master.disconnect(), 420);
+  } catch {
+    // Sound effects are progressive enhancement; gameplay must never depend on them.
+  }
+}
+
+function haptic(duration: number) {
+  try {
+    const nav = navigator as Navigator & { vibrate?: (pattern: number | number[]) => boolean };
+    nav.vibrate?.(duration);
+  } catch {
+    // Vibration support varies by browser and device.
+  }
 }
 
 interface MusicLoop {

@@ -169,6 +169,7 @@ async function runViewport(browser, viewport) {
   await page.getByTestId('start-chicken-rice').click();
   await page.waitForTimeout(350);
   await expectPanelFits(page, `${viewport.name}: prep`);
+  await page.locator('.coach-hand.show').first().waitFor({ timeout: 2500 });
   await playPrep(page, viewport.name);
   await expectPanelFits(page, `${viewport.name}: rice`);
   await playRice(page);

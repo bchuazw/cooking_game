@@ -999,6 +999,7 @@ p {
 }
 
 .sauce-tray {
+  position: relative;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 8px;
@@ -1211,7 +1212,7 @@ p {
 .sauce-pound span,
 .sauce-pound strong {
   position: relative;
-  z-index: 1;
+  z-index: 4;
 }
 
 @keyframes pound-flash {
@@ -1505,6 +1506,101 @@ p {
   color: var(--paper);
 }
 
+.feedback em {
+  max-width: 142px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(255, 250, 240, 0.94);
+  color: var(--ink);
+  font-size: 12px;
+  font-style: normal;
+  line-height: 1;
+}
+
+.coach-hand {
+  position: absolute;
+  z-index: 8;
+  left: var(--hand-x, 50%);
+  top: var(--hand-y, 50%);
+  width: 38px;
+  height: 38px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, -50%) scale(0.86);
+}
+
+.coach-hand::before {
+  content: "";
+  position: absolute;
+  left: 12px;
+  top: 3px;
+  width: 16px;
+  height: 29px;
+  border: 2px solid rgba(33, 26, 23, 0.28);
+  border-radius: 11px 11px 8px 8px;
+  background: #fffaf0;
+  box-shadow: 0 8px 12px rgba(33, 26, 23, 0.2);
+  transform: rotate(-16deg);
+}
+
+.coach-hand::after {
+  content: "";
+  position: absolute;
+  left: 7px;
+  top: 16px;
+  width: 27px;
+  height: 17px;
+  border-radius: 999px;
+  background: rgba(255, 250, 240, 0.86);
+  box-shadow: inset 0 0 0 2px rgba(33, 26, 23, 0.16), 0 8px 12px rgba(33, 26, 23, 0.16);
+}
+
+.coach-hand.show.tap,
+.coach-hand.show.tap-token {
+  animation: hand-tap 980ms ease-in-out infinite;
+}
+
+.coach-hand.show.swipe-up {
+  --hand-y: 74%;
+  animation: hand-swipe-up 1200ms ease-in-out infinite;
+}
+
+.coach-hand.show.drag-heat {
+  --hand-y: 78%;
+  animation: hand-drag-heat 1300ms ease-in-out infinite;
+}
+
+.coach-hand.show.circle {
+  --hand-y: 42%;
+  animation: hand-circle 1300ms ease-in-out infinite;
+}
+
+.coach-hand.show.drag-down {
+  --hand-y: 28%;
+  animation: hand-drag-down 1200ms ease-in-out infinite;
+}
+
+.coach-hand.tap-token {
+  --hand-x: 12%;
+  --hand-y: 58%;
+}
+
+.chop-timing .coach-hand.tap {
+  --hand-x: 86%;
+  --hand-y: 50%;
+}
+
+.plate-stage .coach-hand.tap {
+  --hand-x: 82%;
+  --hand-y: 72%;
+}
+
+.sauce-pound .coach-hand.drag-down {
+  --hand-x: 42%;
+  --hand-y: 34%;
+  z-index: 2;
+}
+
 .result-card {
   top: 50%;
   bottom: auto;
@@ -1631,6 +1727,94 @@ p {
   }
   50% {
     box-shadow: 0 0 0 6px rgba(255, 250, 240, 0.58), 0 8px 14px rgba(135, 91, 28, 0.24);
+  }
+}
+
+@keyframes hand-tap {
+  0%,
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.86);
+  }
+  28%,
+  70% {
+    opacity: 1;
+  }
+  48% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(0.72);
+  }
+}
+
+@keyframes hand-swipe-up {
+  0%,
+  100% {
+    opacity: 0;
+    transform: translate(-50%, 24px) scale(0.86);
+  }
+  18%,
+  76% {
+    opacity: 1;
+  }
+  66% {
+    opacity: 1;
+    transform: translate(-50%, -72px) scale(0.86);
+  }
+}
+
+@keyframes hand-drag-heat {
+  0%,
+  100% {
+    opacity: 0;
+    transform: translate(-50%, 26px) scale(0.86);
+  }
+  18%,
+  80% {
+    opacity: 1;
+  }
+  70% {
+    opacity: 1;
+    transform: translate(-50%, -54px) scale(0.86);
+  }
+}
+
+@keyframes hand-circle {
+  0% {
+    opacity: 0;
+    transform: translate(calc(-50% + 44px), calc(-50% + 0px)) scale(0.82);
+  }
+  18%,
+  88% {
+    opacity: 1;
+  }
+  32% {
+    transform: translate(calc(-50% + 0px), calc(-50% + 34px)) scale(0.82);
+  }
+  52% {
+    transform: translate(calc(-50% - 44px), calc(-50% + 0px)) scale(0.82);
+  }
+  72% {
+    transform: translate(calc(-50% + 0px), calc(-50% - 34px)) scale(0.82);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + 44px), calc(-50% + 0px)) scale(0.82);
+  }
+}
+
+@keyframes hand-drag-down {
+  0%,
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -16px) scale(0.86);
+  }
+  18%,
+  82% {
+    opacity: 1;
+  }
+  68% {
+    opacity: 1;
+    transform: translate(-50%, 34px) scale(0.86);
   }
 }
 
