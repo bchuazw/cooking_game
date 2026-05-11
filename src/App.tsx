@@ -249,6 +249,7 @@ function MiniGame({
 
 function PrepGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => void; onFinish: (score: number) => void }) {
   const ingredients = ['Garlic', 'Ginger', 'Pandan', 'Shallot'];
+  const ingredientIds = ['garlic', 'ginger', 'pandan', 'shallot'];
   const firstPhase = useRef(Math.random());
   const firstBlade = useRef(trianglePhase(firstPhase.current));
   const [active, setActive] = useState(0);
@@ -339,9 +340,15 @@ function PrepGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => vo
         }}
       >
         <i className="target-zone" />
+        <i aria-hidden="true" className={`prep-board-object ${ingredientIds[active] ?? 'done'} ${cutting ? 'is-cut' : ''}`} />
         <b style={{ left: `calc(${blade * 100}% - 8px)` }} />
         <span>{chopCue}</span>
         <CoachHand visible={showHint && !cutting} variant="tap" />
+      </div>
+      <div className="prep-ingredient-strip" aria-hidden="true">
+        {ingredients.map((name, index) => (
+          <i key={name} className={`prep-ingredient-dot ${ingredientIds[index]} ${index < cuts ? 'done' : index === active ? 'active' : ''}`} />
+        ))}
       </div>
       <button className="chop-button" data-testid="chop-button" onClick={chop} disabled={cutting}>
         {cutting ? 'Chopped!' : `Chop ${ingredients[active] ?? ''}`}
@@ -479,6 +486,14 @@ function StirGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => vo
         onPointerUp={endSwipe}
         onPointerCancel={resetDrag}
       >
+        <div className="rice-toss-scene" aria-hidden="true">
+          <i className="mini-wok" />
+          <i
+            className="mini-rice-mound"
+            style={{ transform: `translate(-50%, ${tossing ? '-82px' : `${-dragPower * 38}px`}) scale(${1 + dragPower * 0.16})` }}
+          />
+          <i className="mini-wok-spoon" style={{ transform: `rotate(${-18 - dragPower * 22}deg)` }} />
+        </div>
         <em aria-hidden="true" style={{ bottom: `${34 + targetPower * 118}px` }} />
         <i style={{ height: `${34 + dragPower * 118}px` }} />
         <b>UP</b>
@@ -681,6 +696,7 @@ function SimmerGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => 
           onPointerCancel={endStir}
         >
           <i aria-hidden="true" className="stock-surface" />
+          <i aria-hidden="true" className={`stock-chicken ${inZone ? 'warm' : ''}`} />
           <b aria-hidden="true" className="stir-path" />
           <em
             aria-hidden="true"
@@ -699,33 +715,95 @@ function SimmerGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => 
 
 function SauceGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => void; onFinish: (score: number) => void }) {
   const items = [
-    ['chili', 'Chili'],
-    ['ginger', 'Ginger'],
-    ['garlic', 'Garlic'],
-    ['lime', 'Lime'],
+    ['chili', 'Chili', 'red heat'],
+    ['ginger', 'Ginger', 'warm bite'],
+    ['garlic', 'Garlic', 'aroma'],
+    ['lime', 'Lime', 'bright juice'],
   ] as const;
   const [added, setAdded] = useState<string[]>([]);
   const [mashes, setMashes] = useState(0);
   const [press, setPress] = useState(0);
   const [pounding, setPounding] = useState(false);
-  const [cue, setCue] = useState('Add ingredients');
+  const [cue, setCue] = useState('Drag ingredients into mortar');
+  const [dragging, setDragging] = useState<{ id: string; x: number; y: number } | null>(null);
   const startedAt = useRef(performance.now());
   const done = useRef(false);
   const mashesRef = useRef(0);
+  const mortarRef = useRef<HTMLDivElement>(null);
+  const ingredientDrag = useRef<{ id: string; startX: number; startY: number; pointerId: number; moved: boolean } | null>(null);
   const mashDrag = useRef<{ startY: number; pointerId: number; press: number } | null>(null);
-  const [showHint, dismissHint] = useCoachHint(`${added.length}:${mashes}:${press > 0}`, 1300);
+  const [showHint, dismissHint] = useCoachHint(`${added.length}:${mashes}:${press > 0}:${dragging?.id ?? ''}`, 1300);
 
   const add = (id: string) => {
+    if (done.current || added.includes(id)) return;
     dismissHint();
     playSfx('tap');
     haptic(8);
     setAdded((prev) => {
       if (prev.includes(id)) return prev;
       const next = [...prev, id];
-      setCue(next.length >= items.length ? 'Pull pestle down' : 'Add ingredients');
-      onVisual({ sauceItems: next, pulse: performance.now() });
+      const item = items.find(([itemId]) => itemId === id);
+      setCue(next.length >= items.length ? 'All in. Pull pestle down' : `${item?.[1] ?? 'Ingredient'} in mortar`);
+      const now = performance.now();
+      onVisual({ sauceItems: next, sauceLastItem: id, sauceDropAt: now, pulse: now });
       return next;
     });
+  };
+
+  const startIngredient = (event: ReactPointerEvent<HTMLButtonElement>, id: string) => {
+    if (done.current || added.includes(id)) return;
+    event.preventDefault();
+    dismissHint();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    ingredientDrag.current = { id, startX: event.clientX, startY: event.clientY, pointerId: event.pointerId, moved: false };
+    setDragging({ id, x: event.clientX, y: event.clientY });
+    const item = items.find(([itemId]) => itemId === id);
+    setCue(`Drop ${item?.[1] ?? 'ingredient'} into mortar`);
+  };
+
+  const moveIngredient = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const drag = ingredientDrag.current;
+    if (!drag || done.current) return;
+    event.preventDefault();
+    const distance = Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY);
+    drag.moved = drag.moved || distance > 6;
+    setDragging({ id: drag.id, x: event.clientX, y: event.clientY });
+  };
+
+  const endIngredient = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const drag = ingredientDrag.current;
+    if (!drag) return;
+    event.preventDefault();
+    try {
+      event.currentTarget.releasePointerCapture(drag.pointerId);
+    } catch {
+      // Pointer capture can already be gone after touch cancellation.
+    }
+    ingredientDrag.current = null;
+    setDragging(null);
+    const rect = mortarRef.current?.getBoundingClientRect();
+    const overMortar = rect
+      ? event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom
+      : false;
+    if (!drag.moved || overMortar) {
+      add(drag.id);
+      return;
+    }
+    playSfx('tap');
+    haptic(8);
+    setCue('Drop it inside the mortar');
+  };
+
+  const cancelIngredient = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const drag = ingredientDrag.current;
+    if (!drag) return;
+    try {
+      event.currentTarget.releasePointerCapture(drag.pointerId);
+    } catch {
+      // Pointer capture can already be gone after touch cancellation.
+    }
+    ingredientDrag.current = null;
+    setDragging(null);
   };
 
   const completeMash = () => {
@@ -736,7 +814,7 @@ function SauceGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => v
     setPounding(true);
     playSfx('pound');
     haptic(18);
-    setCue(next >= 4 ? 'Sauce ready' : 'Pull pestle down');
+    setCue(next >= 4 ? 'Chili sauce ready' : `Crushing into sauce ${next}/4`);
     onVisual({ mashCount: next, mashPress: 0, mashPound: performance.now(), sauceItems: added, pulse: performance.now() });
     window.setTimeout(() => setPounding(false), 220);
     if (next >= 4) {
@@ -748,7 +826,8 @@ function SauceGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => v
 
   const startMash = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (added.length < items.length || done.current) {
-      setCue('Add ingredients first');
+      setCue('Add all ingredients first');
+      playSfx('tap');
       return;
     }
     event.preventDefault();
@@ -766,7 +845,7 @@ function SauceGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => v
     const nextPress = clamp((event.clientY - drag.startY) / 86, 0, 1);
     drag.press = nextPress;
     setPress(nextPress);
-    setCue(nextPress >= MASH_READY_PRESS ? 'Release to pound' : 'Pull down lower');
+    setCue(nextPress >= MASH_READY_PRESS ? 'Release to crush' : 'Pull pestle lower');
     onVisual({ mashPress: nextPress, sauceItems: added });
   };
 
@@ -781,7 +860,7 @@ function SauceGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => v
     }
     mashDrag.current = null;
     if (drag.press >= MASH_READY_PRESS) completeMash();
-    else setCue('Pull lower');
+    else setCue('Pull lower to crush');
     setPress(0);
     onVisual({ mashPress: 0, sauceItems: added });
   };
@@ -790,41 +869,15 @@ function SauceGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => v
     <div className="mini sauce-mini">
       <div className="status-row">
         <span>{cue}</span>
-        <strong>{added.length}/4</strong>
+        <strong>{added.length < items.length ? `${added.length}/4` : `${mashes}/4`}</strong>
       </div>
-      <div className="sauce-station">
-        <div className="sauce-bowl">
-          <i aria-hidden="true" />
-          <b
-            style={{
-              width: `${Math.max(0, (added.length / items.length) * 54 + (mashes / 4) * 28)}%`,
-              opacity: added.length ? 1 : 0,
-            }}
-          />
-          <div className="bowl-chunks" aria-hidden="true">
-            {added.map((id) => (
-              <em key={id} className={`food-chip ${id}`} />
-            ))}
-          </div>
-          <span>{added.length < items.length ? 'Mortar is waiting' : 'Ingredients in mortar'}</span>
-        </div>
-      </div>
-      <div className="sauce-tray">
-        {items.map(([id, label]) => (
-          <button
-            key={id}
-            className={`sauce-token ${id} ${added.includes(id) ? 'done' : ''}`}
-            data-testid={`sauce-token-${id}`}
-            onClick={() => add(id)}
-          >
-            <i aria-hidden="true" className={`food-icon ${id}`} />
-            <span>{label}</span>
-          </button>
-        ))}
-        <CoachHand visible={showHint && added.length < items.length} variant="tap-token" />
+      <div className="sauce-flow" aria-hidden="true">
+        <i className={added.length < items.length ? 'active' : 'done'}><b>1</b><span>Add</span></i>
+        <i className={added.length >= items.length ? 'active' : ''}><b>2</b><span>Pound</span></i>
       </div>
       <div
-        className={`mortar-pad sauce-pound ${added.length >= items.length ? 'ready' : ''} ${pounding ? 'is-pounding' : ''}`}
+        ref={mortarRef}
+        className={`mortar-pad sauce-mortar-workpad ${added.length >= items.length ? 'ready' : ''} ${pounding ? 'is-pounding' : ''}`}
         data-testid="mortar-pad"
         role="button"
         tabIndex={0}
@@ -833,14 +886,58 @@ function SauceGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => v
         onPointerUp={endMash}
         onPointerCancel={endMash}
       >
-        <i aria-hidden="true" className="pestle-track">
-          <em />
-          <b style={{ transform: `translate(-50%, ${pounding ? 74 : press * 72}px) rotate(-10deg)` }} />
-        </i>
-        <span>{added.length < items.length ? 'Tap ingredients first' : press >= MASH_READY_PRESS ? 'Release to pound' : 'Pull pestle down'}</span>
+        <div className="mortar-scene" aria-hidden="true">
+          <i className="mortar-shadow" />
+          <i className="mortar-bowl" />
+          <b
+            className="sauce-paste"
+            style={{
+              width: `${Math.max(0, (added.length / items.length) * 34 + (mashes / 4) * 46)}%`,
+              opacity: added.length >= items.length || mashes ? 1 : 0,
+            }}
+          />
+          <div className="bowl-chunks" aria-hidden="true">
+            {added.map((id) => (
+              <em key={id} className={`food-chip ${id}`} />
+            ))}
+          </div>
+          <i className="pestle-track">
+            <em />
+            <b style={{ transform: `translate(-50%, ${pounding ? 92 : press * 88}px) rotate(-10deg)` }} />
+          </i>
+        </div>
+        <span>{added.length < items.length ? 'Drop ingredients here' : press >= MASH_READY_PRESS ? 'Release to crush' : 'Pull pestle down'}</span>
         <strong>{mashes}/4</strong>
         <CoachHand visible={showHint && added.length >= items.length && !pounding && press === 0} variant="drag-down" />
       </div>
+      <div className="sauce-tray">
+        {items.map(([id, label, detail]) => (
+          <button
+            type="button"
+            key={id}
+            className={`sauce-token ${id} ${added.includes(id) ? 'done' : ''}`}
+            data-testid={`sauce-token-${id}`}
+            aria-label={`Add ${label} to mortar`}
+            onPointerDown={(event) => startIngredient(event, id)}
+            onPointerMove={moveIngredient}
+            onPointerUp={endIngredient}
+            onPointerCancel={cancelIngredient}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') add(id);
+            }}
+          >
+            <i aria-hidden="true" className={`food-icon ${id}`} />
+            <span>{label}</span>
+            <small>{added.includes(id) ? 'in mortar' : detail}</small>
+          </button>
+        ))}
+        <CoachHand visible={showHint && added.length < items.length && !dragging} variant="tap-token" />
+      </div>
+      {dragging && (
+        <div className={`sauce-drag-ghost ${dragging.id}`} style={{ left: dragging.x, top: dragging.y }} aria-hidden="true">
+          <i className={`food-icon ${dragging.id}`} />
+        </div>
+      )}
       <ProgressBar value={(added.length / items.length) * 0.55 + (mashes / 4) * 0.45} />
     </div>
   );
@@ -930,6 +1027,10 @@ function PlateGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => v
 
   return (
     <div className="mini plate-mini">
+      <div className="status-row plate-status">
+        <span>Build the plate</span>
+        <strong>{placed.length}/4</strong>
+      </div>
       <div className={`plate-drop plate-stage ${dragGhost ? 'is-catching' : ''}`} data-testid="plate-drop" ref={plateRef}>
         <div className="plate-model" aria-hidden="true">
           <i className="plated-rim" />

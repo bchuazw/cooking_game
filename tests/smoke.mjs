@@ -56,7 +56,17 @@ async function playSimmer(page) {
 }
 
 async function playSauce(page) {
-  for (const id of ['chili', 'ginger', 'garlic', 'lime']) {
+  const mortar = await page.getByTestId('mortar-pad').boundingBox();
+  const chili = await page.getByTestId('sauce-token-chili').boundingBox();
+  if (!mortar || !chili) throw new Error('sauce drag targets missing');
+  await drag(
+    page,
+    { x: chili.x + chili.width / 2, y: chili.y + chili.height / 2 },
+    { x: mortar.x + mortar.width / 2, y: mortar.y + mortar.height / 2 },
+    12,
+  );
+  await page.waitForTimeout(180);
+  for (const id of ['ginger', 'garlic', 'lime']) {
     await page.getByTestId(`sauce-token-${id}`).click();
     await page.waitForTimeout(140);
   }

@@ -22,6 +22,8 @@ export interface VisualState {
   simmerStir?: number;
   simmerStirAngle?: number;
   sauceItems?: string[];
+  sauceLastItem?: string;
+  sauceDropAt?: number;
   mashCount?: number;
   mashPress?: number;
   mashPound?: number;
@@ -470,38 +472,49 @@ function poachScene(root: THREE.Group, cube: CubeFn, cyl: CylFn, chunk: (color: 
 
 function sauceScene(root: THREE.Group, cube: CubeFn, cyl: CylFn, chunk: (color: string, x: number, y: number, z: number, s?: number) => THREE.Mesh, d: DynamicRefs) {
   board(cube, 0, 0.5);
+  cube('#f6dfab', -1.5, 0.5, -0.44, 0.92, 0.06, 0.72);
+  cube('#f6dfab', -0.5, 0.5, -0.44, 0.92, 0.06, 0.72);
+  cube('#f6dfab', 0.5, 0.5, -0.44, 0.92, 0.06, 0.72);
+  cube('#f6dfab', 1.5, 0.5, -0.44, 0.92, 0.06, 0.72);
   const mortar = new THREE.Group();
   mortar.userData.dynamic = true;
   root.add(mortar);
   [
-    cyl('#211a17', 0, 0.54, 0.5, 0.78, 0.18, 0.58),
-    cyl('#5d4d43', 0, 0.72, 0.5, 0.62, 0.44, 0.46),
-    cyl('#8b7668', 0, 0.99, 0.5, 0.42, 0.12, 0.3),
+    cyl('#211a17', 0, 0.5, 0.5, 0.96, 0.16, 0.68),
+    cyl('#4a403a', 0, 0.68, 0.5, 0.82, 0.42, 0.56),
+    cyl('#8f7e71', 0, 0.95, 0.5, 0.62, 0.14, 0.42),
+    cyl('#312a26', 0, 1.04, 0.5, 0.42, 0.08, 0.28),
   ].forEach((part) => mortar.attach(part));
   d.sauceMortar = mortar;
-  d.saucePaste = cyl(C.chili, 0, 1.08, 0.5, 0.3, 0.08, 0.22);
+  d.saucePaste = cyl(C.chili, 0, 1.11, 0.5, 0.26, 0.07, 0.18);
   d.saucePaste.userData.dynamic = true;
+  d.saucePaste.visible = false;
   d.sauceItems.chili = [
-    cube(C.chili, -1.5, 0.64, -0.44, 0.12, 0.12, 0.58),
-    cube('#a92d27', -1.5, 0.66, -0.2, 0.1, 0.1, 0.18),
-    cube(C.green, -1.5, 0.7, -0.78, 0.08, 0.08, 0.12),
+    cube(C.chili, -1.56, 0.68, -0.44, 0.16, 0.12, 0.68),
+    cube('#b72825', -1.4, 0.67, -0.17, 0.13, 0.1, 0.28),
+    cube(C.chili, -1.38, 0.73, -0.6, 0.12, 0.1, 0.5),
+    cube(C.green, -1.64, 0.73, -0.82, 0.08, 0.08, 0.18),
   ];
   d.sauceItems.chili[0].rotation.x = 0.18;
+  d.sauceItems.chili[2].rotation.x = -0.32;
   d.sauceItems.ginger = [
-    chunk(C.ginger, -0.52, 0.66, -0.44, 0.16),
-    chunk('#efc474', -0.36, 0.7, -0.3, 0.12),
-    cube('#b87232', -0.54, 0.77, -0.44, 0.18, 0.035, 0.1),
+    chunk(C.ginger, -0.56, 0.68, -0.44, 0.22),
+    chunk('#efc474', -0.36, 0.72, -0.3, 0.15),
+    chunk('#c98132', -0.68, 0.74, -0.25, 0.12),
+    cube('#b87232', -0.54, 0.84, -0.44, 0.26, 0.04, 0.13),
   ];
   d.sauceItems.garlic = [
-    chunk(C.garlic, 0.45, 0.66, -0.44, 0.16),
-    chunk('#fff7d9', 0.32, 0.68, -0.34, 0.11),
-    chunk('#fff7d9', 0.58, 0.68, -0.34, 0.11),
-    cube('#d7c8aa', 0.45, 0.84, -0.46, 0.07, 0.12, 0.07),
+    chunk(C.garlic, 0.45, 0.68, -0.44, 0.21),
+    chunk('#fff7d9', 0.27, 0.7, -0.34, 0.13),
+    chunk('#fff7d9', 0.63, 0.7, -0.34, 0.13),
+    chunk('#fff9e5', 0.45, 0.74, -0.25, 0.12),
+    cube('#d7c8aa', 0.45, 0.9, -0.46, 0.08, 0.16, 0.08),
   ];
   d.sauceItems.lime = [
-    cyl(C.green, 1.36, 0.66, -0.44, 0.2, 0.14, 0.2),
-    cyl('#d8f08a', 1.36, 0.77, -0.44, 0.16, 0.045, 0.16),
-    cube('#3f8f43', 1.5, 0.7, -0.44, 0.05, 0.1, 0.24),
+    cyl(C.green, 1.38, 0.68, -0.44, 0.28, 0.16, 0.28),
+    cyl('#d8f08a', 1.38, 0.8, -0.44, 0.22, 0.05, 0.22),
+    cube('#f4ffb0', 1.38, 0.84, -0.44, 0.34, 0.04, 0.05),
+    cube('#3f8f43', 1.58, 0.72, -0.44, 0.06, 0.12, 0.28),
   ];
   Object.values(d.sauceItems).forEach((parts) => {
     parts.forEach((mesh) => {
@@ -511,8 +524,8 @@ function sauceScene(root: THREE.Group, cube: CubeFn, cyl: CylFn, chunk: (color: 
   const pestle = new THREE.Group();
   pestle.userData.dynamic = true;
   root.add(pestle);
-  const shaft = cube(C.cream, 0.56, 1.3, 0.38, 0.17, 0.96, 0.17);
-  const tip = cyl(C.steel, 0.18, 0.92, 0.48, 0.18, 0.2, 0.18);
+  const shaft = cube(C.cream, 0.58, 1.34, 0.38, 0.18, 1.14, 0.18);
+  const tip = cyl(C.steel, 0.17, 0.88, 0.48, 0.22, 0.24, 0.22);
   shaft.rotation.z = -0.68;
   tip.rotation.z = -0.68;
   [shaft, tip].forEach((m) => pestle.attach(m));
@@ -797,15 +810,19 @@ function updateDynamics(d: DynamicRefs, state: VisualState, t: number) {
   const mash = state.mashCount ?? 0;
   const mashPress = state.mashPress ?? 0;
   const poundAge = state.mashPound ? t - state.mashPound / 1000 : 999;
+  const dropAge = state.sauceDropAt ? t - state.sauceDropAt / 1000 : 999;
   const strike = poundAge >= 0 && poundAge < 0.24 ? Math.sin((1 - poundAge / 0.24) * Math.PI) : 0;
   const mortarTargets: Record<string, THREE.Vector3> = {
-    chili: new THREE.Vector3(-0.17, 1.14, 0.43),
-    ginger: new THREE.Vector3(0.06, 1.16, 0.34),
-    garlic: new THREE.Vector3(0.18, 1.14, 0.52),
-    lime: new THREE.Vector3(-0.04, 1.17, 0.62),
+    chili: new THREE.Vector3(-0.18, 1.16, 0.42),
+    ginger: new THREE.Vector3(0.06, 1.18, 0.35),
+    garlic: new THREE.Vector3(0.18, 1.16, 0.52),
+    lime: new THREE.Vector3(-0.04, 1.19, 0.62),
   };
   Object.entries(d.sauceItems).forEach(([id, parts], i) => {
     const added = sauceItems.has(id);
+    const dropping = added && state.sauceLastItem === id && dropAge >= 0 && dropAge < 0.46;
+    const dropProgress = dropping ? clamp(dropAge / 0.46, 0, 1) : 1;
+    const easedDrop = 1 - (1 - dropProgress) ** 3;
     parts.forEach((part, p) => {
       const base = basePosition(part);
       const scale = baseScale(part);
@@ -816,13 +833,18 @@ function updateDynamics(d: DynamicRefs, state: VisualState, t: number) {
         const spreadZ = (Math.floor(p / 3) - 0.35) * 0.08;
         const settle = clamp(mash / 4 + mashPress * 0.16 + strike * 0.12, 0, 0.82);
         const chunkScale = 1 - settle * 0.58;
+        const targetX = target.x + spreadX + Math.sin(t * 2.2 + p) * 0.008;
+        const targetY = target.y + Math.sin(t * 4 + i + p) * 0.008 - mashPress * 0.035 - strike * 0.045;
+        const targetZ = target.z + spreadZ + Math.cos(t * 2 + p) * 0.008;
+        const arc = dropping ? Math.sin(easedDrop * Math.PI) * 0.62 : 0;
         part.position.set(
-          target.x + spreadX + Math.sin(t * 2.2 + p) * 0.008,
-          target.y + Math.sin(t * 4 + i + p) * 0.008 - mashPress * 0.035 - strike * 0.045,
-          target.z + spreadZ + Math.cos(t * 2 + p) * 0.008,
+          base.x * (1 - easedDrop) + targetX * easedDrop,
+          base.y * (1 - easedDrop) + targetY * easedDrop + arc,
+          base.z * (1 - easedDrop) + targetZ * easedDrop,
         );
         part.scale.set(scale.x * chunkScale, scale.y * Math.max(0.28, chunkScale), scale.z * chunkScale);
-        part.rotation.y = ((part.userData.baseRotationY as number | undefined) ?? i) + mash * 0.25 + p * 0.2;
+        part.rotation.y = ((part.userData.baseRotationY as number | undefined) ?? i) + mash * 0.25 + p * 0.2 + easedDrop * 0.8;
+        part.rotation.x = ((part.userData.baseRotationX as number | undefined) ?? 0) + easedDrop * 0.3;
       } else {
         part.position.set(base.x, base.y + Math.sin(t * 3 + i + p) * 0.012, base.z);
         part.scale.copy(scale);
@@ -839,8 +861,10 @@ function updateDynamics(d: DynamicRefs, state: VisualState, t: number) {
     d.sauceMortar.scale.set(scale.x * pulse, scale.y, scale.z * pulse);
   }
   if (d.saucePaste) {
-    const amount = (state.sauceItems?.length ?? 0) / 4 + mash / 10 + mashPress * 0.06 + strike * 0.04;
-    d.saucePaste.scale.set(0.42 + amount * 0.24, 0.08 + amount * 0.04, 0.3 + amount * 0.16);
+    const allIngredients = (state.sauceItems?.length ?? 0) >= 4;
+    const amount = (allIngredients ? 0.24 : 0) + mash / 4 + mashPress * 0.1 + strike * 0.08;
+    d.saucePaste.visible = amount > 0.02;
+    d.saucePaste.scale.set(0.24 + amount * 0.46, 0.06 + amount * 0.06, 0.17 + amount * 0.32);
   }
 
   const plated = new Set(state.plateItems ?? []);

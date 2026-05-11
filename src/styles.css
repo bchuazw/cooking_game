@@ -363,6 +363,77 @@ p {
     #fff0c7;
 }
 
+.prep-board-object {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 1;
+  width: 78px;
+  height: 34px;
+  opacity: 0.92;
+  transform: translate(-50%, -50%);
+  filter: drop-shadow(0 8px 8px rgba(33, 26, 23, 0.16));
+  transition: transform 150ms ease, opacity 150ms ease;
+}
+
+.prep-board-object.garlic {
+  width: 58px;
+  height: 38px;
+  border-radius: 48% 48% 42% 42%;
+  background:
+    radial-gradient(circle at 30% 46%, #fff8dc 0 18%, transparent 19%),
+    radial-gradient(circle at 67% 47%, #fff8dc 0 18%, transparent 19%),
+    linear-gradient(180deg, #fff3ce, #d9c8ab);
+}
+
+.prep-board-object.garlic::before,
+.prep-board-object.shallot::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -7px;
+  width: 8px;
+  height: 10px;
+  border-radius: 6px 6px 0 0;
+  background: #d7c8aa;
+  transform: translateX(-50%);
+}
+
+.prep-board-object.ginger {
+  width: 74px;
+  height: 32px;
+  border-radius: 12px;
+  background:
+    radial-gradient(circle at 24% 48%, #efc474 0 18%, transparent 19%),
+    radial-gradient(circle at 74% 38%, #efc474 0 16%, transparent 17%),
+    #d99a43;
+  box-shadow: inset 0 -5px #b87232;
+  transform: translate(-50%, -50%) rotate(-10deg);
+}
+
+.prep-board-object.pandan {
+  width: 84px;
+  height: 30px;
+  background:
+    linear-gradient(90deg, transparent 0 10%, #75c96d 11% 18%, transparent 19% 29%, #4f9b45 30% 39%, transparent 40% 52%, #75c96d 53% 62%, transparent 63%),
+    linear-gradient(180deg, #6fbd64, #2f7f36);
+  clip-path: polygon(0 48%, 100% 4%, 92% 22%, 100% 38%, 5% 82%);
+}
+
+.prep-board-object.shallot {
+  width: 56px;
+  height: 42px;
+  border-radius: 50% 50% 45% 45%;
+  background:
+    radial-gradient(circle at 42% 34%, #e7a3c6 0 13%, transparent 14%),
+    linear-gradient(180deg, #cc6aa1, #8d3b72);
+}
+
+.prep-board-object.is-cut {
+  opacity: 0.36;
+  transform: translate(-50%, -50%) scaleX(1.22) scaleY(0.68);
+}
+
 .chop-timing .target-zone {
   position: absolute;
   top: 9px;
@@ -377,6 +448,7 @@ p {
   position: absolute;
   top: 8px;
   bottom: 8px;
+  z-index: 3;
   width: 16px;
   border-radius: 999px;
   background: var(--ink);
@@ -385,6 +457,7 @@ p {
 
 .chop-timing span {
   position: relative;
+  z-index: 4;
   padding: 7px 12px;
   border-radius: 999px;
   background: rgba(255, 250, 240, 0.86);
@@ -405,6 +478,47 @@ p {
 .chop-timing.off span {
   color: #4c241d;
   background: #ffe0bd;
+}
+
+.prep-ingredient-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 7px;
+}
+
+.prep-ingredient-dot {
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(33, 26, 23, 0.18);
+  transition: background 180ms ease, transform 180ms ease;
+}
+
+.prep-ingredient-dot.garlic.active,
+.prep-ingredient-dot.garlic.done {
+  background: #f4d99e;
+}
+
+.prep-ingredient-dot.ginger.active,
+.prep-ingredient-dot.ginger.done {
+  background: #d99a43;
+}
+
+.prep-ingredient-dot.pandan.active,
+.prep-ingredient-dot.pandan.done {
+  background: #4f9b45;
+}
+
+.prep-ingredient-dot.shallot.active,
+.prep-ingredient-dot.shallot.done {
+  background: #b74f85;
+}
+
+.prep-ingredient-dot.active {
+  transform: scaleY(1.45);
+}
+
+.prep-ingredient-dot.done {
+  opacity: 0.56;
 }
 
 .timing-caption {
@@ -439,6 +553,70 @@ p {
   transition: background 220ms ease, box-shadow 220ms ease, transform 180ms ease;
 }
 
+.rice-toss-scene {
+  position: absolute;
+  inset: 10px 0 34px;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.mini-wok,
+.mini-rice-mound,
+.mini-wok-spoon {
+  position: absolute;
+  display: block;
+}
+
+.mini-wok {
+  left: 50%;
+  bottom: 6px;
+  width: 142px;
+  height: 58px;
+  border-radius: 50%;
+  background:
+    radial-gradient(ellipse at 50% 42%, #fff7dc 0 38%, transparent 39%),
+    radial-gradient(ellipse at 50% 58%, #2c211b 0 58%, transparent 59%);
+  box-shadow: 0 10px 15px rgba(33, 26, 23, 0.2);
+  transform: translateX(-50%);
+}
+
+.mini-rice-mound {
+  left: 50%;
+  bottom: 29px;
+  width: 78px;
+  height: 42px;
+  border-radius: 50% 50% 42% 42%;
+  background:
+    radial-gradient(circle at 26% 34%, #fffdf5 0 8%, transparent 9%),
+    radial-gradient(circle at 56% 22%, #fff8dc 0 8%, transparent 9%),
+    radial-gradient(circle at 72% 56%, #fffdf5 0 7%, transparent 8%),
+    linear-gradient(180deg, #fffdf2, #eddbb1);
+  box-shadow: inset 0 -5px rgba(180, 148, 94, 0.16), 0 8px 10px rgba(33, 26, 23, 0.12);
+  transition: transform 120ms ease-out;
+}
+
+.mini-wok-spoon {
+  left: calc(50% + 34px);
+  bottom: 46px;
+  width: 78px;
+  height: 10px;
+  border-radius: 999px;
+  background: #8b5a33;
+  transform-origin: 6px 50%;
+  transition: transform 120ms ease-out;
+}
+
+.mini-wok-spoon::before {
+  content: "";
+  position: absolute;
+  left: -22px;
+  top: -8px;
+  width: 28px;
+  height: 24px;
+  border-radius: 50%;
+  background: #bdc7bd;
+}
+
 .swipe-pad::before {
   content: "";
   position: absolute;
@@ -451,8 +629,9 @@ p {
   transform: translateX(-50%);
 }
 
-.swipe-pad i {
+.swipe-pad > i:not(.coach-hand) {
   position: absolute;
+  z-index: 3;
   left: calc(50% - 14px);
   bottom: 28px;
   width: 28px;
@@ -466,7 +645,7 @@ p {
 .swipe-pad em {
   position: absolute;
   left: 50%;
-  z-index: 1;
+  z-index: 4;
   width: min(154px, calc(100% - 32px));
   height: 30px;
   display: grid;
@@ -481,7 +660,7 @@ p {
 
 .swipe-pad b {
   position: relative;
-  z-index: 2;
+  z-index: 5;
   display: grid;
   place-items: center;
   width: 58px;
@@ -495,14 +674,14 @@ p {
 
 .swipe-pad span {
   position: relative;
-  z-index: 2;
+  z-index: 5;
   padding: 7px 12px;
   border-radius: 999px;
   background: rgba(255, 250, 240, 0.9);
   transition: transform 160ms ease, background 180ms ease;
 }
 
-.swipe-pad.is-tossing i {
+.swipe-pad.is-tossing > i:not(.coach-hand) {
   background: linear-gradient(180deg, #ffd36d, #d6533a);
   transform: scaleX(1.35);
 }
@@ -714,6 +893,51 @@ p {
     linear-gradient(180deg, rgba(140, 214, 200, 0.72), rgba(89, 172, 161, 0.62));
   box-shadow: inset 0 0 0 4px rgba(255, 255, 255, 0.46), 0 10px 18px rgba(35, 70, 67, 0.16);
   pointer-events: none;
+}
+
+.stock-chicken {
+  position: absolute;
+  z-index: 1;
+  left: 50%;
+  top: 50px;
+  width: 100px;
+  height: 54px;
+  border-radius: 48% 52% 44% 42%;
+  background:
+    radial-gradient(circle at 8% 72%, #fff0c7 0 7%, transparent 8%),
+    radial-gradient(circle at 89% 28%, #fff0c7 0 7%, transparent 8%),
+    radial-gradient(ellipse at 58% 44%, #f9dba7 0 36%, transparent 37%),
+    linear-gradient(180deg, #f1c78c, #d6945d);
+  box-shadow: inset 0 5px #ffe0a9, inset 0 -7px #b96e43, 0 6px 12px rgba(48, 76, 68, 0.12);
+  transform: translateX(-50%) rotate(-4deg);
+  pointer-events: none;
+}
+
+.stock-chicken::before,
+.stock-chicken::after {
+  content: "";
+  position: absolute;
+  width: 34px;
+  height: 18px;
+  border-radius: 999px;
+  background: #d6945d;
+  box-shadow: inset 0 -4px #a9623f;
+}
+
+.stock-chicken::before {
+  left: -13px;
+  top: 26px;
+  transform: rotate(-22deg);
+}
+
+.stock-chicken::after {
+  right: -12px;
+  top: 9px;
+  transform: rotate(24deg);
+}
+
+.stock-chicken.warm {
+  animation: gentle-bob 900ms ease-in-out infinite;
 }
 
 .foam-bubble {
@@ -1215,6 +1439,226 @@ p {
   z-index: 4;
 }
 
+.sauce-flow {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 7px;
+}
+
+.sauce-flow i {
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid rgba(33, 26, 23, 0.12);
+  border-radius: 7px;
+  background: rgba(255, 250, 240, 0.72);
+  color: #65574d;
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.sauce-flow i.active {
+  background: #fff1bc;
+  color: #33231c;
+  box-shadow: inset 0 0 0 2px rgba(255, 198, 72, 0.42);
+}
+
+.sauce-flow i.done {
+  background: #d9f0c7;
+  color: #173b35;
+}
+
+.sauce-flow b {
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(33, 26, 23, 0.14);
+}
+
+.sauce-mortar-workpad {
+  position: relative;
+  min-height: 206px;
+  overflow: hidden;
+  align-content: end;
+  gap: 6px;
+  padding: 12px;
+  background:
+    radial-gradient(ellipse at 50% 42%, rgba(255, 255, 255, 0.82), transparent 36%),
+    linear-gradient(180deg, #fff5d3, #ead0a5);
+  transition: background 220ms ease, box-shadow 220ms ease;
+}
+
+.sauce-mortar-workpad.ready {
+  background:
+    radial-gradient(ellipse at 50% 42%, rgba(216, 66, 45, 0.18), transparent 38%),
+    linear-gradient(180deg, #fff0c7, #ead0a5);
+  box-shadow: inset 0 -6px rgba(33, 26, 23, 0.06), 0 0 0 3px rgba(216, 66, 45, 0.16);
+}
+
+.sauce-mortar-workpad.is-pounding {
+  animation: pound-flash 220ms ease-out;
+}
+
+.mortar-scene {
+  position: absolute;
+  inset: 8px 12px 38px;
+  pointer-events: none;
+}
+
+.mortar-shadow,
+.mortar-bowl,
+.sauce-paste {
+  position: absolute;
+  left: 50%;
+  display: block;
+  transform: translateX(-50%);
+}
+
+.mortar-shadow {
+  bottom: 3px;
+  width: min(246px, 82%);
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(33, 26, 23, 0.18);
+  filter: blur(2px);
+}
+
+.mortar-bowl {
+  bottom: 12px;
+  width: min(226px, 76%);
+  height: 96px;
+  border-radius: 50%;
+  background:
+    radial-gradient(ellipse at 50% 41%, #312a26 0 34%, #8f7e71 35% 45%, transparent 46%),
+    radial-gradient(ellipse at 50% 58%, #4a403a 0 54%, #221a17 55% 70%, transparent 71%);
+  box-shadow: 0 12px 16px rgba(33, 26, 23, 0.22);
+}
+
+.sauce-paste {
+  z-index: 2;
+  bottom: 48px;
+  height: 30px;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 22% 30%, rgba(255, 236, 143, 0.82), transparent 15%),
+    radial-gradient(circle at 68% 62%, rgba(255, 179, 83, 0.7), transparent 16%),
+    linear-gradient(90deg, #c93227, #e34d32 55%, #b82925);
+  box-shadow: inset 0 -4px rgba(72, 28, 22, 0.18), 0 7px 10px rgba(84, 32, 24, 0.22);
+  transition: width 220ms ease, opacity 180ms ease;
+}
+
+.sauce-mortar-workpad .bowl-chunks {
+  z-index: 3;
+}
+
+.sauce-mortar-workpad .food-chip {
+  top: auto;
+  bottom: 68px;
+  transition: transform 180ms ease, opacity 220ms ease;
+}
+
+.sauce-mortar-workpad.ready .food-chip {
+  opacity: 0.82;
+}
+
+.sauce-mortar-workpad.is-pounding .food-chip {
+  transform: translate(-50%, -50%) scale(0.72);
+}
+
+.sauce-mortar-workpad .pestle-track {
+  z-index: 4;
+  top: 4px;
+  bottom: 28px;
+  height: auto;
+}
+
+.sauce-mortar-workpad .pestle-track::before {
+  top: 2px;
+  bottom: 18px;
+}
+
+.sauce-mortar-workpad .pestle-track em {
+  bottom: 30px;
+  background: rgba(216, 66, 45, 0.22);
+}
+
+.sauce-mortar-workpad .pestle-track b {
+  height: 88px;
+  background: linear-gradient(180deg, #fff4cf, #b9a889);
+}
+
+.sauce-mortar-workpad > span,
+.sauce-mortar-workpad > strong {
+  position: relative;
+  z-index: 6;
+}
+
+.sauce-mortar-workpad > span {
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: rgba(255, 250, 240, 0.9);
+  font-size: 13px;
+}
+
+.sauce-mortar-workpad > strong {
+  color: #1e403e;
+  font-size: 27px;
+}
+
+.sauce-tray {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.sauce-token {
+  position: relative;
+  min-height: 88px;
+  overflow: hidden;
+  touch-action: none;
+  transition: transform 160ms ease, opacity 160ms ease, background 180ms ease;
+}
+
+.sauce-token small {
+  color: #715f53;
+  font-size: 9px;
+  font-weight: 950;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.sauce-token.done {
+  opacity: 0.72;
+}
+
+.sauce-token.done small {
+  color: #42683d;
+}
+
+.sauce-drag-ghost {
+  position: fixed;
+  z-index: 35;
+  left: 0;
+  top: 0;
+  width: 68px;
+  height: 68px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: rgba(255, 250, 240, 0.88);
+  box-shadow: 0 16px 28px rgba(33, 26, 23, 0.28);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.sauce-drag-ghost .food-icon {
+  transform: scale(1.22);
+}
+
 @keyframes pound-flash {
   0% {
     box-shadow: inset 0 -6px rgba(33, 26, 23, 0.06), 0 0 0 0 rgba(216, 66, 45, 0);
@@ -1229,8 +1673,23 @@ p {
   }
 }
 
+@keyframes gentle-bob {
+  0%,
+  100% {
+    transform: translateX(-50%) rotate(-4deg) translateY(0);
+  }
+
+  50% {
+    transform: translateX(-50%) rotate(-3deg) translateY(-4px);
+  }
+}
+
 .plate-mini {
   position: relative;
+}
+
+.plate-status {
+  background: #4f3a2f;
 }
 
 .token-grid {
@@ -1581,8 +2040,8 @@ p {
 }
 
 .coach-hand.tap-token {
-  --hand-x: 12%;
-  --hand-y: 58%;
+  --hand-x: 13%;
+  --hand-y: 28%;
 }
 
 .chop-timing .coach-hand.tap {
@@ -1595,7 +2054,8 @@ p {
   --hand-y: 72%;
 }
 
-.sauce-pound .coach-hand.drag-down {
+.sauce-pound .coach-hand.drag-down,
+.sauce-mortar-workpad .coach-hand.drag-down {
   --hand-x: 42%;
   --hand-y: 34%;
   z-index: 2;
@@ -1828,7 +2288,12 @@ p {
   }
 
   .play-panel {
+    bottom: max(16px, env(safe-area-inset-bottom));
     padding: 10px;
+  }
+
+  .mini {
+    gap: 7px;
   }
 
   .step-copy h2 {
@@ -1864,12 +2329,35 @@ p {
     min-height: 150px;
   }
 
+  .sauce-mortar-workpad {
+    min-height: 144px;
+  }
+
+  .mortar-scene {
+    inset: 2px 8px 30px;
+  }
+
   .stock-surface {
     height: 88px;
   }
 
+  .stock-chicken {
+    top: 42px;
+    width: 82px;
+    height: 44px;
+  }
+
   .sauce-token {
-    min-height: 68px;
+    min-height: 60px;
+    padding-block: 5px;
+  }
+
+  .sauce-token small {
+    display: none;
+  }
+
+  .sauce-flow i {
+    min-height: 24px;
   }
 
   .plate-stage {

@@ -60,7 +60,7 @@ export const CHICKEN_RICE: DishDefinition = {
       kind: 'mash',
       title: 'Make the Chili Sauce',
       shortTitle: 'Sauce',
-      instruction: 'Tap chili, ginger, garlic, and lime into the mortar, then pull the pestle down and release.',
+      instruction: 'Drag or tap chili, ginger, garlic, and lime into the mortar, then pull the pestle down and release.',
       lesson: 'A bright chili-ginger sauce balances the rich rice and tender chicken.',
       target: 4,
     },
