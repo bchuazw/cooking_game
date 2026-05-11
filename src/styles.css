@@ -280,7 +280,7 @@ p {
 .step-copy h2 {
   margin-bottom: 4px;
   font-size: 23px;
-  line-height: 1;
+  line-height: 1.24;
 }
 
 .step-copy p:last-child {
@@ -1674,6 +1674,7 @@ p {
   .heat-rail,
   .bubble-button,
   .stock-skim-pad,
+  .stock-stir-pad,
   .sauce-pound {
     height: 150px;
     min-height: 150px;
@@ -1702,6 +1703,56 @@ p {
   .plate-icon {
     width: 42px;
     height: 30px;
+  }
+
+  .result-card {
+    top: max(8px, env(safe-area-inset-top));
+    bottom: max(8px, env(safe-area-inset-bottom));
+    padding: 14px;
+    transform: none;
+  }
+
+  .result-card h1 {
+    margin-bottom: 6px;
+    font-size: clamp(34px, 10vw, 44px);
+    line-height: 0.96;
+  }
+
+  .result-stars {
+    margin: 8px 0 10px;
+    font-size: 36px;
+  }
+
+  .result-list {
+    gap: 6px;
+  }
+
+  .result-list div {
+    padding: 7px 10px;
+  }
+
+  .learning-card {
+    margin: 10px 0;
+    padding: 10px;
+  }
+
+  .learning-card h2 {
+    font-size: 16px;
+  }
+
+  .learning-card p {
+    font-size: 14px;
+    line-height: 1.22;
+  }
+
+  .result-actions {
+    gap: 8px;
+  }
+
+  .result-actions .primary-button,
+  .result-actions .secondary-button {
+    min-height: 46px;
+    font-size: 16px;
   }
 }
 

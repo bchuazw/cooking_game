@@ -10,6 +10,7 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "test:smoke": "node tests/smoke.mjs",
+    "test:mobile": "node tests/mobile-regression.mjs",
     "capture": "node tests/capture.mjs"
   },
   "dependencies": {
