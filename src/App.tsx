@@ -794,8 +794,12 @@ function PlateGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => v
     ['chili', 'Chili'],
   ] as const;
   const [placed, setPlaced] = useState<string[]>([]);
+  const [dragGhost, setDragGhost] = useState<{ id: string; x: number; y: number } | null>(null);
   const startedAt = useRef(performance.now());
   const done = useRef(false);
+  const plateRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{ id: string; pointerId: number; startX: number; startY: number } | null>(null);
+  const ignoreClick = useRef(false);
 
   const place = (id: string) => {
     if (done.current) return;
@@ -812,23 +816,92 @@ function PlateGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => v
     });
   };
 
+  const startDrag = (event: ReactPointerEvent<HTMLButtonElement>, id: string) => {
+    if (done.current || placed.includes(id)) return;
+    dragRef.current = { id, pointerId: event.pointerId, startX: event.clientX, startY: event.clientY };
+    setDragGhost({ id, x: event.clientX, y: event.clientY });
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const moveDrag = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const drag = dragRef.current;
+    if (!drag) return;
+    event.preventDefault();
+    setDragGhost({ id: drag.id, x: event.clientX, y: event.clientY });
+  };
+
+  const endDrag = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const drag = dragRef.current;
+    if (!drag) return;
+    const distance = Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY);
+    const plateBox = plateRef.current?.getBoundingClientRect();
+    const overPlate = Boolean(
+      plateBox &&
+        event.clientX >= plateBox.left &&
+        event.clientX <= plateBox.right &&
+        event.clientY >= plateBox.top &&
+        event.clientY <= plateBox.bottom,
+    );
+    try {
+      event.currentTarget.releasePointerCapture(drag.pointerId);
+    } catch {
+      // Capture can already be released on touch cancellation.
+    }
+    dragRef.current = null;
+    setDragGhost(null);
+    if (distance > 10) {
+      ignoreClick.current = true;
+      if (overPlate) place(drag.id);
+    }
+  };
+
+  const handleTokenClick = (id: string) => {
+    if (ignoreClick.current) {
+      ignoreClick.current = false;
+      return;
+    }
+    place(id);
+  };
+
   return (
     <div className="mini plate-mini">
-      <div className="plate-drop" data-testid="plate-drop">
-        {placed.length}/4 on plate
+      <div className={`plate-drop plate-stage ${dragGhost ? 'is-catching' : ''}`} data-testid="plate-drop" ref={plateRef}>
+        <div className="plate-model" aria-hidden="true">
+          <i className="plated-rim" />
+          <i className={`plated-piece rice ${placed.includes('rice') ? 'in' : ''}`} />
+          <i className={`plated-piece chicken ${placed.includes('chicken') ? 'in' : ''}`} />
+          <i className={`plated-piece cucumber ${placed.includes('cucumber') ? 'in' : ''}`} />
+          <i className={`plated-piece chili ${placed.includes('chili') ? 'in' : ''}`} />
+        </div>
+        <strong>{placed.length >= items.length ? 'Ready to serve' : `${placed.length}/4 on plate`}</strong>
       </div>
-      <div className="token-grid">
+      <div className="token-grid plate-tray">
         {items.map(([id, label]) => (
           <button
             key={id}
-            className={placed.includes(id) ? 'done' : ''}
+            className={`plate-token ${id} ${placed.includes(id) ? 'done' : ''} ${dragGhost?.id === id ? 'dragging' : ''}`}
             data-testid={`plate-token-${id}`}
-            onClick={() => place(id)}
+            onPointerDown={(event) => startDrag(event, id)}
+            onPointerMove={moveDrag}
+            onPointerUp={endDrag}
+            onPointerCancel={endDrag}
+            onClick={() => handleTokenClick(id)}
+            aria-pressed={placed.includes(id)}
           >
-            {label}
+            <i aria-hidden="true" className={`plate-icon ${id}`} />
+            <span>{label}</span>
           </button>
         ))}
       </div>
+      {dragGhost && (
+        <div
+          className={`plate-ghost ${dragGhost.id}`}
+          aria-hidden="true"
+          style={{ transform: `translate(${dragGhost.x - 32}px, ${dragGhost.y - 32}px)` }}
+        >
+          <i className={`plate-icon ${dragGhost.id}`} />
+        </div>
+      )}
       <ProgressBar value={placed.length / items.length} />
     </div>
   );

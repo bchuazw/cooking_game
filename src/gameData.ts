@@ -69,7 +69,7 @@ export const CHICKEN_RICE: DishDefinition = {
       kind: 'plate',
       title: 'Plate the Set',
       shortTitle: 'Plate',
-      instruction: 'Tap rice, chicken, cucumber, and chili onto the plate in any order.',
+      instruction: 'Drag or tap rice, chicken, cucumber, and chili onto the plate in any order.',
       lesson: 'A classic plate needs fragrant rice, sliced chicken, cucumber, chili, and often a bowl of broth.',
       target: 4,
     },
