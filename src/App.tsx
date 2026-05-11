@@ -49,6 +49,7 @@ const INTERACT_RADIUS = 0.82;
 const MOVE_SPEED = 2.85;
 const AUTO_DWELL_MS = 1500;
 const START_PLAYER: PlayerState = { x: 0, z: 0.05, facing: Math.PI, moving: false };
+const RESULT_ART_SRC = `${import.meta.env.BASE_URL}assets/chicken-rice-result.webp`;
 
 const EMPTY_PLATE: PlateState = { rice: false, chicken: false, sauce: false };
 
@@ -204,15 +205,15 @@ export default function App() {
       if (held === 'rawChicken' && !slot) {
         return {
           enabled: true,
-          label: 'Place chicken on board',
+          label: 'Cut chicken',
           station: 'board',
-          kind: 'instant',
+          kind: 'hold',
+          duration: TIMERS.chopChicken + 900,
           run: () => {
-            setHeld(null);
-            setStationItem('board', { item: 'rawChicken' });
-            setFeedback('Stay by the board to chop the chicken.');
+            setHeld('cutChicken');
+            setFeedback('Chicken is cut. Carry it to the stock pot.');
             pulseStation('board');
-            playSfx('drop');
+            playSfx('chop');
           },
         };
       }
@@ -335,14 +336,15 @@ export default function App() {
       if (!held && !slot && !plate.sauce) {
         return {
           enabled: true,
-          label: 'Add chili ingredients',
+          label: 'Make chili sauce',
           station: 'mortar',
-          kind: 'instant',
+          kind: 'hold',
+          duration: TIMERS.poundSauce + 900,
           run: () => {
-            setStationItem('mortar', { item: 'chiliIngredients' });
-            setFeedback('Stay by the mortar to pound the chili sauce.');
+            setHeld('chiliSauce');
+            setFeedback('Chili sauce is ready. Carry it to the plate station.');
             pulseStation('mortar');
-            playSfx('drop');
+            playSfx('pound');
           },
         };
       }
@@ -416,17 +418,21 @@ export default function App() {
     return { enabled: false, label: 'Move to a station' };
 
     function plateAction(component: PlateComponent): Action {
+      const completesPlate =
+        (component === 'rice' || plate.rice) &&
+        (component === 'chicken' || plate.chicken) &&
+        (component === 'sauce' || plate.sauce);
       return {
         enabled: true,
-        label: `Plate ${PLATE_LABELS[component]}`,
+        label: completesPlate ? 'Finish plate' : `Plate ${PLATE_LABELS[component]}`,
         station: 'plate',
         kind: 'instant',
         run: () => {
           setPlate((prev) => ({ ...prev, [component]: true }));
-          setHeld(null);
-          setFeedback(component === 'sauce' ? 'Plate complete. Pick it up and serve.' : `${PLATE_LABELS[component]} plated.`);
+          setHeld(completesPlate ? 'chickenRice' : null);
+          setFeedback(completesPlate ? 'Plate complete. Serve it at the window.' : `${PLATE_LABELS[component]} plated.`);
           pulseStation('plate');
-          playSfx('plate');
+          playSfx(completesPlate ? 'pickup' : 'plate');
         },
       };
     }
@@ -587,10 +593,12 @@ export default function App() {
     if (!nextAction.enabled) return;
     if (dwellFrameRef.current) cancelAnimationFrame(dwellFrameRef.current);
     const started = performance.now();
-    setDwell({ station: nextAction.station, startedAt: started, duration: AUTO_DWELL_MS });
+    const duration = AUTO_DWELL_MS + (nextAction.kind === 'hold' ? nextAction.duration : 0);
+    setDwell({ station: nextAction.station, startedAt: started, duration });
     setDwellProgress(0);
+    if (nextAction.kind === 'hold') playSfx('work');
     const tick = (now: number) => {
-      const value = clamp((now - started) / AUTO_DWELL_MS, 0, 1);
+      const value = clamp((now - started) / duration, 0, 1);
       setDwellProgress(value);
       if (value >= 1) {
         dwellFrameRef.current = null;
@@ -598,9 +606,14 @@ export default function App() {
         setDwellProgress(0);
         autoCooldownRef.current = {
           key: `${nextAction.station}:${nextAction.label}`,
-          until: now + (nextAction.kind === 'hold' ? nextAction.duration + 450 : 450),
+          until: now + 450,
         };
-        startAction(nextAction);
+        if (nextAction.kind === 'instant') startAction(nextAction);
+        else {
+          pulseStation(nextAction.station);
+          nextAction.run();
+          haptic(18);
+        }
         return;
       }
       dwellFrameRef.current = requestAnimationFrame(tick);
@@ -654,7 +667,7 @@ export default function App() {
             </div>
             <div className={`auto-task ${action.enabled ? 'ready' : ''}`} data-testid="auto-task">
               <i style={{ transform: `scaleX(${activeHold ? activeProgress : dwellProgress})` }} />
-              <strong>{action.enabled ? activeHold ? 'Working' : dwell ? 'Stay' : 'Stop' : ''}</strong>
+              <strong>{action.enabled ? (activeHold || (dwell && action.kind === 'hold') ? 'Working' : dwell ? 'Stay' : 'Stop') : ''}</strong>
             </div>
             <p data-testid="feedback-text">{feedback}</p>
           </div>
@@ -826,6 +839,9 @@ function ResultScreen({ elapsed, mistakes, stars, onReplay }: { elapsed: number;
       />
       <div className="menu-vignette" />
       <div className="result-card">
+        <div className="result-art">
+          <img src={RESULT_ART_SRC} alt="Illustration of Hainanese chicken rice with rice, sliced chicken, cucumber, and chili sauce" />
+        </div>
         <p className="eyebrow">Order served</p>
         <h1>{DISH.name}</h1>
         <div className="result-stars" data-testid="result-stars">{renderStars(stars)}</div>
