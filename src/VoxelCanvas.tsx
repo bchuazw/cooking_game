@@ -36,10 +36,10 @@ interface DynamicRefs {
   knife: THREE.Group;
   riceBowl: THREE.Group;
   riceItem: THREE.Group;
-  riceSteam: THREE.Mesh[];
+  riceSteam: THREE.Group[];
   potWater: THREE.Mesh;
   potChicken: THREE.Group;
-  potSteam: THREE.Mesh[];
+  potSteam: THREE.Group[];
   potBubbles: THREE.Mesh[];
   mortarIngredients: THREE.Group;
   mortarSauce: THREE.Group;
@@ -170,6 +170,8 @@ function buildKitchen(root: THREE.Group) {
     box: new THREE.BoxGeometry(1, 1, 1),
     cyl12: new THREE.CylinderGeometry(1, 1, 1, 12),
     cyl18: new THREE.CylinderGeometry(1, 1, 1, 18),
+    puff: new THREE.DodecahedronGeometry(1, 0),
+    ring: new THREE.TorusGeometry(1, 0.045, 4, 18),
   };
   const materialCache = new Map<string, THREE.MeshLambertMaterial>();
 
@@ -195,6 +197,35 @@ function buildKitchen(root: THREE.Group) {
     const mesh = new THREE.Mesh(segments === 12 ? geometries.cyl12 : geometries.cyl18, mat(color, transparent, opacity));
     mesh.position.set(x, y, z);
     mesh.scale.set(sx, sy, sz);
+    parent.add(mesh);
+    return mesh;
+  };
+
+  const puff: PuffFn = (parent, color, x, y, z, scale = 1, opacity = 0.62) => {
+    const group = new THREE.Group();
+    group.position.set(x, y, z);
+    group.userData.dynamic = true;
+    parent.add(group);
+    const parts = [
+      { x: 0, y: 0.02, z: 0, s: 0.08 },
+      { x: -0.08, y: -0.02, z: 0.03, s: 0.06 },
+      { x: 0.09, y: -0.01, z: -0.02, s: 0.065 },
+      { x: 0.02, y: 0.08, z: -0.04, s: 0.05 },
+    ];
+    for (const part of parts) {
+      const mesh = new THREE.Mesh(geometries.puff, mat(color, true, opacity));
+      mesh.position.set(part.x * scale, part.y * scale, part.z * scale);
+      mesh.scale.setScalar(part.s * scale);
+      group.add(mesh);
+    }
+    return group;
+  };
+
+  const ring: RingFn = (parent, color, x, y, z, sx = 1, sz = 1, transparent = false, opacity = 1) => {
+    const mesh = new THREE.Mesh(geometries.ring, mat(color, transparent, opacity));
+    mesh.position.set(x, y, z);
+    mesh.scale.set(sx, sz, 1);
+    mesh.rotation.x = Math.PI / 2;
     parent.add(mesh);
     return mesh;
   };
@@ -238,13 +269,13 @@ function buildKitchen(root: THREE.Group) {
   dynamics.rightArm = chefParts.rightArm;
 
   makeBoard(root, cube, cyl, dynamics);
-  makeRiceCooker(root, cube, cyl, dynamics);
-  makePot(root, cube, cyl, dynamics);
+  makeRiceCooker(root, cube, cyl, puff, dynamics);
+  makePot(root, cube, cyl, puff, dynamics);
   makeMortar(root, cube, cyl, dynamics);
   makePlate(root, cube, cyl, dynamics);
   makeServe(root, cube, cyl, dynamics);
   makeTrash(root, cube, cyl, dynamics);
-  makeStationHighlights(root, cyl, cube, dynamics);
+  makeStationHighlights(root, ring, cube, dynamics);
 
   root.traverse((object) => {
     const mesh = object as THREE.Mesh;
@@ -303,13 +334,19 @@ function makeFridge(root: THREE.Group, cube: CubeFn) {
   group.position.set(-3.18, 0.42, -1.23);
   root.add(group);
   cube(group, '#eaf5f3', 0, 0.42, 0, 0.58, 1.12, 0.48);
+  cube(group, '#f8ffff', 0, 0.75, -0.255, 0.52, 0.38, 0.035);
   cube(group, '#c8d8d2', 0, -0.22, 0, 0.58, 0.18, 0.48);
   const door = new THREE.Group();
   door.userData.dynamic = true;
   group.add(door);
   cube(door, '#a9d9df', 0, 0.52, -0.27, 0.5, 0.46, 0.05);
   cube(door, '#6f9ca4', 0.2, 0.36, -0.31, 0.04, 0.38, 0.04);
+  cube(door, '#e9fbff', -0.07, 0.54, -0.315, 0.04, 0.22, 0.025);
+  cube(door, '#e9fbff', -0.07, 0.54, -0.315, 0.18, 0.04, 0.025);
+  cube(door, '#e9fbff', -0.07, 0.54, -0.315, 0.13, 0.035, 0.025).rotation.z = 0.75;
+  cube(door, '#e9fbff', -0.07, 0.54, -0.315, 0.13, 0.035, 0.025).rotation.z = -0.75;
   cube(group, '#f6fbfb', -0.16, 0.88, -0.26, 0.12, 0.12, 0.035);
+  cube(group, '#ffcf55', 0.08, 0.88, -0.26, 0.1, 0.08, 0.035);
   cube(group, '#d3e2df', 0, 0.05, -0.26, 0.5, 0.035, 0.035);
   return door;
 }
@@ -321,11 +358,16 @@ function makePantry(root: THREE.Group, cube: CubeFn) {
   root.add(group);
   cube(group, '#b26d32', 0, -0.02, 0, 0.78, 0.68, 0.36);
   cube(group, '#7a4826', 0, 0.21, -0.2, 0.72, 0.07, 0.07);
-  cube(group, COLORS.rice, -0.15, 0.48, -0.16, 0.24, 0.22, 0.17);
-  cube(group, '#e9d79b', -0.15, 0.62, -0.16, 0.16, 0.07, 0.12);
+  cube(group, COLORS.rice, -0.2, 0.48, -0.16, 0.26, 0.24, 0.18);
+  cube(group, '#e9d79b', -0.2, 0.63, -0.16, 0.16, 0.07, 0.12);
+  cube(group, COLORS.rice, 0.05, 0.48, -0.14, 0.22, 0.2, 0.16);
+  cube(group, '#e9d79b', 0.05, 0.61, -0.14, 0.13, 0.055, 0.1);
   cube(group, COLORS.ginger, 0.16, 0.46, -0.15, 0.19, 0.1, 0.14);
-  cube(group, '#f7e8b8', -0.15, 0.48, -0.29, 0.12, 0.06, 0.035);
-  cube(group, '#df8731', 0.18, 0.61, -0.15, 0.18, 0.18, 0.16);
+  cube(group, '#f7e8b8', -0.2, 0.49, -0.29, 0.13, 0.06, 0.035);
+  cube(group, '#df8731', 0.24, 0.61, -0.15, 0.18, 0.18, 0.16);
+  cube(group, '#fff7d1', -0.34, 0.34, -0.23, 0.08, 0.04, 0.05);
+  cube(group, '#fff7d1', -0.25, 0.34, -0.23, 0.06, 0.035, 0.05);
+  cube(group, '#f4dfb6', 0.33, 0.43, -0.18, 0.04, 0.26, 0.04).rotation.z = -0.65;
   return group;
 }
 
@@ -337,16 +379,15 @@ function makeBoard(root: THREE.Group, cube: CubeFn, cyl: CylFn, d: DynamicRefs) 
   cube(board, '#f2cf91', 0, 0.09, 0, 0.74, 0.07, 0.36);
   cube(board, '#d8914f', -0.22, 0.15, 0, 0.035, 0.025, 0.28);
   cube(board, '#d8914f', 0.22, 0.15, 0, 0.035, 0.025, 0.28);
+  cube(board, '#fff1bf', 0, 0.16, -0.16, 0.48, 0.018, 0.025);
+  cube(board, '#fff1bf', 0, 0.16, 0.16, 0.48, 0.018, 0.025);
+  cube(board, '#7a4826', -0.42, 0.12, 0, 0.08, 0.035, 0.12);
 
   d.boardRawChicken = new THREE.Group();
   d.boardRawChicken.userData.dynamic = true;
   d.boardRawChicken.position.set(0.05, 0.78, -2.0);
   root.add(d.boardRawChicken);
-  cyl(d.boardRawChicken, COLORS.chickenRaw, 0, 0, 0, 0.28, 0.12, 0.2);
-  cube(d.boardRawChicken, COLORS.chickenSkin, 0.22, 0.01, 0.1, 0.22, 0.08, 0.12);
-  cube(d.boardRawChicken, COLORS.garlic, -0.24, 0.05, -0.03, 0.08, 0.06, 0.07);
-  cube(d.boardRawChicken, '#f5c79a', 0.02, 0.08, -0.16, 0.18, 0.035, 0.04);
-  cube(d.boardRawChicken, '#d78a55', -0.12, -0.01, 0.13, 0.12, 0.05, 0.07);
+  addChickenShape(d.boardRawChicken, cube, cyl, false, 1.05);
 
   d.boardCutChicken = new THREE.Group();
   d.boardCutChicken.userData.dynamic = true;
@@ -362,20 +403,26 @@ function makeBoard(root: THREE.Group, cube: CubeFn, cyl: CylFn, d: DynamicRefs) 
   d.knife.position.set(0.37, 0.9, -2.0);
   root.add(d.knife);
   cube(d.knife, COLORS.steel, -0.08, 0, 0, 0.52, 0.05, 0.12);
+  cube(d.knife, '#e9f0ec', -0.26, 0.035, -0.055, 0.22, 0.025, 0.025);
   cube(d.knife, COLORS.black, 0.25, -0.02, 0, 0.28, 0.07, 0.1);
 }
 
-function makeRiceCooker(root: THREE.Group, cube: CubeFn, cyl: CylFn, d: DynamicRefs) {
+function makeRiceCooker(root: THREE.Group, cube: CubeFn, cyl: CylFn, puff: PuffFn, d: DynamicRefs) {
   const group = new THREE.Group();
   group.position.set(1.75, 0.63, -2.0);
   group.userData.dynamic = true;
   root.add(group);
   cube(group, '#173b41', 0, -0.1, 0, 0.92, 0.2, 0.62);
   cyl(group, COLORS.steelDark, 0, 0.07, 0, 0.46, 0.18, 0.32);
-  cyl(group, '#263135', 0, 0.23, 0, 0.36, 0.06, 0.24);
+  cyl(group, '#f8fffa', 0, 0.25, 0, 0.38, 0.075, 0.25);
+  cyl(group, '#263135', 0, 0.31, 0, 0.22, 0.04, 0.15);
+  cyl(group, '#d7e5df', 0, 0.37, -0.03, 0.07, 0.035, 0.05);
   cube(group, '#e7f3ef', 0, 0.22, 0.33, 0.34, 0.08, 0.035);
   cube(group, '#ffcf55', -0.12, 0.28, 0.35, 0.055, 0.035, 0.035);
   cube(group, '#57c3ad', 0.11, 0.28, 0.35, 0.055, 0.035, 0.035);
+  const paddle = cube(group, '#fff2c4', 0.46, 0.24, -0.02, 0.055, 0.42, 0.06);
+  paddle.rotation.z = -0.35;
+  cube(group, '#fff2c4', 0.36, 0.08, -0.05, 0.12, 0.08, 0.08);
   d.riceBowl = group;
   d.riceItem = new THREE.Group();
   d.riceItem.userData.dynamic = true;
@@ -385,42 +432,42 @@ function makeRiceCooker(root: THREE.Group, cube: CubeFn, cyl: CylFn, d: DynamicR
   cube(d.riceItem, '#fffdf1', -0.12, 0.08, 0.02, 0.07, 0.04, 0.06);
   cube(d.riceItem, '#fffdf1', 0.13, 0.08, -0.02, 0.07, 0.04, 0.06);
   for (let i = 0; i < 4; i += 1) {
-    const steam = cube(root, COLORS.paper, 1.5 + i * 0.16, 1.16, -2.08, 0.05, 0.16, 0.05, true, 0.7);
-    steam.userData.dynamic = true;
+    const steam = puff(root, COLORS.paper, 1.5 + i * 0.16, 1.16, -2.08, 0.9, 0.48);
     d.riceSteam.push(steam);
   }
   d.progressBars.riceCooker = makeProgress(root, cube, 1.75, -2.0);
 }
 
-function makePot(root: THREE.Group, cube: CubeFn, cyl: CylFn, d: DynamicRefs) {
+function makePot(root: THREE.Group, cube: CubeFn, cyl: CylFn, puff: PuffFn, d: DynamicRefs) {
   const group = new THREE.Group();
   group.position.set(3.1, 0.58, -0.35);
   root.add(group);
   cube(group, '#173b41', 0, -0.12, 0, 0.96, 0.2, 0.7);
+  cube(group, '#ef6a3e', 0, -0.02, 0.34, 0.34, 0.08, 0.06);
+  cube(group, '#ffd65b', 0, 0.03, 0.36, 0.2, 0.06, 0.045);
   cyl(group, COLORS.steelDark, 0, 0.1, 0, 0.5, 0.26, 0.36);
   cyl(group, COLORS.steel, 0, 0.29, 0, 0.43, 0.1, 0.29);
   cube(group, COLORS.steelDark, -0.56, 0.2, 0, 0.16, 0.08, 0.12);
   cube(group, COLORS.steelDark, 0.56, 0.2, 0, 0.16, 0.08, 0.12);
   d.potWater = cyl(group, COLORS.blue, 0, 0.39, 0, 0.43, 0.035, 0.29, true, 0.74);
   d.potWater.userData.dynamic = true;
+  cyl(group, '#c2f3f5', -0.11, 0.42, -0.04, 0.2, 0.012, 0.08, true, 0.58, 12);
+  cyl(group, '#e1ffff', 0.16, 0.43, 0.08, 0.12, 0.01, 0.06, true, 0.48, 12);
 
   d.potChicken = new THREE.Group();
   d.potChicken.userData.dynamic = true;
   d.potChicken.position.set(3.1, 1.03, -0.35);
   root.add(d.potChicken);
-  cyl(d.potChicken, COLORS.chickenCooked, 0, 0, 0, 0.32, 0.09, 0.21);
-  cube(d.potChicken, '#f8e5bd', -0.25, 0.04, 0, 0.15, 0.06, 0.06);
-  cube(d.potChicken, '#f8e5bd', 0.25, 0.04, 0, 0.15, 0.06, 0.06);
-  cube(d.potChicken, '#dba36d', 0, 0.05, -0.17, 0.25, 0.035, 0.035);
+  addChickenShape(d.potChicken, cube, cyl, true, 1);
 
   for (let i = 0; i < 5; i += 1) {
-    const steam = cube(root, COLORS.paper, 2.82 + i * 0.13, 1.1, -0.48, 0.05, 0.15, 0.05, true, 0.68);
-    steam.userData.dynamic = true;
+    const steam = puff(root, COLORS.paper, 2.82 + i * 0.13, 1.1, -0.48, 1, 0.5);
     d.potSteam.push(steam);
   }
   for (let i = 0; i < 5; i += 1) {
     const bubble = cyl(group, COLORS.paper, -0.25 + i * 0.12, 0.45, -0.08 + (i % 2) * 0.12, 0.035, 0.012, 0.035, true, 0.6, 12);
     bubble.userData.dynamic = true;
+    bubble.userData.baseScale = { x: 0.035, y: 0.012, z: 0.035 };
     d.potBubbles.push(bubble);
   }
   d.progressBars.pot = makeProgress(root, cube, 3.1, -0.35);
@@ -435,12 +482,21 @@ function makeMortar(root: THREE.Group, cube: CubeFn, cyl: CylFn, d: DynamicRefs)
   cyl(base, '#302924', 0, 0.25, 0, 0.22, 0.07, 0.17);
   cube(base, '#9f9287', -0.26, 0.02, 0, 0.08, 0.08, 0.12);
   cube(base, '#9f9287', 0.26, 0.02, 0, 0.08, 0.08, 0.12);
+  cube(base, '#f7ead0', -0.43, 0.2, -0.16, 0.1, 0.08, 0.09);
+  cube(base, '#f7ead0', -0.34, 0.22, -0.12, 0.08, 0.07, 0.08);
+  const sideChili = cyl(base, COLORS.chili, 0.42, 0.21, -0.1, 0.07, 0.18, 0.06, false, 1, 12);
+  sideChili.rotation.z = 1.05;
+  cube(base, '#2ea05a', 0.36, 0.28, -0.16, 0.08, 0.035, 0.035);
+  cube(base, COLORS.ginger, 0.32, 0.19, 0.16, 0.18, 0.08, 0.1);
 
   d.mortarIngredients = new THREE.Group();
   d.mortarIngredients.userData.dynamic = true;
   d.mortarIngredients.position.set(-2.4, 0.98, 1.6);
   root.add(d.mortarIngredients);
-  cyl(d.mortarIngredients, COLORS.chili, -0.12, 0, 0, 0.11, 0.04, 0.08);
+  const chiliA = cyl(d.mortarIngredients, COLORS.chili, -0.12, 0, 0, 0.08, 0.16, 0.06, false, 1, 12);
+  chiliA.rotation.z = 1.2;
+  const chiliB = cyl(d.mortarIngredients, COLORS.chili, -0.03, 0.01, 0.08, 0.07, 0.13, 0.05, false, 1, 12);
+  chiliB.rotation.z = 0.65;
   cyl(d.mortarIngredients, COLORS.ginger, 0.1, 0.02, 0.06, 0.1, 0.04, 0.08);
   cube(d.mortarIngredients, COLORS.garlic, 0, 0.05, -0.1, 0.11, 0.07, 0.09);
   cube(d.mortarIngredients, '#2ea05a', -0.04, 0.05, 0.11, 0.12, 0.025, 0.04);
@@ -467,6 +523,10 @@ function makePlate(root: THREE.Group, cube: CubeFn, cyl: CylFn, d: DynamicRefs) 
   cyl(plateBase, '#2a2020', 0, -0.08, 0, 0.62, 0.09, 0.43);
   cyl(plateBase, COLORS.paper, 0, 0, 0, 0.52, 0.06, 0.35);
   cyl(plateBase, '#d8cdbb', 0, 0.04, 0, 0.38, 0.025, 0.25, true, 0.55);
+  cyl(plateBase, '#fff8e8', -0.46, 0.09, -0.12, 0.2, 0.035, 0.14);
+  cyl(plateBase, '#fff8e8', -0.48, 0.14, -0.14, 0.18, 0.03, 0.12);
+  cyl(plateBase, '#3bbf75', 0.4, 0.08, 0.12, 0.1, 0.025, 0.06, false, 1, 12);
+  cyl(plateBase, '#46d185', 0.28, 0.09, 0.14, 0.08, 0.025, 0.055, false, 1, 12);
 
   const rice = new THREE.Group();
   rice.userData.dynamic = true;
@@ -474,13 +534,16 @@ function makePlate(root: THREE.Group, cube: CubeFn, cyl: CylFn, d: DynamicRefs) 
   root.add(rice);
   cyl(rice, COLORS.rice, -0.18, 0.02, 0, 0.24, 0.1, 0.18);
   cube(rice, '#fffdf1', -0.08, 0.12, 0.02, 0.06, 0.04, 0.06);
+  cube(rice, '#fffdf1', -0.24, 0.11, -0.04, 0.05, 0.035, 0.04);
 
   const chicken = new THREE.Group();
   chicken.userData.dynamic = true;
   chicken.position.set(-0.15, 0.78, 2.0);
   root.add(chicken);
-  cube(chicken, COLORS.chickenCooked, 0.14, 0.04, -0.05, 0.42, 0.08, 0.14);
-  cube(chicken, COLORS.chickenSkin, 0.14, 0.1, -0.13, 0.4, 0.035, 0.035);
+  for (let i = 0; i < 4; i += 1) {
+    cube(chicken, COLORS.chickenCooked, -0.02 + i * 0.09, 0.04, -0.05, 0.08, 0.08, 0.16);
+    cube(chicken, COLORS.chickenSkin, -0.02 + i * 0.09, 0.1, -0.14, 0.075, 0.03, 0.035);
+  }
 
   const sauce = new THREE.Group();
   sauce.userData.dynamic = true;
@@ -499,8 +562,14 @@ function makeServe(root: THREE.Group, cube: CubeFn, cyl: CylFn, d: DynamicRefs) 
   cube(group, '#efc27d', 0, 0.04, 0, 0.78, 0.11, 0.46);
   cube(group, COLORS.wallDark, 0, 0.46, 0.28, 0.88, 0.56, 0.07);
   cube(group, '#fff3cb', 0, 0.4, 0.22, 0.62, 0.18, 0.04);
+  cube(group, '#39c4d3', 0, 0.76, 0.18, 0.9, 0.1, 0.08);
+  cube(group, '#ffd65b', -0.24, 0.83, 0.16, 0.18, 0.12, 0.07);
+  cube(group, '#ff7f3f', 0, 0.83, 0.16, 0.18, 0.12, 0.07);
+  cube(group, '#ffd65b', 0.24, 0.83, 0.16, 0.18, 0.12, 0.07);
   cube(group, '#e8725e', -0.34, 0.56, 0.2, 0.12, 0.32, 0.05);
   cube(group, '#e8725e', 0.34, 0.56, 0.2, 0.12, 0.32, 0.05);
+  cube(group, '#fff8e8', -0.24, 0.16, -0.24, 0.26, 0.035, 0.18);
+  cube(group, '#efb98b', 0.08, 0.17, -0.22, 0.18, 0.035, 0.13);
   d.bell = new THREE.Group();
   d.bell.userData.dynamic = true;
   d.bell.position.set(1.75, 1.0, 1.83);
@@ -523,11 +592,33 @@ function makeTrash(root: THREE.Group, cube: CubeFn, cyl: CylFn, d: DynamicRefs) 
   cube(d.trashLid, '#71695e', 0, 0, 0, 0.56, 0.07, 0.38);
 }
 
-function makeStationHighlights(root: THREE.Group, cyl: CylFn, cube: CubeFn, d: DynamicRefs) {
+function addChickenShape(parent: THREE.Group, cube: CubeFn, cyl: CylFn, cooked: boolean, scale = 1) {
+  const meat = cooked ? COLORS.chickenCooked : COLORS.chickenRaw;
+  const skin = cooked ? COLORS.chickenSkin : '#d78a55';
+  const bone = cooked ? '#fff4d8' : COLORS.garlic;
+  cyl(parent, meat, 0, 0, 0, 0.3 * scale, 0.13 * scale, 0.21 * scale);
+  cube(parent, skin, 0.02 * scale, 0.08 * scale, -0.17 * scale, 0.28 * scale, 0.035 * scale, 0.04 * scale);
+  cube(parent, '#f8e5bd', -0.1 * scale, 0.08 * scale, -0.08 * scale, 0.12 * scale, 0.025 * scale, 0.035 * scale);
+
+  const leftLeg = cube(parent, meat, -0.24 * scale, 0.01 * scale, 0.08 * scale, 0.16 * scale, 0.08 * scale, 0.1 * scale);
+  leftLeg.rotation.z = 0.28;
+  const rightLeg = cube(parent, meat, 0.24 * scale, 0.01 * scale, 0.08 * scale, 0.16 * scale, 0.08 * scale, 0.1 * scale);
+  rightLeg.rotation.z = -0.28;
+  cube(parent, bone, -0.36 * scale, 0.06 * scale, 0.09 * scale, 0.08 * scale, 0.055 * scale, 0.065 * scale);
+  cube(parent, bone, 0.36 * scale, 0.06 * scale, 0.09 * scale, 0.08 * scale, 0.055 * scale, 0.065 * scale);
+
+  const wingA = cube(parent, skin, -0.19 * scale, 0 * scale, -0.08 * scale, 0.15 * scale, 0.055 * scale, 0.11 * scale);
+  wingA.rotation.z = -0.45;
+  const wingB = cube(parent, skin, 0.19 * scale, 0 * scale, -0.08 * scale, 0.15 * scale, 0.055 * scale, 0.11 * scale);
+  wingB.rotation.z = 0.45;
+}
+
+function makeStationHighlights(root: THREE.Group, ring: RingFn, cube: CubeFn, d: DynamicRefs) {
   for (const station of STATIONS) {
-    const ring = cyl(root, COLORS.jade, station.x, 0.03, station.z, 0.48, 0.018, 0.48, true, 0.16, 18);
-    ring.userData.dynamic = true;
-    d.highlights[station.id] = ring;
+    const target = ring(root, COLORS.jade, station.x, 0.08, station.z, 0.42, 0.42, true, 0.16);
+    target.userData.dynamic = true;
+    target.userData.baseScale = { x: 0.42, y: 0.42, z: 1 };
+    d.highlights[station.id] = target;
     d.progressBars[station.id] ??= makeProgress(root, cube, station.x, station.z);
   }
 }
@@ -622,9 +713,10 @@ function updateDynamics(d: DynamicRefs, state: KitchenVisualState | null, t: num
     const active = live.activeStation === station.id;
     highlight.visible = near || active;
     const scale = near ? 1.18 + Math.sin(t * 6) * 0.035 : 1.0;
-    highlight.scale.setScalar(scale);
+    const baseScale = highlight.userData.baseScale as { x: number; y: number; z: number };
+    highlight.scale.set(baseScale.x * scale, baseScale.y * scale, baseScale.z * scale);
     const material = highlight.material as THREE.MeshLambertMaterial;
-    material.opacity = active ? 0.46 : near ? 0.34 : 0.15;
+    material.opacity = active ? 0.48 : near ? 0.34 : 0.15;
 
     const progress = d.progressBars[station.id];
     if (progress) {
@@ -664,7 +756,7 @@ function updateDynamics(d: DynamicRefs, state: KitchenVisualState | null, t: num
     const rise = (t * 0.7 + index * 0.19) % 1;
     steam.visible = Boolean(riceItem);
     steam.position.set(1.5 + index * 0.16 + Math.sin(t + index) * 0.03, 1.05 + rise * 0.52, -2.08);
-    steam.scale.setScalar(0.72 + rise * 0.45);
+    steam.scale.setScalar(0.64 + rise * 0.32);
   });
 
   const potItem = live.stations.pot?.item;
@@ -677,12 +769,14 @@ function updateDynamics(d: DynamicRefs, state: KitchenVisualState | null, t: num
     const rise = (t * 0.75 + index * 0.17) % 1;
     steam.visible = Boolean(potItem);
     steam.position.set(2.82 + index * 0.13 + Math.sin(t + index) * 0.035, 1.03 + rise * 0.62, -0.48);
-    steam.scale.setScalar(0.72 + rise * 0.55);
+    steam.scale.setScalar(0.62 + rise * 0.34);
   });
   d.potBubbles.forEach((bubble, index) => {
     bubble.visible = poaching;
     bubble.position.y = 0.42 + Math.abs(Math.sin(t * 7 + index)) * 0.08;
-    bubble.scale.setScalar(0.85 + Math.sin(t * 8 + index) * 0.18);
+    const baseScale = bubble.userData.baseScale as { x: number; y: number; z: number };
+    const scale = 0.85 + Math.sin(t * 8 + index) * 0.18;
+    bubble.scale.set(baseScale.x * scale, baseScale.y * scale, baseScale.z * scale);
   });
 
   const mortarItem = live.stations.mortar?.item;
@@ -750,4 +844,26 @@ type CylFn = (
   transparent?: boolean,
   opacity?: number,
   segments?: number,
+) => THREE.Mesh;
+
+type PuffFn = (
+  parent: THREE.Object3D,
+  color: string,
+  x: number,
+  y: number,
+  z: number,
+  scale?: number,
+  opacity?: number,
+) => THREE.Group;
+
+type RingFn = (
+  parent: THREE.Object3D,
+  color: string,
+  x: number,
+  y: number,
+  z: number,
+  sx?: number,
+  sz?: number,
+  transparent?: boolean,
+  opacity?: number,
 ) => THREE.Mesh;
