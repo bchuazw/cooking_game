@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { CHICKEN_RICE, starsFromAverage, tierFromScore, type StepDefinition, type Tier } from './gameData';
 import { VoxelCanvas, type VisualState } from './VoxelCanvas';
 
@@ -17,7 +17,7 @@ const FILLED_STAR = '\u2605';
 const EMPTY_STAR = '\u2606';
 const SIMMER_MIN = 0.48;
 const SIMMER_MAX = 0.76;
-const STIR_TURN_TARGET = Math.PI * 1.45;
+const STIR_SWIRL_TARGET = 0.64;
 const MASH_READY_PRESS = 0.55;
 
 export default function App() {
@@ -371,7 +371,7 @@ function StirGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => vo
   const [dragPower, setDragPower] = useState(0);
   const [targetPower, setTargetPower] = useState(firstTarget.current);
   const targetPowerRef = useRef(firstTarget.current);
-  const dragRef = useRef<{ x: number; y: number; time: number; pointerId: number } | null>(null);
+  const dragRef = useRef<{ x: number; y: number; originY: number; pointerId: number } | null>(null);
   const done = useRef(false);
   const [showHint, dismissHint] = useCoachHint(`${tosses}:${tossing}`, 1300);
 
@@ -388,14 +388,15 @@ function StirGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => vo
   };
 
   const completeToss = (releasePower: number, straight: number) => {
-    const closeness = 1 - Math.min(1, Math.abs(releasePower - targetPowerRef.current) / 0.42);
-    const quality = clamp((0.54 + closeness * 0.46) * (0.92 + straight * 0.08), 0.54, 1);
+    const miss = Math.abs(releasePower - targetPowerRef.current);
+    const closeness = 1 - Math.min(1, miss / 0.28);
+    const quality = clamp((0.42 + closeness * 0.58) * (0.9 + straight * 0.1), 0.38, 1);
     scoresRef.current.push(quality);
     playSfx(closeness > 0.58 ? 'toss' : 'tap');
     haptic(closeness > 0.58 ? 16 : 8);
     tossesRef.current += 1;
     setTosses(tossesRef.current);
-    setCue(closeness > 0.84 ? 'Perfect toss' : closeness > 0.58 ? 'Good toss' : releasePower > targetPowerRef.current ? 'Too high' : 'Too low');
+    setCue(closeness > 0.86 ? 'Perfect toss' : closeness > 0.56 ? 'Good toss' : releasePower > targetPowerRef.current ? 'Too high' : 'Too low');
     const nextProgress = clamp(tossesRef.current / targetTosses, 0, 1);
     setProgress(nextProgress);
     setTossing(true);
@@ -403,6 +404,7 @@ function StirGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => vo
     onVisual({
       stirProgress: nextProgress,
       stirTurns: tossesRef.current,
+      stirMarker: releasePower,
       stirToss: performance.now(),
       stirPull: 0,
       pulse: performance.now(),
@@ -427,24 +429,28 @@ function StirGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => vo
     event.preventDefault();
     dismissHint();
     event.currentTarget.setPointerCapture(event.pointerId);
-    dragRef.current = { x: event.clientX, y: event.clientY, time: performance.now(), pointerId: event.pointerId };
-    setCue('Pull up');
-    setDragPower(0);
-    onVisual({ stirPull: 0 });
+    const rect = event.currentTarget.getBoundingClientRect();
+    const originY = rect.bottom - 24;
+    dragRef.current = { x: event.clientX, y: event.clientY, originY, pointerId: event.pointerId };
+    const initialPower = clamp((originY - event.clientY) / Math.max(160, rect.height - 36), 0, 1);
+    setCue('Pull to the gold band');
+    setDragPower(initialPower);
+    onVisual({ stirPull: initialPower });
   };
 
   const moveSwipe = (event: ReactPointerEvent<HTMLDivElement>) => {
     const drag = dragRef.current;
     if (!drag || done.current || tossing) return;
     event.preventDefault();
-    const dy = drag.y - event.clientY;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const dy = drag.originY - event.clientY;
     const dx = Math.abs(event.clientX - drag.x);
-    const power = clamp(dy / 190, 0, 1);
-    const straight = clamp(1 - dx / 150, 0, 1);
+    const power = clamp(dy / Math.max(160, rect.height - 36), 0, 1);
+    const straight = clamp(1 - dx / Math.max(120, rect.width * 0.44), 0, 1);
     const nextPower = power * (0.55 + straight * 0.45);
     const close = Math.abs(nextPower - targetPowerRef.current);
     setDragPower(nextPower);
-    setCue(close < 0.08 ? 'Release now!' : nextPower < targetPowerRef.current ? 'Pull higher' : 'Too high');
+    setCue(close < 0.09 ? 'Release now!' : nextPower < targetPowerRef.current ? 'Pull higher' : 'Ease lower');
     onVisual({ stirPull: nextPower });
   };
 
@@ -457,13 +463,14 @@ function StirGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => vo
     } catch {
       // Pointer capture can already be gone after touch cancellation.
     }
-    const dy = drag.y - event.clientY;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const dy = drag.originY - event.clientY;
     const dx = Math.abs(event.clientX - drag.x);
     dragRef.current = null;
-    const releasePower = clamp((dy - 12) / 190, 0, 1);
-    const straight = clamp(1 - dx / Math.max(80, dy * 0.8), 0, 1);
-    if (releasePower < 0.12) {
-      setCue('Swipe upward');
+    const releasePower = clamp(dy / Math.max(160, rect.height - 36), 0, 1);
+    const straight = clamp(1 - dx / Math.max(100, rect.width * 0.44), 0, 1);
+    if (releasePower < 0.08) {
+      setCue('Pull up to toss');
       setDragPower(0);
       onVisual({ stirPull: 0 });
       return;
@@ -477,7 +484,7 @@ function StirGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => vo
         <span>{tossing ? cue : 'Toast the rice'}</span>
         <strong>{Math.min(tosses, targetTosses)}/{targetTosses}</strong>
       </div>
-      <div className="timing-caption">{tossing ? 'The rice jumps and turns in the wok.' : 'Pull up into the gold band, then release.'}</div>
+      <div className="timing-caption">{tossing ? 'The rice jumps based on your release height.' : 'Drag anywhere in the pan, stop in the gold band, then release.'}</div>
       <div
         className={`gesture-pad swipe-pad ${tossing ? 'is-tossing' : ''}`}
         data-testid="toss-pad"
@@ -494,9 +501,9 @@ function StirGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => vo
           />
           <i className="mini-wok-spoon" style={{ transform: `rotate(${-18 - dragPower * 22}deg)` }} />
         </div>
-        <em aria-hidden="true" style={{ bottom: `${34 + targetPower * 118}px` }} />
-        <i style={{ height: `${34 + dragPower * 118}px` }} />
-        <b>UP</b>
+        <em aria-hidden="true" style={{ bottom: `${26 + targetPower * 132}px` }} />
+        <i style={{ height: `${42 + dragPower * 132}px` }} />
+        <b style={{ bottom: `${26 + dragPower * 132}px` }}>PULL</b>
         <span>{tossing ? 'Rice tossed!' : cue}</span>
         <CoachHand visible={showHint && !tossing && dragPower === 0} variant="swipe-up" />
       </div>
@@ -522,12 +529,12 @@ function SimmerGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => 
   const stirPowerRef = useRef(0);
   const bubbleStartedAt = useRef(performance.now());
   const inZone = isSimmerHeat(heat);
-  const stirDrag = useRef<{ lastAngle: number; lastX: number; lastY: number; accumulated: number; pointerId: number } | null>(null);
+  const stirDrag = useRef<{ lastX: number; lastY: number; accumulated: number; pointerId: number } | null>(null);
   const scoresRef = useRef<number[]>([]);
   const [showHint, dismissHint] = useCoachHint(`${inZone}:${turns}:${hold > 0}`, 1300);
   const temperature = Math.round(44 + heat * 42);
   const targetTurns = 3;
-  const progress = clamp((hold / 1800) * 0.48 + (turns / targetTurns) * 0.52, 0, 1);
+  const progress = clamp((hold / 1200) * 0.48 + (turns / targetTurns) * 0.52, 0, 1);
 
   useEffect(() => {
     let raf = 0;
@@ -537,7 +544,7 @@ function SimmerGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => 
       last = now;
       const liveInZone = isSimmerHeat(heatRef.current);
       setHold((value) => {
-        const next = liveInZone ? Math.min(1800, value + dt) : Math.max(0, value - dt * 0.9);
+        const next = liveInZone ? Math.min(1200, value + dt) : Math.max(0, value - dt * 0.9);
         return next;
       });
       const nextBubble = ((now - bubbleStartedAt.current) % 1900) / 1900;
@@ -556,7 +563,7 @@ function SimmerGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => 
   }, [onVisual]);
 
   useEffect(() => {
-    if (!done.current && hold >= 1800 && turns >= targetTurns) {
+    if (!done.current && hold >= 1200 && turns >= targetTurns) {
       done.current = true;
       const elapsed = performance.now() - startedAt.current;
       const timingScore = avg(scoresRef.current);
@@ -571,7 +578,7 @@ function SimmerGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => 
     dismissHint();
     heatRef.current = next;
     setHeat(next);
-    setCue(isSimmerHeat(next) ? 'Now stir circles' : next < SIMMER_MIN ? 'Drag heat up' : 'Lower heat');
+    setCue(isSimmerHeat(next) ? 'Now drag spoon' : next < SIMMER_MIN ? 'Drag heat up' : 'Lower heat');
     onVisual({ simmerHeat: next, simmerReady: isSimmerHeat(next) });
   };
 
@@ -609,12 +616,12 @@ function SimmerGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => 
     dismissHint();
     event.currentTarget.setPointerCapture(event.pointerId);
     const angle = angleFromPoint(event.clientX, event.clientY);
-    stirDrag.current = { lastAngle: angle, lastX: event.clientX, lastY: event.clientY, accumulated: 0, pointerId: event.pointerId };
+    stirDrag.current = { lastX: event.clientX, lastY: event.clientY, accumulated: 0, pointerId: event.pointerId };
     stirAngleRef.current = angle;
     stirPowerRef.current = 0.12;
     setStirAngle(angle);
     setStirPower(0.12);
-    setCue(isSimmerHeat(heatRef.current) ? 'Stir circles here' : 'Set heat in green zone');
+    setCue(isSimmerHeat(heatRef.current) ? 'Drag spoon through broth' : 'Set heat in green zone');
     onVisual({ simmerStir: 0.12, simmerStirAngle: angle });
   };
 
@@ -623,23 +630,19 @@ function SimmerGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => 
     if (!drag || done.current) return;
     event.preventDefault();
     const angle = angleFromPoint(event.clientX, event.clientY);
-    let delta = angle - drag.lastAngle;
-    if (delta > Math.PI) delta -= Math.PI * 2;
-    if (delta < -Math.PI) delta += Math.PI * 2;
     const travel = Math.hypot(event.clientX - drag.lastX, event.clientY - drag.lastY);
-    drag.lastAngle = angle;
     drag.lastX = event.clientX;
     drag.lastY = event.clientY;
-    drag.accumulated += Math.abs(delta) + clamp(travel / 170, 0, 0.16);
-    const turnProgress = clamp(drag.accumulated / STIR_TURN_TARGET, 0, 1);
+    drag.accumulated += clamp(travel / 145, 0, 0.22);
+    const turnProgress = clamp(drag.accumulated / STIR_SWIRL_TARGET, 0, 1);
     stirAngleRef.current = angle;
     stirPowerRef.current = turnProgress;
     setStirAngle(angle);
     setStirPower(turnProgress);
-    setCue(isSimmerHeat(heatRef.current) ? (turnProgress > 0.55 ? 'Keep circling' : 'Stir circles here') : 'Set heat in green zone');
+    setCue(isSimmerHeat(heatRef.current) ? (turnProgress > 0.55 ? 'Keep stirring' : 'Move the spoon') : 'Set heat in green zone');
     onVisual({ simmerStir: turnProgress, simmerStirAngle: angle });
-    while (drag.accumulated >= STIR_TURN_TARGET) {
-      drag.accumulated -= STIR_TURN_TARGET;
+    while (drag.accumulated >= STIR_SWIRL_TARGET) {
+      drag.accumulated -= STIR_SWIRL_TARGET;
       finishStirTurn();
     }
   };
@@ -687,6 +690,7 @@ function SimmerGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => 
         <div
           ref={stirRef}
           className={`stock-stir-pad ${inZone ? 'ready' : 'waiting'}`}
+          style={{ '--stir-progress': stirPower } as CSSProperties}
           data-testid="stir-pot"
           role="button"
           tabIndex={0}
@@ -698,12 +702,13 @@ function SimmerGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => 
           <i aria-hidden="true" className="stock-surface" />
           <i aria-hidden="true" className={`stock-chicken ${inZone ? 'warm' : ''}`} />
           <b aria-hidden="true" className="stir-path" />
+          <i aria-hidden="true" className="stir-progress-fill" />
           <em
             aria-hidden="true"
             className="stir-spoon"
             style={{ transform: `translate(-50%, -50%) rotate(${stirAngle}rad) translateX(52px) rotate(18deg)` }}
           />
-          <span>{inZone ? 'Circle here to stir' : 'Set heat in green zone'}</span>
+          <span>{inZone ? 'Drag spoon through broth' : 'Set heat in green zone'}</span>
           <strong>{turns}/{targetTurns}</strong>
           <CoachHand visible={showHint && inZone && turns < targetTurns} variant="circle" />
         </div>
@@ -715,10 +720,10 @@ function SimmerGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => 
 
 function SauceGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => void; onFinish: (score: number) => void }) {
   const items = [
-    ['chili', 'Chili', 'red heat'],
-    ['ginger', 'Ginger', 'warm bite'],
-    ['garlic', 'Garlic', 'aroma'],
-    ['lime', 'Lime', 'bright juice'],
+    ['chili', 'Sliced chili', 'red strips'],
+    ['ginger', 'Ginger slices', 'warm bite'],
+    ['garlic', 'Garlic cloves', 'aroma'],
+    ['lime', 'Lime juice', 'squeeze'],
   ] as const;
   const [added, setAdded] = useState<string[]>([]);
   const [mashes, setMashes] = useState(0);
@@ -950,27 +955,47 @@ function PlateGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => v
     ['cucumber', 'Cucumber'],
     ['chili', 'Chili'],
   ] as const;
+  const plateTargets: Record<string, { x: number; y: number; label: string }> = {
+    rice: { x: 0.28, y: 0.52, label: 'rice mound' },
+    chicken: { x: 0.56, y: 0.5, label: 'chicken slices' },
+    cucumber: { x: 0.5, y: 0.78, label: 'cucumber row' },
+    chili: { x: 0.78, y: 0.68, label: 'chili saucer' },
+  };
   const [placed, setPlaced] = useState<string[]>([]);
+  const [cue, setCue] = useState('Drag rice to its spot');
   const [dragGhost, setDragGhost] = useState<{ id: string; x: number; y: number } | null>(null);
   const startedAt = useRef(performance.now());
   const done = useRef(false);
+  const scoresRef = useRef<number[]>([]);
   const plateRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ id: string; pointerId: number; startX: number; startY: number } | null>(null);
   const ignoreClick = useRef(false);
   const [showHint, dismissHint] = useCoachHint(`${placed.length}:${dragGhost?.id ?? ''}`, 1300);
+  const expectedId = items[placed.length]?.[0];
+  const expectedLabel = items[placed.length]?.[1];
 
-  const place = (id: string) => {
+  const place = (id: string, quality = 0.82) => {
     if (done.current) return;
+    if (id !== expectedId) {
+      const nextLabel = expectedLabel ?? 'next item';
+      setCue(`Next is ${nextLabel}`);
+      playSfx('tap');
+      haptic(8);
+      return;
+    }
     setPlaced((prev) => {
       if (prev.includes(id)) return prev;
       const next = [...prev, id];
+      scoresRef.current.push(quality);
+      const nextItem = items[next.length];
+      setCue(nextItem ? `Now place ${nextItem[1]}` : 'Ready to serve');
       playSfx(next.length >= items.length ? 'success' : 'plate');
       haptic(next.length >= items.length ? 18 : 10);
       onVisual({ plateItems: next, pulse: performance.now() });
       if (next.length >= items.length) {
         done.current = true;
         const elapsed = performance.now() - startedAt.current;
-        window.setTimeout(() => onFinish(elapsed < 8500 ? 1 : elapsed < 12000 ? 0.86 : 0.74), 360);
+        window.setTimeout(() => onFinish(avg(scoresRef.current) * (elapsed < 12000 ? 1 : elapsed < 16000 ? 0.9 : 0.78)), 360);
       }
       return next;
     });
@@ -996,6 +1021,12 @@ function PlateGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => v
     if (!drag) return;
     const distance = Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY);
     const plateBox = plateRef.current?.getBoundingClientRect();
+    const target = plateBox && plateTargets[drag.id]
+      ? {
+          x: plateBox.left + plateBox.width * plateTargets[drag.id].x,
+          y: plateBox.top + plateBox.height * plateTargets[drag.id].y,
+        }
+      : null;
     const overPlate = Boolean(
       plateBox &&
         event.clientX >= plateBox.left &&
@@ -1012,7 +1043,22 @@ function PlateGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => v
     setDragGhost(null);
     if (distance > 10) {
       ignoreClick.current = true;
-      if (overPlate) place(drag.id);
+      if (!overPlate) {
+        setCue(`Drop ${items.find(([id]) => id === expectedId)?.[1] ?? 'it'} on the plate`);
+      } else if (drag.id !== expectedId) {
+        place(drag.id);
+      } else if (target && plateBox) {
+        const targetDistance = Math.hypot(event.clientX - target.x, event.clientY - target.y);
+        const tolerance = Math.max(44, Math.min(plateBox.width, plateBox.height) * 0.26);
+        const closeness = 1 - Math.min(1, targetDistance / tolerance);
+        if (closeness < 0.18) {
+          setCue(`Aim for the ${plateTargets[drag.id].label}`);
+          playSfx('tap');
+          haptic(8);
+        } else {
+          place(drag.id, clamp(0.72 + closeness * 0.28, 0.72, 1));
+        }
+      }
     }
   };
 
@@ -1022,18 +1068,22 @@ function PlateGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => v
       return;
     }
     dismissHint();
-    place(id);
+    const label = items.find(([itemId]) => itemId === id)?.[1] ?? 'item';
+    setCue(id === expectedId ? `Drag ${label} to the highlighted spot` : `Next is ${expectedLabel}`);
+    playSfx('tap');
+    haptic(8);
   };
 
   return (
     <div className="mini plate-mini">
       <div className="status-row plate-status">
-        <span>Build the plate</span>
+        <span>{cue}</span>
         <strong>{placed.length}/4</strong>
       </div>
       <div className={`plate-drop plate-stage ${dragGhost ? 'is-catching' : ''}`} data-testid="plate-drop" ref={plateRef}>
         <div className="plate-model" aria-hidden="true">
           <i className="plated-rim" />
+          {expectedId && <i className={`plate-target ${expectedId}`} />}
           <i className={`plated-piece rice ${placed.includes('rice') ? 'in' : ''}`} />
           <i className={`plated-piece chicken ${placed.includes('chicken') ? 'in' : ''}`} />
           <i className={`plated-piece cucumber ${placed.includes('cucumber') ? 'in' : ''}`} />

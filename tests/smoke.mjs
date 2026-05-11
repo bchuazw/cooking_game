@@ -35,7 +35,9 @@ async function playStir(page) {
   if (!pad) throw new Error('toss pad missing');
   const x = pad.x + pad.width / 2;
   for (let i = 0; i < 4; i++) {
-    await drag(page, { x, y: pad.y + pad.height * 0.82 }, { x: x - 8 + (i % 2) * 16, y: pad.y + pad.height * 0.16 }, 10);
+    const band = await page.getByTestId('toss-pad').locator('em').boundingBox();
+    if (!band) throw new Error('toss target missing');
+    await drag(page, { x, y: pad.y + pad.height * 0.88 }, { x: x - 4 + (i % 2) * 8, y: band.y + band.height / 2 }, 10);
     await page.waitForTimeout(560);
   }
 }
@@ -79,9 +81,23 @@ async function playSauce(page) {
 }
 
 async function playPlate(page) {
+  const targets = {
+    rice: { x: 0.28, y: 0.52 },
+    chicken: { x: 0.56, y: 0.5 },
+    cucumber: { x: 0.5, y: 0.78 },
+    chili: { x: 0.78, y: 0.68 },
+  };
   for (const id of ['rice', 'chicken', 'cucumber', 'chili']) {
-    await page.getByTestId(`plate-token-${id}`).click();
-    await page.waitForTimeout(150);
+    const plate = await page.getByTestId('plate-drop').boundingBox();
+    const token = await page.getByTestId(`plate-token-${id}`).boundingBox();
+    if (!plate || !token) throw new Error(`plate target missing for ${id}`);
+    await drag(
+      page,
+      { x: token.x + token.width / 2, y: token.y + token.height / 2 },
+      { x: plate.x + plate.width * targets[id].x, y: plate.y + plate.height * targets[id].y },
+      14,
+    );
+    await page.waitForTimeout(180);
   }
 }
 

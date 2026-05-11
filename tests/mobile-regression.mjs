@@ -94,7 +94,9 @@ async function playRice(page) {
   if (!pad) fail('rice: toss pad missing');
   const x = pad.x + pad.width / 2;
   for (let i = 0; i < 4; i++) {
-    await drag(page, { x, y: pad.y + pad.height * 0.82 }, { x: x - 4 + (i % 2) * 8, y: pad.y + pad.height * 0.28 }, 10);
+    const band = await page.getByTestId('toss-pad').locator('em').boundingBox();
+    if (!band) fail('rice: toss target missing');
+    await drag(page, { x, y: pad.y + pad.height * 0.88 }, { x: x - 4 + (i % 2) * 8, y: band.y + band.height / 2 }, 10);
     await page.waitForTimeout(540);
   }
   await page.getByRole('heading', { name: 'Poach the Chicken' }).waitFor({ timeout: 5000 });
@@ -145,16 +147,35 @@ async function playSauce(page) {
 }
 
 async function playPlate(page, viewportName) {
-  const plate = await page.getByTestId('plate-drop').boundingBox();
-  const rice = await page.getByTestId('plate-token-rice').boundingBox();
+  const targets = {
+    rice: { x: 0.28, y: 0.52 },
+    chicken: { x: 0.56, y: 0.5 },
+    cucumber: { x: 0.5, y: 0.78 },
+    chili: { x: 0.78, y: 0.68 },
+  };
+  let plate = await page.getByTestId('plate-drop').boundingBox();
+  let rice = await page.getByTestId('plate-token-rice').boundingBox();
   if (!plate || !rice) fail('plate: drop target or rice token missing');
-  await drag(page, { x: rice.x + rice.width / 2, y: rice.y + rice.height / 2 }, { x: plate.x + plate.width / 2, y: plate.y + plate.height / 2 }, 14);
-  await page.waitForTimeout(200);
+  await drag(
+    page,
+    { x: rice.x + rice.width / 2, y: rice.y + rice.height / 2 },
+    { x: plate.x + plate.width * targets.rice.x, y: plate.y + plate.height * targets.rice.y },
+    14,
+  );
+  await page.waitForTimeout(220);
   const plateText = await page.getByTestId('plate-drop').innerText();
   if (!/1\/4/.test(plateText)) fail(`${viewportName}: plate drag did not place rice (${plateText})`);
   for (const id of ['chicken', 'cucumber', 'chili']) {
-    await page.getByTestId(`plate-token-${id}`).click();
-    await page.waitForTimeout(120);
+    plate = await page.getByTestId('plate-drop').boundingBox();
+    const token = await page.getByTestId(`plate-token-${id}`).boundingBox();
+    if (!plate || !token) fail(`plate: ${id} token missing`);
+    await drag(
+      page,
+      { x: token.x + token.width / 2, y: token.y + token.height / 2 },
+      { x: plate.x + plate.width * targets[id].x, y: plate.y + plate.height * targets[id].y },
+      14,
+    );
+    await page.waitForTimeout(160);
   }
   await page.getByTestId('result-stars').waitFor({ timeout: 7000 });
 }

@@ -511,10 +511,11 @@ function sauceScene(root: THREE.Group, cube: CubeFn, cyl: CylFn, chunk: (color: 
     cube('#d7c8aa', 0.45, 0.9, -0.46, 0.08, 0.16, 0.08),
   ];
   d.sauceItems.lime = [
-    cyl(C.green, 1.38, 0.68, -0.44, 0.28, 0.16, 0.28),
-    cyl('#d8f08a', 1.38, 0.8, -0.44, 0.22, 0.05, 0.22),
-    cube('#f4ffb0', 1.38, 0.84, -0.44, 0.34, 0.04, 0.05),
-    cube('#3f8f43', 1.58, 0.72, -0.44, 0.06, 0.12, 0.28),
+    cyl(C.green, 1.34, 0.68, -0.47, 0.24, 0.13, 0.24),
+    cyl('#d8f08a', 1.34, 0.79, -0.47, 0.18, 0.045, 0.18),
+    cube('#f4ffb0', 1.44, 0.82, -0.34, 0.12, 0.05, 0.08),
+    cube('#f4ffb0', 1.27, 0.74, -0.25, 0.08, 0.05, 0.08),
+    cube('#d8f08a', 1.53, 0.72, -0.55, 0.07, 0.05, 0.07),
   ];
   Object.values(d.sauceItems).forEach((parts) => {
     parts.forEach((mesh) => {
@@ -713,6 +714,7 @@ function updateDynamics(d: DynamicRefs, state: VisualState, t: number) {
 
   const stir = state.stirProgress ?? 0;
   const stirPull = state.stirPull ?? 0;
+  const tossPower = state.stirMarker ?? 0.62;
   const stirTossAge = state.stirToss ? t - state.stirToss / 1000 : 999;
   const recentToss = stirTossAge >= 0 && stirTossAge < 0.5;
   const tossArc = recentToss ? Math.sin((stirTossAge / 0.5) * Math.PI) : 0;
@@ -730,7 +732,7 @@ function updateDynamics(d: DynamicRefs, state: VisualState, t: number) {
   d.riceMounds.forEach((mound, i) => {
     const base = basePosition(mound);
     const scale = baseScale(mound);
-    mound.position.y = base.y + tossArc * (0.05 + i * 0.05) + stirPull * 0.035;
+    mound.position.y = base.y + tossArc * (0.04 + tossPower * 0.18 + i * 0.04) + stirPull * 0.055;
     mound.scale.set(
       scale.x * (1 + stir * 0.08 + tossArc * 0.06 + stirPull * 0.03),
       scale.y,
@@ -741,7 +743,7 @@ function updateDynamics(d: DynamicRefs, state: VisualState, t: number) {
     const base = basePosition(grain);
     const scale = baseScale(grain);
     const drift = Math.sin(t * (2.6 + stir * 2.4) + i) * 0.025 * (0.4 + stir);
-    const lift = tossArc * (0.2 + (i % 5) * 0.03) + stirPull * (0.04 + (i % 3) * 0.012);
+    const lift = tossArc * (0.1 + tossPower * 0.28 + (i % 5) * 0.026) + stirPull * (0.05 + (i % 3) * 0.014);
     grain.position.x = base.x * (1 + stir * 0.18) + Math.cos(i * 1.7) * tossArc * 0.08 + drift;
     grain.position.z = 0.35 + (base.z - 0.35) * (1 + stir * 0.12) + Math.sin(i * 1.3) * tossArc * 0.06;
     grain.position.y = base.y + Math.sin(t * 8 + i) * 0.016 * (0.3 + stir) + lift;
@@ -754,13 +756,13 @@ function updateDynamics(d: DynamicRefs, state: VisualState, t: number) {
     const towardRice = stir * 0.12;
     item.position.x = base.x * (1 - towardRice) + Math.sin(t * 2 + i) * 0.015 + tossArc * Math.cos(i) * 0.04;
     item.position.z = 0.35 + (base.z - 0.35) * (1 - towardRice) + tossArc * Math.sin(i) * 0.04;
-    item.position.y = base.y + Math.sin(t * 4 + i) * 0.01 + tossArc * (0.16 + (i % 3) * 0.03) + stirPull * 0.04;
+    item.position.y = base.y + Math.sin(t * 4 + i) * 0.01 + tossArc * (0.08 + tossPower * 0.18 + (i % 3) * 0.025) + stirPull * 0.05;
     item.rotation.y = t * 0.35 + i;
   });
   if (d.wokSpoon) {
     d.wokSpoon.position.x = 0.56 - tossArc * 0.34 - stirPull * 0.18;
     d.wokSpoon.position.z = 0.48 - tossArc * 0.16 - stirPull * 0.08;
-    d.wokSpoon.position.y = Math.sin(t * 5) * 0.01 - tossArc * 0.07 + stirPull * 0.05;
+    d.wokSpoon.position.y = Math.sin(t * 5) * 0.01 - tossArc * (0.04 + tossPower * 0.08) + stirPull * 0.07;
     d.wokSpoon.rotation.y = -0.35 - tossArc * 0.42 + stir * 0.25 - stirPull * 0.18;
     d.wokSpoon.rotation.z = -0.04 - tossArc * 0.18 - stirPull * 0.2;
   }
