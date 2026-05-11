@@ -53,13 +53,13 @@ interface DynamicRefs {
 }
 
 const COLORS = {
-  wall: '#62d4d7',
-  wallDark: '#1b94a6',
-  floor: '#f7c96f',
-  tileLine: '#d9863f',
-  counter: '#ed6f73',
-  counterTop: '#ffd77b',
-  counterDark: '#7a3c35',
+  wall: '#60cfd2',
+  wallDark: '#176f7f',
+  floor: '#f4da94',
+  tileLine: '#d2a253',
+  counter: '#e8725e',
+  counterTop: '#4fb9ab',
+  counterDark: '#195963',
   paper: '#fff8e8',
   cream: '#f4dfb6',
   steel: '#bfc9c1',
@@ -265,48 +265,54 @@ function buildKitchen(root: THREE.Group) {
 }
 
 function makeRoom(root: THREE.Group, cube: CubeFn) {
-  cube(root, COLORS.wallDark, 0, 1.6, -3.25, 8.4, 3.2, 0.2);
-  cube(root, COLORS.wall, 4.1, 1.55, -0.1, 0.2, 3.1, 6.5);
-  cube(root, '#15100e', 0, -0.32, 0, 8.6, 0.16, 5.8);
-  cube(root, COLORS.floor, 0, -0.2, 0, 8.15, 0.14, 5.45);
-  for (let x = -3.9; x <= 3.9; x += 0.9) cube(root, COLORS.tileLine, x, -0.1, 0, 0.035, 0.035, 5.32);
-  for (let z = -2.6; z <= 2.6; z += 0.9) cube(root, COLORS.tileLine, 0, -0.095, z, 8.0, 0.035, 0.035);
+  cube(root, COLORS.wallDark, 0, 1.15, -3.08, 8.4, 2.25, 0.22);
+  cube(root, COLORS.wall, 0, 0.78, -3.2, 8.2, 0.34, 0.28);
+  cube(root, '#102e34', 0, -0.34, 0, 8.55, 0.16, 5.8);
+  cube(root, COLORS.floor, 0, -0.2, 0, 8.0, 0.14, 5.35);
+  cube(root, '#fff0b9', 0, -0.09, 0, 7.62, 0.035, 4.98, true, 0.32);
+  for (let x = -3.35; x <= 3.35; x += 0.95) cube(root, COLORS.tileLine, x, -0.07, 0, 0.024, 0.035, 4.95, true, 0.72);
+  for (let z = -2.25; z <= 2.25; z += 0.95) cube(root, COLORS.tileLine, 0, -0.065, z, 7.54, 0.035, 0.024, true, 0.72);
 }
 
 function makeCounters(root: THREE.Group, cube: CubeFn) {
-  cube(root, COLORS.counterDark, -0.2, 0.04, -2.33, 6.0, 0.2, 0.74);
-  cube(root, COLORS.counterTop, -0.2, 0.28, -2.33, 5.8, 0.22, 0.58);
-  cube(root, COLORS.counterDark, -0.2, 0.04, 2.35, 5.9, 0.2, 0.76);
-  cube(root, COLORS.counterTop, -0.2, 0.28, 2.35, 5.7, 0.22, 0.6);
-  cube(root, COLORS.counterDark, 3.48, 0.04, 0.75, 0.72, 0.2, 3.45);
-  cube(root, COLORS.counterTop, 3.48, 0.28, 0.75, 0.56, 0.22, 3.24);
-  cube(root, COLORS.counterDark, -3.56, 0.04, 0.25, 0.72, 0.2, 2.9);
-  cube(root, COLORS.counterTop, -3.56, 0.28, 0.25, 0.56, 0.22, 2.7);
+  cube(root, COLORS.counterDark, -0.2, 0.02, -2.22, 6.18, 0.18, 0.68);
+  cube(root, COLORS.counterTop, -0.2, 0.28, -2.22, 5.96, 0.22, 0.54);
+  cube(root, COLORS.counter, -0.2, 0.43, -1.9, 6.02, 0.08, 0.08);
+  cube(root, COLORS.counterDark, -0.15, 0.02, 2.2, 5.74, 0.18, 0.7);
+  cube(root, COLORS.counterTop, -0.15, 0.28, 2.2, 5.52, 0.22, 0.54);
+  cube(root, COLORS.counter, -0.15, 0.43, 1.88, 5.58, 0.08, 0.08);
+  cube(root, COLORS.counterDark, 3.35, 0.02, 0.68, 0.62, 0.18, 3.22);
+  cube(root, COLORS.counterTop, 3.35, 0.28, 0.68, 0.46, 0.22, 3.0);
+  cube(root, COLORS.counter, 3.08, 0.43, 0.68, 0.08, 0.08, 3.02);
+  cube(root, COLORS.counterDark, -3.38, 0.02, 0.24, 0.62, 0.18, 2.72);
+  cube(root, COLORS.counterTop, -3.38, 0.28, 0.24, 0.46, 0.22, 2.5);
+  cube(root, COLORS.counter, -3.1, 0.43, 0.24, 0.08, 0.08, 2.52);
 }
 
 function makeFridge(root: THREE.Group, cube: CubeFn) {
   const group = new THREE.Group();
-  group.position.set(-3.15, 0.4, -1.25);
+  group.position.set(-3.18, 0.42, -1.23);
   root.add(group);
-  cube(group, '#dfe9e8', 0, 0.56, 0, 0.72, 1.58, 0.58);
+  cube(group, '#eaf5f3', 0, 0.42, 0, 0.58, 1.12, 0.48);
+  cube(group, '#c8d8d2', 0, -0.22, 0, 0.58, 0.18, 0.48);
   const door = new THREE.Group();
   door.userData.dynamic = true;
   group.add(door);
-  cube(door, '#9dc6cb', 0, 0.86, -0.32, 0.64, 0.62, 0.06);
-  cube(door, '#7f9ea3', 0.28, 0.54, -0.37, 0.05, 0.56, 0.05);
+  cube(door, '#a9d9df', 0, 0.52, -0.27, 0.5, 0.46, 0.05);
+  cube(door, '#6f9ca4', 0.2, 0.36, -0.31, 0.04, 0.38, 0.04);
   return door;
 }
 
 function makePantry(root: THREE.Group, cube: CubeFn) {
   const group = new THREE.Group();
-  group.position.set(-1.6, 0.72, -2.0);
+  group.position.set(-1.6, 0.72, -2.02);
   group.userData.dynamic = true;
   root.add(group);
-  cube(group, COLORS.wood, 0, 0, 0, 0.9, 0.82, 0.42);
-  cube(group, '#6d4225', 0, 0.28, -0.24, 0.82, 0.08, 0.08);
-  cube(group, COLORS.rice, -0.18, 0.55, -0.18, 0.28, 0.24, 0.2);
-  cube(group, '#e7d59c', -0.18, 0.71, -0.18, 0.18, 0.08, 0.14);
-  cube(group, COLORS.ginger, 0.18, 0.52, -0.18, 0.22, 0.12, 0.16);
+  cube(group, '#b26d32', 0, -0.02, 0, 0.78, 0.68, 0.36);
+  cube(group, '#7a4826', 0, 0.21, -0.2, 0.72, 0.07, 0.07);
+  cube(group, COLORS.rice, -0.15, 0.48, -0.16, 0.24, 0.22, 0.17);
+  cube(group, '#e9d79b', -0.15, 0.62, -0.16, 0.16, 0.07, 0.12);
+  cube(group, COLORS.ginger, 0.16, 0.46, -0.15, 0.19, 0.1, 0.14);
   return group;
 }
 
@@ -314,8 +320,8 @@ function makeBoard(root: THREE.Group, cube: CubeFn, cyl: CylFn, d: DynamicRefs) 
   const board = new THREE.Group();
   board.position.set(0.05, 0.6, -2.0);
   root.add(board);
-  cube(board, COLORS.wood, 0, 0, 0, 1.04, 0.14, 0.58);
-  cube(board, '#f1ca8b', 0, 0.1, 0, 0.82, 0.08, 0.42);
+  cube(board, '#b36b36', 0, 0, 0, 0.96, 0.12, 0.52);
+  cube(board, '#f2cf91', 0, 0.09, 0, 0.74, 0.07, 0.36);
 
   d.boardRawChicken = new THREE.Group();
   d.boardRawChicken.userData.dynamic = true;
@@ -346,9 +352,9 @@ function makeRiceCooker(root: THREE.Group, cube: CubeFn, cyl: CylFn, d: DynamicR
   group.position.set(1.75, 0.63, -2.0);
   group.userData.dynamic = true;
   root.add(group);
-  cube(group, COLORS.black, 0, -0.12, 0, 1.08, 0.22, 0.72);
-  cyl(group, COLORS.steelDark, 0, 0.08, 0, 0.54, 0.2, 0.38);
-  cyl(group, COLORS.black, 0, 0.26, 0, 0.42, 0.07, 0.28);
+  cube(group, '#173b41', 0, -0.1, 0, 0.92, 0.2, 0.62);
+  cyl(group, COLORS.steelDark, 0, 0.07, 0, 0.46, 0.18, 0.32);
+  cyl(group, '#263135', 0, 0.23, 0, 0.36, 0.06, 0.24);
   d.riceBowl = group;
   d.riceItem = new THREE.Group();
   d.riceItem.userData.dynamic = true;
@@ -369,9 +375,9 @@ function makePot(root: THREE.Group, cube: CubeFn, cyl: CylFn, d: DynamicRefs) {
   const group = new THREE.Group();
   group.position.set(3.1, 0.58, -0.35);
   root.add(group);
-  cube(group, COLORS.black, 0, -0.12, 0, 1.1, 0.22, 0.78);
-  cyl(group, COLORS.steelDark, 0, 0.1, 0, 0.58, 0.28, 0.42);
-  cyl(group, COLORS.steel, 0, 0.3, 0, 0.5, 0.12, 0.34);
+  cube(group, '#173b41', 0, -0.12, 0, 0.96, 0.2, 0.7);
+  cyl(group, COLORS.steelDark, 0, 0.1, 0, 0.5, 0.26, 0.36);
+  cyl(group, COLORS.steel, 0, 0.29, 0, 0.43, 0.1, 0.29);
   d.potWater = cyl(group, COLORS.blue, 0, 0.39, 0, 0.43, 0.035, 0.29, true, 0.74);
   d.potWater.userData.dynamic = true;
 
@@ -400,9 +406,9 @@ function makeMortar(root: THREE.Group, cube: CubeFn, cyl: CylFn, d: DynamicRefs)
   const base = new THREE.Group();
   base.position.set(-2.4, 0.64, 1.6);
   root.add(base);
-  cyl(base, COLORS.black, 0, -0.08, 0, 0.52, 0.16, 0.38);
-  cyl(base, '#7b6f62', 0, 0.11, 0, 0.42, 0.24, 0.3);
-  cyl(base, '#2c2521', 0, 0.28, 0, 0.26, 0.08, 0.2);
+  cyl(base, '#25363a', 0, -0.08, 0, 0.46, 0.14, 0.34);
+  cyl(base, '#81746b', 0, 0.09, 0, 0.36, 0.22, 0.26);
+  cyl(base, '#302924', 0, 0.25, 0, 0.22, 0.07, 0.17);
 
   d.mortarIngredients = new THREE.Group();
   d.mortarIngredients.userData.dynamic = true;
@@ -431,8 +437,8 @@ function makePlate(root: THREE.Group, cube: CubeFn, cyl: CylFn, d: DynamicRefs) 
   const plateBase = new THREE.Group();
   plateBase.position.set(-0.15, 0.66, 2.0);
   root.add(plateBase);
-  cyl(plateBase, COLORS.black, 0, -0.08, 0, 0.72, 0.1, 0.5);
-  cyl(plateBase, COLORS.paper, 0, 0, 0, 0.62, 0.07, 0.42);
+  cyl(plateBase, '#2a2020', 0, -0.08, 0, 0.62, 0.09, 0.43);
+  cyl(plateBase, COLORS.paper, 0, 0, 0, 0.52, 0.06, 0.35);
 
   const rice = new THREE.Group();
   rice.userData.dynamic = true;
@@ -461,9 +467,9 @@ function makeServe(root: THREE.Group, cube: CubeFn, cyl: CylFn, d: DynamicRefs) 
   const group = new THREE.Group();
   group.position.set(1.75, 0.8, 2.0);
   root.add(group);
-  cube(group, COLORS.black, 0, -0.14, 0, 1.1, 0.18, 0.76);
-  cube(group, '#e2bd82', 0, 0.05, 0, 0.92, 0.12, 0.58);
-  cube(group, COLORS.wallDark, 0, 0.54, 0.34, 1.05, 0.7, 0.08);
+  cube(group, '#173b41', 0, -0.13, 0, 0.94, 0.16, 0.64);
+  cube(group, '#efc27d', 0, 0.04, 0, 0.78, 0.11, 0.46);
+  cube(group, COLORS.wallDark, 0, 0.46, 0.28, 0.88, 0.56, 0.07);
   d.bell = new THREE.Group();
   d.bell.userData.dynamic = true;
   d.bell.position.set(1.75, 1.0, 1.83);
@@ -476,18 +482,18 @@ function makeTrash(root: THREE.Group, cube: CubeFn, cyl: CylFn, d: DynamicRefs) 
   const group = new THREE.Group();
   group.position.set(-3.3, 0.58, 0.65);
   root.add(group);
-  cyl(group, '#34302b', 0, 0, 0, 0.34, 0.58, 0.34);
-  cyl(group, '#555047', 0, 0.32, 0, 0.38, 0.08, 0.38);
+  cyl(group, '#34302b', 0, 0, 0, 0.28, 0.48, 0.28);
+  cyl(group, '#555047', 0, 0.28, 0, 0.32, 0.07, 0.32);
   d.trashLid = new THREE.Group();
   d.trashLid.userData.dynamic = true;
-  d.trashLid.position.set(-3.3, 0.95, 0.65);
+  d.trashLid.position.set(-3.3, 0.86, 0.65);
   root.add(d.trashLid);
-  cube(d.trashLid, '#71695e', 0, 0, 0, 0.72, 0.08, 0.48);
+  cube(d.trashLid, '#71695e', 0, 0, 0, 0.56, 0.07, 0.38);
 }
 
 function makeStationHighlights(root: THREE.Group, cyl: CylFn, cube: CubeFn, d: DynamicRefs) {
   for (const station of STATIONS) {
-    const ring = cyl(root, COLORS.jade, station.x, 0.03, station.z, 0.6, 0.02, 0.6, true, 0.16, 18);
+    const ring = cyl(root, COLORS.jade, station.x, 0.03, station.z, 0.48, 0.018, 0.48, true, 0.16, 18);
     ring.userData.dynamic = true;
     d.highlights[station.id] = ring;
     d.progressBars[station.id] ??= makeProgress(root, cube, station.x, station.z);

@@ -666,15 +666,16 @@ p {
 .move-pad {
   position: absolute;
   z-index: 18;
-  left: max(16px, env(safe-area-inset-left));
-  bottom: max(24px, env(safe-area-inset-bottom));
-  width: 118px;
-  height: 118px;
+  left: 50%;
+  bottom: max(22px, env(safe-area-inset-bottom));
+  width: 122px;
+  height: 122px;
   border: 2px solid rgba(255, 247, 229, 0.34);
   border-radius: 50%;
   background: rgba(18, 83, 96, 0.44);
   box-shadow: 0 14px 28px rgba(19, 74, 83, 0.32);
   touch-action: none;
+  transform: translateX(-50%);
 }
 
 .move-pad i {
@@ -691,12 +692,13 @@ p {
 .auto-panel {
   position: absolute;
   z-index: 19;
-  left: 152px;
-  right: max(14px, env(safe-area-inset-right));
-  bottom: max(26px, env(safe-area-inset-bottom));
+  left: 50%;
+  bottom: max(150px, calc(env(safe-area-inset-bottom) + 142px));
+  width: min(330px, calc(100% - 36px));
   display: grid;
   gap: 6px;
   pointer-events: none;
+  transform: translateX(-50%);
 }
 
 .near-pill {
@@ -706,7 +708,7 @@ p {
   place-items: center;
   border: 1px solid rgba(255, 247, 229, 0.42);
   border-radius: 8px;
-  background: rgba(20, 81, 91, 0.82);
+  background: rgba(20, 81, 91, 0.74);
   color: var(--paper);
   box-shadow: 0 10px 22px rgba(0, 0, 0, 0.22);
   font-size: 12px;
@@ -821,12 +823,13 @@ p {
   }
 
   .move-pad {
-    width: 96px;
-    height: 96px;
+    width: 104px;
+    height: 104px;
   }
 
   .auto-panel {
-    left: 124px;
+    bottom: max(130px, calc(env(safe-area-inset-bottom) + 120px));
+    width: min(300px, calc(100% - 28px));
   }
 
   .auto-task {
