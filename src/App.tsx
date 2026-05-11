@@ -17,8 +17,8 @@ const FILLED_STAR = '\u2605';
 const EMPTY_STAR = '\u2606';
 const SIMMER_MIN = 0.48;
 const SIMMER_MAX = 0.76;
-const STIR_SWIRL_TARGET = 0.64;
-const MASH_READY_PRESS = 0.55;
+const POACH_HOLD_TARGET = 2600;
+const SAUCE_MASH_TARGET = 8;
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>('menu');
@@ -361,151 +361,136 @@ function PrepGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => vo
 function StirGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => void; onFinish: (score: number) => void }) {
   const startedAt = useRef(performance.now());
   const scoresRef = useRef<number[]>([]);
-  const tossesRef = useRef(0);
-  const targetTosses = 4;
-  const firstTarget = useRef(randomTossTarget());
+  const strokesRef = useRef(0);
+  const targetStrokes = 4;
   const [progress, setProgress] = useState(0);
-  const [tossing, setTossing] = useState(false);
-  const [tosses, setTosses] = useState(0);
-  const [cue, setCue] = useState('Swipe upward');
-  const [dragPower, setDragPower] = useState(0);
-  const [targetPower, setTargetPower] = useState(firstTarget.current);
-  const targetPowerRef = useRef(firstTarget.current);
-  const dragRef = useRef<{ x: number; y: number; originY: number; pointerId: number } | null>(null);
+  const [strokes, setStrokes] = useState(0);
+  const [cue, setCue] = useState('Drag spoon right');
+  const [dragging, setDragging] = useState(false);
+  const [targetSide, setTargetSide] = useState<'left' | 'right'>('right');
+  const [spoon, setSpoon] = useState({ x: 0.38, y: 0.58 });
+  const dragRef = useRef<{ lastX: number; lastY: number; travel: number; pointerId: number } | null>(null);
+  const targetSideRef = useRef<'left' | 'right'>('right');
   const done = useRef(false);
-  const [showHint, dismissHint] = useCoachHint(`${tosses}:${tossing}`, 1300);
+  const [showHint, dismissHint] = useCoachHint(`${strokes}:${targetSide}:${dragging}`, 1300);
 
-  const refreshTarget = () => {
-    const next = randomTossTarget();
-    targetPowerRef.current = next;
-    setTargetPower(next);
-  };
-
-  const resetDrag = () => {
+  const resetDrag = (event?: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    if (drag && event) {
+      try {
+        event.currentTarget.releasePointerCapture(drag.pointerId);
+      } catch {
+        // Pointer capture can already be gone after touch cancellation.
+      }
+    }
     dragRef.current = null;
-    setDragPower(0);
-    onVisual({ stirPull: 0 });
+    setDragging(false);
+    onVisual({ stirPull: 0.5 });
   };
 
-  const completeToss = (releasePower: number, straight: number) => {
-    const miss = Math.abs(releasePower - targetPowerRef.current);
-    const closeness = 1 - Math.min(1, miss / 0.28);
-    const quality = clamp((0.42 + closeness * 0.58) * (0.9 + straight * 0.1), 0.38, 1);
+  const completeStroke = (normY: number) => {
+    if (done.current) return;
+    const yScore = 1 - Math.min(1, Math.abs(normY - 0.58) / 0.34);
+    const quality = clamp(0.68 + yScore * 0.32, 0.68, 1);
     scoresRef.current.push(quality);
-    playSfx(closeness > 0.58 ? 'toss' : 'tap');
-    haptic(closeness > 0.58 ? 16 : 8);
-    tossesRef.current += 1;
-    setTosses(tossesRef.current);
-    setCue(closeness > 0.86 ? 'Perfect toss' : closeness > 0.56 ? 'Good toss' : releasePower > targetPowerRef.current ? 'Too high' : 'Too low');
-    const nextProgress = clamp(tossesRef.current / targetTosses, 0, 1);
+    playSfx('stir');
+    haptic(12);
+    const next = strokesRef.current + 1;
+    strokesRef.current = next;
+    setStrokes(next);
+    const nextProgress = clamp(next / targetStrokes, 0, 1);
     setProgress(nextProgress);
-    setTossing(true);
-    setDragPower(0);
+    const nextSide = targetSideRef.current === 'right' ? 'left' : 'right';
+    targetSideRef.current = nextSide;
+    setTargetSide(nextSide);
+    setCue(next >= targetStrokes ? 'Rice toasted' : `Good pass. Drag ${nextSide}`);
     onVisual({
       stirProgress: nextProgress,
-      stirTurns: tossesRef.current,
-      stirMarker: releasePower,
-      stirToss: performance.now(),
-      stirPull: 0,
+      stirTurns: next,
+      stirMarker: nextSide === 'right' ? 1 : 0,
+      stirPull: spoon.x,
       pulse: performance.now(),
     });
-
-    window.setTimeout(() => {
-      if (nextProgress >= 1) {
-        done.current = true;
-        const elapsed = performance.now() - startedAt.current;
-        onFinish(avg(scoresRef.current) * (elapsed < 9000 ? 1 : elapsed < 12500 ? 0.92 : 0.82));
-        return;
-      }
-      setTossing(false);
-      refreshTarget();
-      setCue('Swipe upward');
-      onVisual({ stirProgress: nextProgress, stirPull: 0 });
-    }, 430);
+    if (next >= targetStrokes) {
+      done.current = true;
+      resetDrag();
+      const elapsed = performance.now() - startedAt.current;
+      window.setTimeout(() => onFinish(avg(scoresRef.current) * (elapsed < 9000 ? 1 : elapsed < 12500 ? 0.92 : 0.82)), 360);
+    }
   };
 
-  const startSwipe = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (done.current || tossing) return;
+  const pointFromEvent = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    return {
+      x: clamp((event.clientX - rect.left) / rect.width, 0, 1),
+      y: clamp((event.clientY - rect.top) / rect.height, 0, 1),
+    };
+  };
+
+  const startStir = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (done.current) return;
     event.preventDefault();
     dismissHint();
     event.currentTarget.setPointerCapture(event.pointerId);
-    const rect = event.currentTarget.getBoundingClientRect();
-    const originY = rect.bottom - 24;
-    dragRef.current = { x: event.clientX, y: event.clientY, originY, pointerId: event.pointerId };
-    const initialPower = clamp((originY - event.clientY) / Math.max(160, rect.height - 36), 0, 1);
-    setCue('Pull to the gold band');
-    setDragPower(initialPower);
-    onVisual({ stirPull: initialPower });
+    const point = pointFromEvent(event);
+    dragRef.current = { lastX: event.clientX, lastY: event.clientY, travel: 0, pointerId: event.pointerId };
+    setDragging(true);
+    setSpoon(point);
+    setCue(`Drag spoon ${targetSideRef.current}`);
+    onVisual({ stirPull: point.x, stirMarker: targetSideRef.current === 'right' ? 1 : 0 });
   };
 
-  const moveSwipe = (event: ReactPointerEvent<HTMLDivElement>) => {
+  const moveStir = (event: ReactPointerEvent<HTMLDivElement>) => {
     const drag = dragRef.current;
-    if (!drag || done.current || tossing) return;
+    if (!drag || done.current) return;
     event.preventDefault();
-    const rect = event.currentTarget.getBoundingClientRect();
-    const dy = drag.originY - event.clientY;
-    const dx = Math.abs(event.clientX - drag.x);
-    const power = clamp(dy / Math.max(160, rect.height - 36), 0, 1);
-    const straight = clamp(1 - dx / Math.max(120, rect.width * 0.44), 0, 1);
-    const nextPower = power * (0.55 + straight * 0.45);
-    const close = Math.abs(nextPower - targetPowerRef.current);
-    setDragPower(nextPower);
-    setCue(close < 0.09 ? 'Release now!' : nextPower < targetPowerRef.current ? 'Pull higher' : 'Ease lower');
-    onVisual({ stirPull: nextPower });
+    const point = pointFromEvent(event);
+    const travel = Math.hypot(event.clientX - drag.lastX, event.clientY - drag.lastY);
+    drag.lastX = event.clientX;
+    drag.lastY = event.clientY;
+    drag.travel += travel;
+    setSpoon(point);
+    const inWok = point.y >= 0.24 && point.y <= 0.88;
+    const hitTarget = targetSideRef.current === 'right' ? point.x > 0.77 : point.x < 0.23;
+    setCue(inWok ? `Drag spoon ${targetSideRef.current}` : 'Keep spoon in wok');
+    onVisual({ stirPull: point.x, stirMarker: targetSideRef.current === 'right' ? 1 : 0 });
+    if (inWok && hitTarget && drag.travel > 70) {
+      drag.travel = 0;
+      completeStroke(point.y);
+    }
   };
 
-  const endSwipe = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const drag = dragRef.current;
-    if (!drag || done.current || tossing) return;
-    event.preventDefault();
-    try {
-      event.currentTarget.releasePointerCapture(drag.pointerId);
-    } catch {
-      // Pointer capture can already be gone after touch cancellation.
-    }
-    const rect = event.currentTarget.getBoundingClientRect();
-    const dy = drag.originY - event.clientY;
-    const dx = Math.abs(event.clientX - drag.x);
-    dragRef.current = null;
-    const releasePower = clamp(dy / Math.max(160, rect.height - 36), 0, 1);
-    const straight = clamp(1 - dx / Math.max(100, rect.width * 0.44), 0, 1);
-    if (releasePower < 0.08) {
-      setCue('Pull up to toss');
-      setDragPower(0);
-      onVisual({ stirPull: 0 });
-      return;
-    }
-    completeToss(releasePower, straight);
+  const endStir = (event: ReactPointerEvent<HTMLDivElement>) => {
+    resetDrag(event);
+    if (!done.current && strokesRef.current < targetStrokes) setCue(`Drag spoon ${targetSideRef.current}`);
   };
 
   return (
-    <div className="mini">
+    <div className="mini rice-mini">
       <div className="status-row">
-        <span>{tossing ? cue : 'Toast the rice'}</span>
-        <strong>{Math.min(tosses, targetTosses)}/{targetTosses}</strong>
+        <span>{cue}</span>
+        <strong>{Math.min(strokes, targetStrokes)}/{targetStrokes}</strong>
       </div>
-      <div className="timing-caption">{tossing ? 'The rice jumps based on your release height.' : 'Drag anywhere in the pan, stop in the gold band, then release.'}</div>
+      <div className="timing-caption">Drag the spoon left and right through the wok to toast rice with garlic and ginger.</div>
       <div
-        className={`gesture-pad swipe-pad ${tossing ? 'is-tossing' : ''}`}
+        className={`gesture-pad rice-stir-pad target-${targetSide} ${dragging ? 'is-dragging' : ''}`}
         data-testid="toss-pad"
-        onPointerDown={startSwipe}
-        onPointerMove={moveSwipe}
-        onPointerUp={endSwipe}
-        onPointerCancel={resetDrag}
+        style={{ '--spoon-x': `${spoon.x * 100}%`, '--spoon-y': `${spoon.y * 100}%`, '--toast-progress': progress } as CSSProperties}
+        onPointerDown={startStir}
+        onPointerMove={moveStir}
+        onPointerUp={endStir}
+        onPointerCancel={endStir}
       >
-        <div className="rice-toss-scene" aria-hidden="true">
-          <i className="mini-wok" />
-          <i
-            className="mini-rice-mound"
-            style={{ transform: `translate(-50%, ${tossing ? '-82px' : `${-dragPower * 38}px`}) scale(${1 + dragPower * 0.16})` }}
-          />
-          <i className="mini-wok-spoon" style={{ transform: `rotate(${-18 - dragPower * 22}deg)` }} />
+        <div className="rice-stir-scene" aria-hidden="true">
+          <i className="rice-stir-wok" />
+          <i className="rice-stir-grain-cloud" />
+          <i className="rice-stir-aromatics" />
+          <i className="rice-stir-spoon" />
+          <b className="rice-stir-target left">left</b>
+          <b className="rice-stir-target right">right</b>
         </div>
-        <em aria-hidden="true" style={{ bottom: `${26 + targetPower * 132}px` }} />
-        <i style={{ height: `${42 + dragPower * 132}px` }} />
-        <b style={{ bottom: `${26 + dragPower * 132}px` }}>PULL</b>
-        <span>{tossing ? 'Rice tossed!' : cue}</span>
-        <CoachHand visible={showHint && !tossing && dragPower === 0} variant="swipe-up" />
+        <span>{cue}</span>
+        <CoachHand visible={showHint && !dragging && strokes === 0} variant="swipe" />
       </div>
       <ProgressBar value={progress} />
     </div>
@@ -514,27 +499,21 @@ function StirGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => vo
 
 function SimmerGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => void; onFinish: (score: number) => void }) {
   const railRef = useRef<HTMLDivElement>(null);
-  const stirRef = useRef<HTMLDivElement>(null);
   const [heat, setHeat] = useState(0.22);
   const [hold, setHold] = useState(0);
-  const [turns, setTurns] = useState(0);
-  const [stirAngle, setStirAngle] = useState(-0.6);
-  const [stirPower, setStirPower] = useState(0);
   const [cue, setCue] = useState('Warm the pot');
+  const [draggingHeat, setDraggingHeat] = useState(false);
   const done = useRef(false);
   const startedAt = useRef(performance.now());
   const heatRef = useRef(0.22);
-  const turnsRef = useRef(0);
-  const stirAngleRef = useRef(-0.6);
-  const stirPowerRef = useRef(0);
+  const holdRef = useRef(0);
+  const goodMs = useRef(0);
+  const badMs = useRef(0);
   const bubbleStartedAt = useRef(performance.now());
   const inZone = isSimmerHeat(heat);
-  const stirDrag = useRef<{ lastX: number; lastY: number; accumulated: number; pointerId: number } | null>(null);
-  const scoresRef = useRef<number[]>([]);
-  const [showHint, dismissHint] = useCoachHint(`${inZone}:${turns}:${hold > 0}`, 1300);
+  const [showHint, dismissHint] = useCoachHint(`${inZone}:${Math.round(hold / 400)}:${draggingHeat}`, 1300);
   const temperature = Math.round(44 + heat * 42);
-  const targetTurns = 3;
-  const progress = clamp((hold / 1200) * 0.48 + (turns / targetTurns) * 0.52, 0, 1);
+  const progress = clamp(hold / POACH_HOLD_TARGET, 0, 1);
 
   useEffect(() => {
     let raf = 0;
@@ -544,32 +523,34 @@ function SimmerGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => 
       last = now;
       const liveInZone = isSimmerHeat(heatRef.current);
       setHold((value) => {
-        const next = liveInZone ? Math.min(1200, value + dt) : Math.max(0, value - dt * 0.9);
+        const next = liveInZone ? Math.min(POACH_HOLD_TARGET, value + dt) : Math.max(0, value - dt * 0.7);
+        holdRef.current = next;
+        if (liveInZone) goodMs.current += dt;
+        else badMs.current += dt;
+        if (!done.current && next >= POACH_HOLD_TARGET) {
+          done.current = true;
+          const elapsed = performance.now() - startedAt.current;
+          const steadiness = goodMs.current / Math.max(1, goodMs.current + badMs.current);
+          const score = clamp(0.72 + steadiness * 0.28, 0.72, 1) * (elapsed < 8500 ? 1 : elapsed < 12000 ? 0.92 : 0.82);
+          setCue('Chicken poached');
+          window.setTimeout(() => onFinish(score), 360);
+        }
         return next;
       });
       const nextBubble = ((now - bubbleStartedAt.current) % 1900) / 1900;
       onVisual({
         simmerHeat: heatRef.current,
-        simmerHits: turnsRef.current,
+        simmerHits: Math.round(clamp(holdRef.current / POACH_HOLD_TARGET, 0, 1) * 3),
         simmerReady: liveInZone,
         simmerBubble: nextBubble,
-        simmerStir: stirPowerRef.current,
-        simmerStirAngle: stirAngleRef.current,
+        simmerStir: clamp(holdRef.current / POACH_HOLD_TARGET, 0, 1),
+        simmerStirAngle: 0,
       });
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [onVisual]);
-
-  useEffect(() => {
-    if (!done.current && hold >= 1200 && turns >= targetTurns) {
-      done.current = true;
-      const elapsed = performance.now() - startedAt.current;
-      const timingScore = avg(scoresRef.current);
-      onFinish(timingScore * (elapsed < 8500 ? 1 : elapsed < 12500 ? 0.9 : 0.78));
-    }
-  }, [turns, hold, onFinish]);
+  }, [onFinish, onVisual]);
 
   const updateHeat = (clientY: number) => {
     const rect = railRef.current?.getBoundingClientRect();
@@ -578,88 +559,31 @@ function SimmerGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => 
     dismissHint();
     heatRef.current = next;
     setHeat(next);
-    setCue(isSimmerHeat(next) ? 'Now drag spoon' : next < SIMMER_MIN ? 'Drag heat up' : 'Lower heat');
+    setCue(isSimmerHeat(next) ? 'Hold it in green' : next < SIMMER_MIN ? 'Drag heat up' : 'Lower heat');
     onVisual({ simmerHeat: next, simmerReady: isSimmerHeat(next) });
   };
 
-  const angleFromPoint = (clientX: number, clientY: number) => {
-    const rect = stirRef.current?.getBoundingClientRect();
-    if (!rect) return stirAngle;
-    return Math.atan2(clientY - (rect.top + rect.height * 0.42), clientX - (rect.left + rect.width * 0.5));
-  };
-
-  const finishStirTurn = () => {
-    if (!isSimmerHeat(heatRef.current)) {
-      setCue('Set heat in green zone');
-      onVisual({ pulse: performance.now() });
-      return;
-    }
-    const next = Math.min(targetTurns, turnsRef.current + 1);
-    turnsRef.current = next;
-    setTurns(next);
-    playSfx('stir');
-    haptic(12);
-    scoresRef.current.push(clamp(0.72 + heatRef.current * 0.32, 0.72, 1));
-    setCue(next >= targetTurns ? 'Chicken poached' : 'Good stir');
-    onVisual({ simmerHits: next, simmerStir: 1, simmerStirAngle: stirAngleRef.current, pulse: performance.now() });
-  };
-
-  const startStir = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (done.current) return;
-    if (!isSimmerHeat(heatRef.current)) {
-      setCue('Set heat in green zone');
-      playSfx('tap');
-      onVisual({ pulse: performance.now() });
-      return;
-    }
+  const startHeat = (event: ReactPointerEvent<HTMLDivElement>) => {
     event.preventDefault();
-    dismissHint();
+    setDraggingHeat(true);
     event.currentTarget.setPointerCapture(event.pointerId);
-    const angle = angleFromPoint(event.clientX, event.clientY);
-    stirDrag.current = { lastX: event.clientX, lastY: event.clientY, accumulated: 0, pointerId: event.pointerId };
-    stirAngleRef.current = angle;
-    stirPowerRef.current = 0.12;
-    setStirAngle(angle);
-    setStirPower(0.12);
-    setCue(isSimmerHeat(heatRef.current) ? 'Drag spoon through broth' : 'Set heat in green zone');
-    onVisual({ simmerStir: 0.12, simmerStirAngle: angle });
+    updateHeat(event.clientY);
   };
 
-  const moveStir = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const drag = stirDrag.current;
-    if (!drag || done.current) return;
+  const moveHeat = (event: ReactPointerEvent<HTMLDivElement>) => {
     event.preventDefault();
-    const angle = angleFromPoint(event.clientX, event.clientY);
-    const travel = Math.hypot(event.clientX - drag.lastX, event.clientY - drag.lastY);
-    drag.lastX = event.clientX;
-    drag.lastY = event.clientY;
-    drag.accumulated += clamp(travel / 145, 0, 0.22);
-    const turnProgress = clamp(drag.accumulated / STIR_SWIRL_TARGET, 0, 1);
-    stirAngleRef.current = angle;
-    stirPowerRef.current = turnProgress;
-    setStirAngle(angle);
-    setStirPower(turnProgress);
-    setCue(isSimmerHeat(heatRef.current) ? (turnProgress > 0.55 ? 'Keep stirring' : 'Move the spoon') : 'Set heat in green zone');
-    onVisual({ simmerStir: turnProgress, simmerStirAngle: angle });
-    while (drag.accumulated >= STIR_SWIRL_TARGET) {
-      drag.accumulated -= STIR_SWIRL_TARGET;
-      finishStirTurn();
+    if (draggingHeat || event.buttons || event.pointerType === 'touch') {
+      updateHeat(event.clientY);
     }
   };
 
-  const endStir = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const drag = stirDrag.current;
-    if (!drag) return;
-    event.preventDefault();
+  const endHeat = (event: ReactPointerEvent<HTMLDivElement>) => {
+    setDraggingHeat(false);
     try {
-      event.currentTarget.releasePointerCapture(drag.pointerId);
+      event.currentTarget.releasePointerCapture(event.pointerId);
     } catch {
       // Pointer capture can already be gone after touch cancellation.
     }
-    stirDrag.current = null;
-    stirPowerRef.current = 0;
-    setStirPower(0);
-    onVisual({ simmerStir: 0, simmerStirAngle: stirAngleRef.current });
   };
 
   return (
@@ -673,44 +597,26 @@ function SimmerGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => 
           ref={railRef}
           className="heat-rail"
           data-testid="simmer-slider"
-          onPointerDown={(event) => {
-            event.preventDefault();
-            event.currentTarget.setPointerCapture(event.pointerId);
-            updateHeat(event.clientY);
-          }}
-          onPointerMove={(event) => {
-            event.preventDefault();
-            if (event.buttons || event.pointerType === 'touch') updateHeat(event.clientY);
-          }}
+          onPointerDown={startHeat}
+          onPointerMove={moveHeat}
+          onPointerUp={endHeat}
+          onPointerCancel={endHeat}
         >
           <i className="simmer-zone">target</i>
           <b style={{ bottom: `calc(${heat * 100}% - 18px)` }}>drag</b>
           <CoachHand visible={showHint && !inZone} variant="drag-heat" />
         </div>
         <div
-          ref={stirRef}
-          className={`stock-stir-pad ${inZone ? 'ready' : 'waiting'}`}
-          style={{ '--stir-progress': stirPower } as CSSProperties}
+          className={`stock-stir-pad poach-hold-pad ${inZone ? 'ready' : 'waiting'}`}
+          style={{ '--poach-progress': progress } as CSSProperties}
           data-testid="stir-pot"
-          role="button"
-          tabIndex={0}
-          onPointerDown={startStir}
-          onPointerMove={moveStir}
-          onPointerUp={endStir}
-          onPointerCancel={endStir}
         >
           <i aria-hidden="true" className="stock-surface" />
           <i aria-hidden="true" className={`stock-chicken ${inZone ? 'warm' : ''}`} />
-          <b aria-hidden="true" className="stir-path" />
-          <i aria-hidden="true" className="stir-progress-fill" />
-          <em
-            aria-hidden="true"
-            className="stir-spoon"
-            style={{ transform: `translate(-50%, -50%) rotate(${stirAngle}rad) translateX(52px) rotate(18deg)` }}
-          />
-          <span>{inZone ? 'Drag spoon through broth' : 'Set heat in green zone'}</span>
-          <strong>{turns}/{targetTurns}</strong>
-          <CoachHand visible={showHint && inZone && turns < targetTurns} variant="circle" />
+          <b aria-hidden="true" className="poach-thermometer"><i style={{ height: `${heat * 100}%` }} /></b>
+          <em aria-hidden="true" className="poach-progress-ring" />
+          <span>{inZone ? 'Keep thermometer in green' : 'Set heat in green zone'}</span>
+          <strong>{Math.round(progress * 100)}%</strong>
         </div>
       </div>
       <ProgressBar value={progress} />
@@ -736,7 +642,7 @@ function SauceGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => v
   const mashesRef = useRef(0);
   const mortarRef = useRef<HTMLDivElement>(null);
   const ingredientDrag = useRef<{ id: string; startX: number; startY: number; pointerId: number; moved: boolean } | null>(null);
-  const mashDrag = useRef<{ startY: number; pointerId: number; press: number } | null>(null);
+  const mashDrag = useRef<{ lastY: number; pointerId: number; direction: -1 | 0 | 1; travel: number } | null>(null);
   const [showHint, dismissHint] = useCoachHint(`${added.length}:${mashes}:${press > 0}:${dragging?.id ?? ''}`, 1300);
 
   const add = (id: string) => {
@@ -748,7 +654,7 @@ function SauceGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => v
       if (prev.includes(id)) return prev;
       const next = [...prev, id];
       const item = items.find(([itemId]) => itemId === id);
-      setCue(next.length >= items.length ? 'All in. Pull pestle down' : `${item?.[1] ?? 'Ingredient'} in mortar`);
+      setCue(next.length >= items.length ? 'All in. Grind up and down' : `${item?.[1] ?? 'Ingredient'} in mortar`);
       const now = performance.now();
       onVisual({ sauceItems: next, sauceLastItem: id, sauceDropAt: now, pulse: now });
       return next;
@@ -819,13 +725,13 @@ function SauceGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => v
     setPounding(true);
     playSfx('pound');
     haptic(18);
-    setCue(next >= 4 ? 'Chili sauce ready' : `Crushing into sauce ${next}/4`);
-    onVisual({ mashCount: next, mashPress: 0, mashPound: performance.now(), sauceItems: added, pulse: performance.now() });
+    setCue(next >= SAUCE_MASH_TARGET ? 'Chili sauce ready' : `Grinding sauce ${next}/${SAUCE_MASH_TARGET}`);
+    onVisual({ mashCount: next, mashPress: press, mashPound: performance.now(), sauceItems: added, pulse: performance.now() });
     window.setTimeout(() => setPounding(false), 220);
-    if (next >= 4) {
+    if (next >= SAUCE_MASH_TARGET) {
       done.current = true;
       const elapsed = performance.now() - startedAt.current;
-      window.setTimeout(() => onFinish(elapsed < 9000 ? 1 : elapsed < 13000 ? 0.86 : 0.72), 260);
+      window.setTimeout(() => onFinish(elapsed < 10500 ? 1 : elapsed < 14500 ? 0.86 : 0.72), 260);
     }
   };
 
@@ -838,19 +744,31 @@ function SauceGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => v
     event.preventDefault();
     dismissHint();
     event.currentTarget.setPointerCapture(event.pointerId);
-    mashDrag.current = { startY: event.clientY, pointerId: event.pointerId, press: 0 };
-    setPress(0.08);
-    onVisual({ mashPress: 0.08, sauceItems: added });
+    const rect = event.currentTarget.getBoundingClientRect();
+    const nextPress = clamp((event.clientY - rect.top) / rect.height, 0.08, 1);
+    mashDrag.current = { lastY: event.clientY, pointerId: event.pointerId, direction: 0, travel: 0 };
+    setPress(nextPress);
+    setCue('Move pestle up and down');
+    onVisual({ mashPress: nextPress, sauceItems: added });
   };
 
   const moveMash = (event: ReactPointerEvent<HTMLDivElement>) => {
     const drag = mashDrag.current;
     if (!drag || done.current) return;
     event.preventDefault();
-    const nextPress = clamp((event.clientY - drag.startY) / 86, 0, 1);
-    drag.press = nextPress;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const nextPress = clamp((event.clientY - rect.top) / rect.height, 0.05, 1);
+    const dy = event.clientY - drag.lastY;
+    const direction: -1 | 0 | 1 = dy > 0.4 ? 1 : dy < -0.4 ? -1 : 0;
+    drag.lastY = event.clientY;
+    drag.travel += Math.abs(dy);
     setPress(nextPress);
-    setCue(nextPress >= MASH_READY_PRESS ? 'Release to crush' : 'Pull pestle lower');
+    if (direction !== 0 && drag.direction !== 0 && direction !== drag.direction && drag.travel > 26) {
+      drag.travel = 0;
+      completeMash();
+    }
+    if (direction !== 0) drag.direction = direction;
+    setCue(mashesRef.current > 0 ? 'Keep grinding fast' : 'Move up and down');
     onVisual({ mashPress: nextPress, sauceItems: added });
   };
 
@@ -864,8 +782,7 @@ function SauceGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => v
       // Pointer capture can already be gone after touch cancellation.
     }
     mashDrag.current = null;
-    if (drag.press >= MASH_READY_PRESS) completeMash();
-    else setCue('Pull lower to crush');
+    if (!done.current) setCue(mashesRef.current ? 'Hold and grind again' : 'Scrub pestle up and down');
     setPress(0);
     onVisual({ mashPress: 0, sauceItems: added });
   };
@@ -874,11 +791,11 @@ function SauceGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => v
     <div className="mini sauce-mini">
       <div className="status-row">
         <span>{cue}</span>
-        <strong>{added.length < items.length ? `${added.length}/4` : `${mashes}/4`}</strong>
+        <strong>{added.length < items.length ? `${added.length}/4` : `${Math.min(mashes, SAUCE_MASH_TARGET)}/${SAUCE_MASH_TARGET}`}</strong>
       </div>
       <div className="sauce-flow" aria-hidden="true">
         <i className={added.length < items.length ? 'active' : 'done'}><b>1</b><span>Add</span></i>
-        <i className={added.length >= items.length ? 'active' : ''}><b>2</b><span>Pound</span></i>
+        <i className={added.length >= items.length ? 'active' : ''}><b>2</b><span>Grind</span></i>
       </div>
       <div
         ref={mortarRef}
@@ -897,7 +814,7 @@ function SauceGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => v
           <b
             className="sauce-paste"
             style={{
-              width: `${Math.max(0, (added.length / items.length) * 34 + (mashes / 4) * 46)}%`,
+              width: `${Math.max(0, (added.length / items.length) * 34 + (mashes / SAUCE_MASH_TARGET) * 46)}%`,
               opacity: added.length >= items.length || mashes ? 1 : 0,
             }}
           />
@@ -911,8 +828,8 @@ function SauceGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => v
             <b style={{ transform: `translate(-50%, ${pounding ? 92 : press * 88}px) rotate(-10deg)` }} />
           </i>
         </div>
-        <span>{added.length < items.length ? 'Drop ingredients here' : press >= MASH_READY_PRESS ? 'Release to crush' : 'Pull pestle down'}</span>
-        <strong>{mashes}/4</strong>
+        <span>{added.length < items.length ? 'Drop ingredients here' : 'Hold and grind up/down'}</span>
+        <strong>{Math.min(mashes, SAUCE_MASH_TARGET)}/{SAUCE_MASH_TARGET}</strong>
         <CoachHand visible={showHint && added.length >= items.length && !pounding && press === 0} variant="drag-down" />
       </div>
       <div className="sauce-tray">
@@ -943,7 +860,7 @@ function SauceGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => v
           <i className={`food-icon ${dragging.id}`} />
         </div>
       )}
-      <ProgressBar value={(added.length / items.length) * 0.55 + (mashes / 4) * 0.45} />
+      <ProgressBar value={(added.length / items.length) * 0.48 + (mashes / SAUCE_MASH_TARGET) * 0.52} />
     </div>
   );
 }
@@ -1003,6 +920,12 @@ function PlateGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => v
 
   const startDrag = (event: ReactPointerEvent<HTMLButtonElement>, id: string) => {
     if (done.current || placed.includes(id)) return;
+    if (id !== expectedId) {
+      setCue(`Next is ${expectedLabel}`);
+      playSfx('tap');
+      haptic(8);
+      return;
+    }
     dismissHint();
     dragRef.current = { id, pointerId: event.pointerId, startX: event.clientX, startY: event.clientY };
     setDragGhost({ id, x: event.clientX, y: event.clientY });
@@ -1092,23 +1015,31 @@ function PlateGame({ onVisual, onFinish }: { onVisual: (patch: VisualState) => v
         <strong>{placed.length >= items.length ? 'Ready to serve' : `${placed.length}/4 on plate`}</strong>
         <CoachHand visible={showHint && placed.length === 0 && !dragGhost} variant="tap" />
       </div>
-      <div className="token-grid plate-tray">
-        {items.map(([id, label]) => (
+      <div className="plate-active-tray">
+        {expectedId && expectedLabel && (
           <button
-            key={id}
-            className={`plate-token ${id} ${placed.includes(id) ? 'done' : ''} ${dragGhost?.id === id ? 'dragging' : ''}`}
-            data-testid={`plate-token-${id}`}
-            onPointerDown={(event) => startDrag(event, id)}
+            className={`plate-token plate-current-token ${expectedId} ${dragGhost?.id === expectedId ? 'dragging' : ''}`}
+            data-testid={`plate-token-${expectedId}`}
+            onPointerDown={(event) => startDrag(event, expectedId)}
             onPointerMove={moveDrag}
             onPointerUp={endDrag}
             onPointerCancel={endDrag}
-            onClick={() => handleTokenClick(id)}
-            aria-pressed={placed.includes(id)}
+            onClick={() => handleTokenClick(expectedId)}
+            aria-label={`Drag ${expectedLabel} to ${plateTargets[expectedId].label}`}
           >
-            <i aria-hidden="true" className={`plate-icon ${id}`} />
-            <span>{label}</span>
+            <i aria-hidden="true" className={`plate-icon ${expectedId}`} />
+            <span>{expectedLabel}</span>
+            <small>{plateTargets[expectedId].label}</small>
           </button>
-        ))}
+        )}
+        <div className="plate-queue" aria-hidden="true">
+          {items.slice(placed.length + 1).map(([id, label]) => (
+            <i key={id} className={id}>
+              <b className={`plate-icon ${id}`} />
+              <span>{label}</span>
+            </i>
+          ))}
+        </div>
       </div>
       {dragGhost && (
         <div
@@ -1163,7 +1094,7 @@ function ResultScreen({
   );
 }
 
-function CoachHand({ visible, variant }: { visible: boolean; variant: 'tap' | 'tap-token' | 'swipe-up' | 'drag-heat' | 'circle' | 'drag-down' }) {
+function CoachHand({ visible, variant }: { visible: boolean; variant: 'tap' | 'tap-token' | 'swipe' | 'swipe-up' | 'drag-heat' | 'circle' | 'drag-down' }) {
   return <i className={`coach-hand ${variant} ${visible ? 'show' : ''}`} aria-hidden="true" />;
 }
 
@@ -1205,10 +1136,6 @@ function trianglePhase(phase: number) {
   return phase < 0.5 ? phase * 2 : 2 - phase * 2;
 }
 
-function randomTossTarget() {
-  return 0.24 + Math.random() * 0.6;
-}
-
 function renderStars(value: number) {
   return FILLED_STAR.repeat(value) + EMPTY_STAR.repeat(3 - value);
 }
@@ -1217,9 +1144,9 @@ function feedbackNote(stepId: string, score: number) {
   const level = score >= 0.86 ? 0 : score >= 0.64 ? 1 : 2;
   const notes: Record<string, [string, string, string]> = {
     'prep-aromatics': ['Sharp timing', 'Good cuts', 'Center the blade'],
-    'toast-rice': ['Great toss', 'Rice toasted', 'Aim for gold'],
+    'toast-rice': ['Great stir', 'Rice toasted', 'Use the wok'],
     'poach-chicken': ['Silky poach', 'Heat steady', 'Watch the heat'],
-    'make-chili': ['Sauce bright', 'Good pounding', 'Pull lower'],
+    'make-chili': ['Sauce bright', 'Good grinding', 'Move faster'],
     'plate-set': ['Beautiful plate', 'Set plated', 'Keep assembling'],
   };
   return (notes[stepId] ?? ['Nice work', 'Good try', 'Try again'])[level];

@@ -20,14 +20,13 @@ async function drag(page, from, to, steps = 12) {
   await page.mouse.up();
 }
 
-async function circleDrag(page, center, radius, loops = 0.75, stepsPerLoop = 20) {
-  await page.mouse.move(center.x + radius, center.y);
+async function scrubVertical(page, x, topY, bottomY, cycles = 9) {
+  await page.mouse.move(x, topY);
   await page.mouse.down();
   await page.waitForTimeout(35);
-  const total = Math.max(8, Math.round(loops * stepsPerLoop));
-  for (let i = 1; i <= total; i++) {
-    const angle = (Math.PI * 2 * loops * i) / total;
-    await page.mouse.move(center.x + Math.cos(angle) * radius, center.y + Math.sin(angle) * radius);
+  for (let i = 0; i < cycles; i++) {
+    await page.mouse.move(x, i % 2 ? topY : bottomY, { steps: 5 });
+    await page.waitForTimeout(35);
   }
   await page.mouse.up();
 }
@@ -92,12 +91,12 @@ async function playPrep(page, viewportName) {
 async function playRice(page) {
   const pad = await page.getByTestId('toss-pad').boundingBox();
   if (!pad) fail('rice: toss pad missing');
-  const x = pad.x + pad.width / 2;
+  const y = pad.y + pad.height * 0.58;
   for (let i = 0; i < 4; i++) {
-    const band = await page.getByTestId('toss-pad').locator('em').boundingBox();
-    if (!band) fail('rice: toss target missing');
-    await drag(page, { x, y: pad.y + pad.height * 0.88 }, { x: x - 4 + (i % 2) * 8, y: band.y + band.height / 2 }, 10);
-    await page.waitForTimeout(540);
+    const fromX = pad.x + pad.width * (i % 2 ? 0.82 : 0.18);
+    const toX = pad.x + pad.width * (i % 2 ? 0.18 : 0.82);
+    await drag(page, { x: fromX, y }, { x: toX, y: y + (i % 2 ? -8 : 8) }, 14);
+    await page.waitForTimeout(260);
   }
   await page.getByRole('heading', { name: 'Poach the Chicken' }).waitFor({ timeout: 5000 });
 }
@@ -105,18 +104,10 @@ async function playRice(page) {
 async function playPoach(page, viewportName) {
   const rail = await page.getByTestId('simmer-slider').boundingBox();
   if (!rail) fail('poach: heat rail missing');
-  await drag(page, { x: rail.x + rail.width / 2, y: rail.y + rail.height * 0.86 }, { x: rail.x + rail.width / 2, y: rail.y + rail.height * 0.4 }, 12);
+  await drag(page, { x: rail.x + rail.width / 2, y: rail.y + rail.height * 0.86 }, { x: rail.x + rail.width / 2, y: rail.y + rail.height * 0.38 }, 12);
   await page.waitForTimeout(250);
   const readyText = await page.getByTestId('stir-pot').innerText();
-  if (!/Circle here to stir|0\/3/.test(readyText)) fail(`${viewportName}: poach did not clearly invite stirring (${readyText})`);
-  const pot = await page.getByTestId('stir-pot').boundingBox();
-  if (!pot) fail('poach: stir pad missing');
-  const center = { x: pot.x + pot.width * 0.5, y: pot.y + pot.height * 0.42 };
-  const radius = Math.min(pot.width, pot.height) * 0.2;
-  for (let i = 0; i < 3; i++) {
-    await circleDrag(page, center, radius, 0.72, 18);
-    await page.waitForTimeout(320);
-  }
+  if (!/Keep thermometer/i.test(readyText)) fail(`${viewportName}: poach did not enter the green hold zone (${readyText})`);
   await page.getByRole('heading', { name: 'Make the Chili Sauce' }).waitFor({ timeout: 7000 });
 }
 
@@ -139,10 +130,7 @@ async function playSauce(page) {
   }
   const pad = await page.getByTestId('mortar-pad').boundingBox();
   if (!pad) fail('sauce: mortar pad missing');
-  for (let i = 0; i < 4; i++) {
-    await drag(page, { x: pad.x + pad.width * 0.52, y: pad.y + pad.height * 0.28 }, { x: pad.x + pad.width * 0.52, y: pad.y + pad.height * 0.66 }, 8);
-    await page.waitForTimeout(220);
-  }
+  await scrubVertical(page, pad.x + pad.width * 0.52, pad.y + pad.height * 0.28, pad.y + pad.height * 0.84, 10);
   await page.getByRole('heading', { name: 'Plate the Set' }).waitFor({ timeout: 7000 });
 }
 

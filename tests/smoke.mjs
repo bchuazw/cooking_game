@@ -11,14 +11,13 @@ async function drag(page, from, to, steps = 12) {
   await page.mouse.up();
 }
 
-async function circleDrag(page, center, radius, loops = 1, stepsPerLoop = 28) {
-  await page.mouse.move(center.x + radius, center.y);
+async function scrubVertical(page, x, topY, bottomY, cycles = 9) {
+  await page.mouse.move(x, topY);
   await page.mouse.down();
   await page.waitForTimeout(45);
-  const total = Math.max(8, Math.round(loops * stepsPerLoop));
-  for (let i = 1; i <= total; i++) {
-    const angle = (Math.PI * 2 * loops * i) / total;
-    await page.mouse.move(center.x + Math.cos(angle) * radius, center.y + Math.sin(angle) * radius);
+  for (let i = 0; i < cycles; i++) {
+    await page.mouse.move(x, i % 2 ? topY : bottomY, { steps: 5 });
+    await page.waitForTimeout(35);
   }
   await page.mouse.up();
 }
@@ -33,28 +32,21 @@ async function playPrep(page) {
 async function playStir(page) {
   const pad = await page.getByTestId('toss-pad').boundingBox();
   if (!pad) throw new Error('toss pad missing');
-  const x = pad.x + pad.width / 2;
+  const y = pad.y + pad.height * 0.58;
   for (let i = 0; i < 4; i++) {
-    const band = await page.getByTestId('toss-pad').locator('em').boundingBox();
-    if (!band) throw new Error('toss target missing');
-    await drag(page, { x, y: pad.y + pad.height * 0.88 }, { x: x - 4 + (i % 2) * 8, y: band.y + band.height / 2 }, 10);
-    await page.waitForTimeout(560);
+    const fromX = pad.x + pad.width * (i % 2 ? 0.82 : 0.18);
+    const toX = pad.x + pad.width * (i % 2 ? 0.18 : 0.82);
+    await drag(page, { x: fromX, y }, { x: toX, y: y + (i % 2 ? -8 : 8) }, 14);
+    await page.waitForTimeout(260);
   }
 }
 
 async function playSimmer(page) {
   const rail = await page.getByTestId('simmer-slider').boundingBox();
   if (!rail) throw new Error('simmer slider missing');
-  const target = { x: rail.x + rail.width / 2, y: rail.y + rail.height * 0.36 };
+  const target = { x: rail.x + rail.width / 2, y: rail.y + rail.height * 0.38 };
   await drag(page, { x: target.x, y: rail.y + rail.height * 0.82 }, target, 12);
-  const pot = await page.getByTestId('stir-pot').boundingBox();
-  if (!pot) throw new Error('stir pot missing');
-  const center = { x: pot.x + pot.width * 0.5, y: pot.y + pot.height * 0.42 };
-  const radius = Math.min(pot.width, pot.height) * 0.24;
-  for (let i = 0; i < 3; i++) {
-    await circleDrag(page, center, radius, 1.08, 30);
-    await page.waitForTimeout(260);
-  }
+  await page.getByRole('heading', { name: 'Make the Chili Sauce' }).waitFor({ timeout: 6500 });
 }
 
 async function playSauce(page) {
@@ -72,12 +64,9 @@ async function playSauce(page) {
     await page.getByTestId(`sauce-token-${id}`).click();
     await page.waitForTimeout(140);
   }
-  for (let i = 0; i < 4; i++) {
-    const pad = await page.getByTestId('mortar-pad').boundingBox();
-    if (!pad) throw new Error('mortar pad missing');
-    await drag(page, { x: pad.x + pad.width * 0.52, y: pad.y + pad.height * 0.22 }, { x: pad.x + pad.width * 0.52, y: pad.y + pad.height * 0.88 }, 8);
-    await page.waitForTimeout(190);
-  }
+  const pad = await page.getByTestId('mortar-pad').boundingBox();
+  if (!pad) throw new Error('mortar pad missing');
+  await scrubVertical(page, pad.x + pad.width * 0.52, pad.y + pad.height * 0.28, pad.y + pad.height * 0.84, 10);
 }
 
 async function playPlate(page) {
