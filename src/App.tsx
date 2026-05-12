@@ -58,23 +58,23 @@ const COMPLETE_PLATE: PlateState = { rice: true, chicken: true, sauce: true };
 const STATION_TIPS: Partial<Record<StationId, { title: string; body: string }>> = {
   pantry: {
     title: 'Rice prep',
-    body: 'Chicken rice starts with rinsed jasmine rice cooked in chicken stock, ginger, garlic, and pandan.',
+    body: 'Jasmine rice is rinsed first so the grains cook fluffy instead of gummy.',
   },
   riceCooker: {
     title: 'Fragrant rice',
-    body: 'The rice absorbs stock and aromatics first, so each grain tastes savory before sauce is added.',
+    body: 'Garlic, ginger, chicken fat, stock, and pandan give the rice its savory aroma.',
   },
   fridge: {
     title: 'Chicken choice',
-    body: 'A whole chicken is commonly poached gently, then sliced so the meat stays smooth and juicy.',
+    body: 'A skin-on whole chicken gives juicy meat and a rich stock for the rice.',
   },
   board: {
     title: 'Prep the chicken',
-    body: 'Trimming and portioning the chicken helps it cook evenly in the stock pot.',
+    body: 'Trimming extra fat is useful: it can be rendered to perfume the rice.',
   },
   pot: {
     title: 'Poaching',
-    body: 'Gentle heat cooks the chicken in hot stock without drying it out.',
+    body: 'Gentle poaching keeps the meat tender; an ice bath helps firm the skin.',
   },
   mortar: {
     title: 'Chili sauce',
@@ -82,11 +82,11 @@ const STATION_TIPS: Partial<Record<StationId, { title: string; body: string }>> 
   },
   plate: {
     title: 'Plating',
-    body: 'Classic plates pair fragrant rice, sliced chicken, chili sauce, cucumber, and sometimes dark soy.',
+    body: 'Cucumber cools the plate, while chili and dark soy add heat and depth.',
   },
   serve: {
     title: 'Hawker classic',
-    body: 'Hainanese chicken rice came through Hainanese cooks and became a Singapore hawker staple.',
+    body: 'Singapore versions grew from Hainanese Wenchang chicken and local hawker practice.',
   },
 };
 
@@ -704,7 +704,7 @@ export default function App() {
           <TopHud elapsed={elapsed} held={held} mistakes={mistakes} plate={displayedPlate} />
           <WorkflowGuide held={held} stations={stations} plate={displayedPlate} />
           <MovePad onMove={(vector) => { joystickRef.current = vector; }} />
-          <div className="auto-panel">
+          <div className={`auto-panel ${activeHold || dwell ? 'working' : ''}`}>
             <StationTip station={tipStation} />
             <div className="near-pill">
               <span data-testid="nearby-station">{nearStation ? STATION_BY_ID[nearStation].name : 'No station'}</span>

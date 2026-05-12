@@ -741,6 +741,33 @@ p {
   line-height: 1.22;
 }
 
+.auto-panel.working {
+  gap: 5px;
+}
+
+.auto-panel.working .education-tip {
+  min-height: 28px;
+  padding: 5px 10px;
+  display: grid;
+  place-items: center;
+}
+
+.auto-panel.working .education-tip h3 {
+  margin: 0;
+}
+
+.auto-panel.working .education-tip p {
+  display: none;
+}
+
+.auto-panel.working .near-pill {
+  display: none;
+}
+
+.auto-panel.working .auto-task {
+  min-height: 34px;
+}
+
 .auto-task {
   position: relative;
   min-height: 40px;
@@ -872,7 +899,7 @@ p {
   }
 
   .auto-panel {
-    bottom: max(130px, calc(env(safe-area-inset-bottom) + 120px));
+    bottom: max(126px, calc(env(safe-area-inset-bottom) + 116px));
     width: min(300px, calc(100% - 28px));
   }
 
@@ -880,7 +907,7 @@ p {
     min-height: 38px;
   }
 
-  .auto-panel p {
+  .auto-panel > p {
     display: none;
   }
 
