@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
-import { STATIONS, type HeldItem, type PlateComponent, type StationId, type StationItem } from './gameData';
+import { STATION_BY_ID, STATIONS, type HeldItem, type PlateComponent, type StationId, type StationItem } from './gameData';
 
 export interface VisualStationState {
   item: StationItem | null;
@@ -14,6 +14,7 @@ export interface KitchenVisualState {
   stations: Record<StationId, VisualStationState>;
   plate: Record<PlateComponent, boolean>;
   nearStation: StationId | null;
+  targetStation: StationId | null;
   activeStation: StationId | null;
   activeProgress: number;
   pulseStation: StationId | null;
@@ -27,6 +28,7 @@ interface DynamicRefs {
   leftArm: THREE.Mesh;
   rightArm: THREE.Mesh;
   heldItems: Record<HeldItem, THREE.Group>;
+  guideArrow: THREE.Sprite;
   highlights: Record<StationId, THREE.Mesh>;
   progressBars: Partial<Record<StationId, THREE.Mesh>>;
   fridgeDoor: THREE.Group;
@@ -238,6 +240,7 @@ function buildKitchen(root: THREE.Group) {
     leftArm: undefined as unknown as THREE.Mesh,
     rightArm: undefined as unknown as THREE.Mesh,
     heldItems: makeHeldItems(root, cube, cyl),
+    guideArrow: makeGuideArrow(root),
     highlights: {} as Record<StationId, THREE.Mesh>,
     progressBars: {},
     fridgeDoor: makeFridge(root, cube),
@@ -288,6 +291,9 @@ function buildKitchen(root: THREE.Group) {
   return {
     dynamics,
     dispose: () => {
+      const guideMaterial = dynamics.guideArrow.material as THREE.SpriteMaterial;
+      guideMaterial.map?.dispose();
+      guideMaterial.dispose();
       root.clear();
       Object.values(geometries).forEach((geometry) => geometry.dispose());
       materialCache.forEach((material) => material.dispose());
@@ -592,6 +598,48 @@ function makeTrash(root: THREE.Group, cube: CubeFn, cyl: CylFn, d: DynamicRefs) 
   cube(d.trashLid, '#71695e', 0, 0, 0, 0.56, 0.07, 0.38);
 }
 
+function makeGuideArrow(root: THREE.Group) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 64;
+  canvas.height = 96;
+  const ctx = canvas.getContext('2d');
+  if (ctx) {
+    ctx.shadowColor = 'rgba(33, 24, 19, 0.32)';
+    ctx.shadowBlur = 8;
+    ctx.shadowOffsetY = 5;
+    ctx.fillStyle = '#fff063';
+    ctx.fillRect(27, 8, 10, 36);
+    ctx.beginPath();
+    ctx.moveTo(10, 38);
+    ctx.lineTo(54, 38);
+    ctx.lineTo(32, 80);
+    ctx.closePath();
+    ctx.fillStyle = '#ff7f3f';
+    ctx.fill();
+    ctx.shadowColor = 'transparent';
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = '#fff7d1';
+    ctx.stroke();
+  }
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.magFilter = THREE.NearestFilter;
+  texture.minFilter = THREE.LinearFilter;
+  const material = new THREE.SpriteMaterial({
+    map: texture,
+    transparent: true,
+    depthTest: false,
+    depthWrite: false,
+  });
+  const sprite = new THREE.Sprite(material);
+  sprite.userData.dynamic = true;
+  sprite.visible = false;
+  sprite.renderOrder = 10;
+  root.add(sprite);
+  return sprite;
+}
+
 function addChickenShape(parent: THREE.Group, cube: CubeFn, cyl: CylFn, cooked: boolean, scale = 1) {
   const meat = cooked ? COLORS.chickenCooked : COLORS.chickenRaw;
   const skin = cooked ? COLORS.chickenSkin : '#d78a55';
@@ -691,6 +739,15 @@ function updateDynamics(d: DynamicRefs, state: KitchenVisualState | null, t: num
   };
   const stationMotion = (station: StationId) => Math.max(live.activeStation === station ? 1 : 0, pulse(station));
 
+  const target = live.targetStation && !live.served ? STATION_BY_ID[live.targetStation] : null;
+  d.guideArrow.visible = Boolean(target);
+  if (target) {
+    const bob = Math.sin(t * 5.5) * 0.08;
+    d.guideArrow.position.set(target.x, 1.78 + bob, target.z);
+    const scale = 1 + Math.sin(t * 5.5) * 0.05;
+    d.guideArrow.scale.set(0.48 * scale, 0.72 * scale, 1);
+  }
+
   d.chef.position.set(live.player.x, live.player.moving ? Math.abs(Math.sin(t * 11)) * 0.035 : 0, live.player.z);
   d.chef.rotation.y = live.player.facing;
   d.leftArm.rotation.x = Math.sin(t * 10) * (live.player.moving ? 0.55 : 0.1);
@@ -711,12 +768,13 @@ function updateDynamics(d: DynamicRefs, state: KitchenVisualState | null, t: num
     const highlight = d.highlights[station.id];
     const near = live.nearStation === station.id;
     const active = live.activeStation === station.id;
-    highlight.visible = near || active;
-    const scale = near ? 1.18 + Math.sin(t * 6) * 0.035 : 1.0;
+    const targeted = live.targetStation === station.id && !live.served;
+    highlight.visible = near || active || targeted;
+    const scale = near || targeted ? 1.18 + Math.sin(t * 6) * 0.035 : 1.0;
     const baseScale = highlight.userData.baseScale as { x: number; y: number; z: number };
     highlight.scale.set(baseScale.x * scale, baseScale.y * scale, baseScale.z * scale);
     const material = highlight.material as THREE.MeshLambertMaterial;
-    material.opacity = active ? 0.48 : near ? 0.34 : 0.15;
+    material.opacity = active ? 0.48 : near ? 0.34 : targeted ? 0.25 : 0.15;
 
     const progress = d.progressBars[station.id];
     if (progress) {
@@ -811,6 +869,7 @@ function menuState(): KitchenVisualState {
     stations: Object.fromEntries(STATIONS.map((station) => [station.id, { item: null, progress: 0, overcooked: false }])) as Record<StationId, VisualStationState>,
     plate: { rice: true, chicken: true, sauce: true },
     nearStation: null,
+    targetStation: null,
     activeStation: null,
     activeProgress: 0,
     pulseStation: null,

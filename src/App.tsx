@@ -84,6 +84,7 @@ export default function App() {
   const stars = scoreStars(elapsed, mistakes);
 
   const visualStations = useMemo(() => buildVisualStationState(stations, nowTick), [stations, nowTick]);
+  const targetStation = useMemo(() => getTargetStation(held, stations, plate), [held, plate, stations]);
 
   const begin = useCallback(() => {
     const now = performance.now();
@@ -644,6 +645,7 @@ export default function App() {
     stations: visualStations,
     plate,
     nearStation,
+    targetStation,
     activeStation: activeHold?.station ?? dwell?.station ?? null,
     activeProgress: activeHold ? activeProgress : dwellProgress,
     pulseStation: pulse?.station ?? null,
@@ -667,7 +669,7 @@ export default function App() {
             </div>
             <div className={`auto-task ${action.enabled ? 'ready' : ''}`} data-testid="auto-task">
               <i style={{ transform: `scaleX(${activeHold ? activeProgress : dwellProgress})` }} />
-              <strong>{action.enabled ? (activeHold || (dwell && action.kind === 'hold') ? 'Working' : dwell ? 'Stay' : 'Stop') : ''}</strong>
+              <strong>{action.enabled ? (activeHold || dwell ? 'Working' : 'Stop here') : ''}</strong>
             </div>
             <p data-testid="feedback-text">{feedback}</p>
           </div>
@@ -830,6 +832,7 @@ function ResultScreen({ elapsed, mistakes, stars, onReplay }: { elapsed: number;
           stations: emptyVisualStations(),
           plate: { rice: true, chicken: true, sauce: true },
           nearStation: 'serve',
+          targetStation: null,
           activeStation: null,
           activeProgress: 0,
           pulseStation: 'serve',
@@ -900,6 +903,35 @@ function getActiveWorkflowStep(held: HeldItem | null, stations: StationSlots, pl
   if (!plate.rice) return 'rice';
   if (!plate.chicken) return 'chicken';
   if (!plate.sauce) return 'chili';
+  return 'plate';
+}
+
+function getTargetStation(held: HeldItem | null, stations: StationSlots, plate: PlateState): StationId | null {
+  if (held === 'rawRice') return 'riceCooker';
+  if (held === 'rawChicken') return 'board';
+  if (held === 'cutChicken') return 'pot';
+  if (held === 'cookedRice' || held === 'poachedChicken' || held === 'chiliSauce') return 'plate';
+  if (held === 'chickenRice') return 'serve';
+
+  const rice = stations.riceCooker?.item;
+  const board = stations.board?.item;
+  const chicken = stations.pot?.item;
+  const riceReady = rice === 'cookedRice' || rice === 'overcookedRice';
+  const chickenReady = chicken === 'poachedChicken' || chicken === 'overcookedChicken';
+
+  if (!plate.rice && riceReady) return 'riceCooker';
+  if (!plate.chicken && chickenReady) return 'pot';
+  if (plate.rice && plate.chicken && plate.sauce) return 'plate';
+  if (!plate.rice && !rice) return 'pantry';
+
+  if (!plate.chicken) {
+    if (board === 'rawChicken' || board === 'cutChicken') return 'board';
+    if (!board && !chicken) return 'fridge';
+  }
+
+  if (!plate.sauce) return 'mortar';
+  if (!plate.rice && rice === 'cookingRice') return 'riceCooker';
+  if (!plate.chicken && chicken === 'poachingChicken') return 'pot';
   return 'plate';
 }
 
