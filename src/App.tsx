@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import {
+  COLLISION_BOXES,
   DISH,
   ITEM_LABELS,
   PLATE_LABELS,
+  PLAYER_RADIUS,
   STATION_BY_ID,
   STATIONS,
   TIMERS,
@@ -509,9 +511,10 @@ export default function App() {
       setPlayer((prev) => {
         const moving = Math.hypot(x, z) > 0.05;
         if (!moving) return prev.moving ? { ...prev, moving: false } : prev;
+        const next = moveWithCollision(prev, x * MOVE_SPEED * dt, z * MOVE_SPEED * dt);
         return {
-          x: clamp(prev.x + x * MOVE_SPEED * dt, WORLD_LIMITS.minX, WORLD_LIMITS.maxX),
-          z: clamp(prev.z + z * MOVE_SPEED * dt, WORLD_LIMITS.minZ, WORLD_LIMITS.maxZ),
+          x: next.x,
+          z: next.z,
           facing: Math.atan2(x, z),
           moving: true,
         };
@@ -888,6 +891,25 @@ function getNearestStation(player: PlayerState): StationId | null {
     }
   }
   return best?.id ?? null;
+}
+
+function moveWithCollision(player: PlayerState, dx: number, dz: number) {
+  let x = clamp(player.x + dx, WORLD_LIMITS.minX, WORLD_LIMITS.maxX);
+  let z = player.z;
+  if (hitsCounter(x, z)) x = player.x;
+  z = clamp(player.z + dz, WORLD_LIMITS.minZ, WORLD_LIMITS.maxZ);
+  if (hitsCounter(x, z)) z = player.z;
+  return { x, z };
+}
+
+function hitsCounter(x: number, z: number) {
+  return COLLISION_BOXES.some(
+    (box) =>
+      x > box.minX - PLAYER_RADIUS &&
+      x < box.maxX + PLAYER_RADIUS &&
+      z > box.minZ - PLAYER_RADIUS &&
+      z < box.maxZ + PLAYER_RADIUS,
+  );
 }
 
 function getActiveWorkflowStep(held: HeldItem | null, stations: StationSlots, plate: PlateState) {

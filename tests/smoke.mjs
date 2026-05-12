@@ -6,12 +6,12 @@ const URL = BASE.includes('?') ? `${BASE}&pixelCheck=1` : `${BASE}?pixelCheck=1`
 const TARGETS = {
   pantry: { name: 'Rice Pantry', x: -1.6, z: -2.0 },
   riceCooker: { name: 'Rice Cooker', x: 1.75, z: -2.0 },
-  plate: { name: 'Plate Station', x: -0.15, z: 2.0 },
+  plate: { name: 'Plate Station', x: -0.15, z: 1.38 },
   fridge: { name: 'Fridge', x: -3.15, z: -1.25 },
   board: { name: 'Cutting Board', x: 0.05, z: -2.0 },
   pot: { name: 'Stock Pot', x: 3.1, z: -0.35 },
-  mortar: { name: 'Chili Mortar', x: -2.4, z: 1.6 },
-  serve: { name: 'Serve Window', x: 1.75, z: 2.0 },
+  mortar: { name: 'Chili Mortar', x: -2.4, z: 1.05 },
+  serve: { name: 'Serve Window', x: 1.75, z: 1.38 },
 };
 
 async function readPosition(page) {

@@ -43,6 +43,13 @@ export interface StationDefinition {
   uiY: number;
 }
 
+export interface CollisionBox {
+  minX: number;
+  maxX: number;
+  minZ: number;
+  maxZ: number;
+}
+
 export const DISH = {
   name: 'Hainanese Chicken Rice',
   shortName: 'Chicken Rice',
@@ -57,9 +64,9 @@ export const STATIONS: StationDefinition[] = [
   { id: 'board', name: 'Cutting Board', shortName: 'Board', x: 0.05, z: -2.0, uiX: 50, uiY: 26 },
   { id: 'riceCooker', name: 'Rice Cooker', shortName: 'Rice', x: 1.75, z: -2.0, uiX: 68, uiY: 26 },
   { id: 'pot', name: 'Stock Pot', shortName: 'Pot', x: 3.1, z: -0.35, uiX: 79, uiY: 45 },
-  { id: 'mortar', name: 'Chili Mortar', shortName: 'Sauce', x: -2.4, z: 1.6, uiX: 27, uiY: 69 },
-  { id: 'plate', name: 'Plate Station', shortName: 'Plate', x: -0.15, z: 2.0, uiX: 50, uiY: 75 },
-  { id: 'serve', name: 'Serve Window', shortName: 'Serve', x: 1.75, z: 2.0, uiX: 70, uiY: 75 },
+  { id: 'mortar', name: 'Chili Mortar', shortName: 'Sauce', x: -2.4, z: 1.05, uiX: 27, uiY: 63 },
+  { id: 'plate', name: 'Plate Station', shortName: 'Plate', x: -0.15, z: 1.38, uiX: 50, uiY: 67 },
+  { id: 'serve', name: 'Serve Window', shortName: 'Serve', x: 1.75, z: 1.38, uiX: 70, uiY: 67 },
   { id: 'trash', name: 'Trash Bin', shortName: 'Trash', x: -3.3, z: 0.65, uiX: 15, uiY: 57 },
 ];
 
@@ -99,5 +106,14 @@ export const WORLD_LIMITS = {
   minX: -3.65,
   maxX: 3.55,
   minZ: -2.25,
-  maxZ: 2.25,
+  maxZ: 1.65,
 };
+
+export const PLAYER_RADIUS = 0.22;
+
+export const COLLISION_BOXES: CollisionBox[] = [
+  { minX: -3.35, maxX: 2.85, minZ: -2.52, maxZ: -1.56 },
+  { minX: -2.98, maxX: 2.62, minZ: 1.05, maxZ: 1.78 },
+  { minX: -3.78, maxX: -3.02, minZ: -1.34, maxZ: 1.36 },
+  { minX: 2.92, maxX: 3.72, minZ: -1.04, maxZ: 1.58 },
+];
