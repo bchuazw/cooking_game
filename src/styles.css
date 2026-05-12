@@ -715,6 +715,32 @@ p {
   font-weight: 950;
 }
 
+.education-tip {
+  padding: 9px 11px 10px;
+  border: 1px solid rgba(255, 247, 229, 0.46);
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(255, 249, 226, 0.94), rgba(255, 232, 160, 0.9));
+  box-shadow: 0 12px 24px rgba(18, 83, 96, 0.24);
+  color: var(--ink);
+}
+
+.education-tip h3 {
+  margin: 0 0 3px;
+  color: #1d806f;
+  font-size: 11px;
+  font-weight: 950;
+  line-height: 1.05;
+  text-transform: uppercase;
+}
+
+.education-tip p {
+  margin: 0;
+  color: #604c42;
+  font-size: clamp(11px, 3vw, 13px);
+  font-weight: 850;
+  line-height: 1.22;
+}
+
 .auto-task {
   position: relative;
   min-height: 40px;
@@ -745,7 +771,7 @@ p {
   text-transform: none;
 }
 
-.auto-panel p {
+.auto-panel > p {
   display: none;
 }
 

@@ -55,6 +55,40 @@ const RESULT_ART_SRC = `${import.meta.env.BASE_URL}assets/chicken-rice-result.we
 
 const EMPTY_PLATE: PlateState = { rice: false, chicken: false, sauce: false };
 const COMPLETE_PLATE: PlateState = { rice: true, chicken: true, sauce: true };
+const STATION_TIPS: Partial<Record<StationId, { title: string; body: string }>> = {
+  pantry: {
+    title: 'Rice prep',
+    body: 'Chicken rice starts with rinsed jasmine rice cooked in chicken stock, ginger, garlic, and pandan.',
+  },
+  riceCooker: {
+    title: 'Fragrant rice',
+    body: 'The rice absorbs stock and aromatics first, so each grain tastes savory before sauce is added.',
+  },
+  fridge: {
+    title: 'Chicken choice',
+    body: 'A whole chicken is commonly poached gently, then sliced so the meat stays smooth and juicy.',
+  },
+  board: {
+    title: 'Prep the chicken',
+    body: 'Trimming and portioning the chicken helps it cook evenly in the stock pot.',
+  },
+  pot: {
+    title: 'Poaching',
+    body: 'Gentle heat cooks the chicken in hot stock without drying it out.',
+  },
+  mortar: {
+    title: 'Chili sauce',
+    body: 'The sauce is pounded from red chili, garlic, ginger, lime or calamansi, and a splash of stock.',
+  },
+  plate: {
+    title: 'Plating',
+    body: 'Classic plates pair fragrant rice, sliced chicken, chili sauce, cucumber, and sometimes dark soy.',
+  },
+  serve: {
+    title: 'Hawker classic',
+    body: 'Hainanese chicken rice came through Hainanese cooks and became a Singapore hawker staple.',
+  },
+};
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>('menu');
@@ -89,6 +123,7 @@ export default function App() {
 
   const visualStations = useMemo(() => buildVisualStationState(stations, nowTick), [stations, nowTick]);
   const targetStation = useMemo(() => getTargetStation(held, stations, plate), [held, plate, stations]);
+  const tipStation = nearStation ?? targetStation;
 
   const begin = useCallback(() => {
     const now = performance.now();
@@ -670,6 +705,7 @@ export default function App() {
           <WorkflowGuide held={held} stations={stations} plate={displayedPlate} />
           <MovePad onMove={(vector) => { joystickRef.current = vector; }} />
           <div className="auto-panel">
+            <StationTip station={tipStation} />
             <div className="near-pill">
               <span data-testid="nearby-station">{nearStation ? STATION_BY_ID[nearStation].name : 'No station'}</span>
             </div>
@@ -752,6 +788,18 @@ function VisualStateProbe({ stations, plate }: { stations: StationSlots; plate: 
       ))}
       <span data-testid="plate-station-state">{plateContents || 'empty'}</span>
     </div>
+  );
+}
+
+function StationTip({ station }: { station: StationId | null }) {
+  const tip = station ? STATION_TIPS[station] : null;
+  if (!tip) return null;
+
+  return (
+    <aside className="education-tip" data-testid="station-tip">
+      <h3>{tip.title}</h3>
+      <p>{tip.body}</p>
+    </aside>
   );
 }
 
