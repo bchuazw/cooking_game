@@ -531,11 +531,9 @@ function makePlate(root: THREE.Group, cube: CubeFn, cyl: CylFn, d: DynamicRefs) 
   root.add(plateBase);
   cyl(plateBase, '#2a2020', 0, -0.08, 0, 0.62, 0.09, 0.43);
   cyl(plateBase, COLORS.paper, 0, 0, 0, 0.52, 0.06, 0.35);
-  cyl(plateBase, '#d8cdbb', 0, 0.04, 0, 0.38, 0.025, 0.25, true, 0.55);
-  cyl(plateBase, '#fff8e8', -0.46, 0.09, -0.12, 0.2, 0.035, 0.14);
-  cyl(plateBase, '#fff8e8', -0.48, 0.14, -0.14, 0.18, 0.03, 0.12);
-  cyl(plateBase, '#3bbf75', 0.4, 0.08, 0.12, 0.1, 0.025, 0.06, false, 1, 12);
-  cyl(plateBase, '#46d185', 0.28, 0.09, 0.14, 0.08, 0.025, 0.055, false, 1, 12);
+  cyl(plateBase, '#e7dccd', 0, 0.04, 0, 0.4, 0.018, 0.26, true, 0.5);
+  cyl(plateBase, '#fffdf6', -0.14, 0.066, -0.08, 0.09, 0.006, 0.035, true, 0.55);
+  cyl(plateBase, '#f4eee3', 0.18, 0.065, 0.1, 0.07, 0.006, 0.028, true, 0.45);
 
   const rice = new THREE.Group();
   rice.userData.dynamic = true;
