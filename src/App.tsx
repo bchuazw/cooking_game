@@ -54,6 +54,7 @@ const START_PLAYER: PlayerState = { x: 0, z: 0.05, facing: Math.PI, moving: fals
 const RESULT_ART_SRC = `${import.meta.env.BASE_URL}assets/chicken-rice-result.webp`;
 
 const EMPTY_PLATE: PlateState = { rice: false, chicken: false, sauce: false };
+const COMPLETE_PLATE: PlateState = { rice: true, chicken: true, sauce: true };
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>('menu');
@@ -83,6 +84,7 @@ export default function App() {
 
   const elapsed = screen === 'play' ? nowTick - startedAt : servedAt ? servedAt - startedAt : 0;
   const orderComplete = plate.rice && plate.chicken && plate.sauce;
+  const displayedPlate = held === 'chickenRice' ? COMPLETE_PLATE : plate;
   const stars = scoreStars(elapsed, mistakes);
 
   const visualStations = useMemo(() => buildVisualStationState(stations, nowTick), [stations, nowTick]);
@@ -395,6 +397,7 @@ export default function App() {
           station: 'plate',
           kind: 'instant',
           run: () => {
+            setPlate(EMPTY_PLATE);
             setHeld('chickenRice');
             setFeedback('Serve the chicken rice at the window.');
             pulseStation('plate');
@@ -431,7 +434,7 @@ export default function App() {
         station: 'plate',
         kind: 'instant',
         run: () => {
-          setPlate((prev) => ({ ...prev, [component]: true }));
+          setPlate((prev) => (completesPlate ? EMPTY_PLATE : { ...prev, [component]: true }));
           setHeld(completesPlate ? 'chickenRice' : null);
           setFeedback(completesPlate ? 'Plate complete. Serve it at the window.' : `${PLATE_LABELS[component]} plated.`);
           pulseStation('plate');
@@ -663,8 +666,8 @@ export default function App() {
         <section className="screen play-screen">
           <VoxelCanvas state={visualState} />
           <StationLabels near={nearStation} active={activeHold?.station ?? dwell?.station ?? null} />
-          <TopHud elapsed={elapsed} held={held} mistakes={mistakes} plate={plate} />
-          <WorkflowGuide held={held} stations={stations} plate={plate} />
+          <TopHud elapsed={elapsed} held={held} mistakes={mistakes} plate={displayedPlate} />
+          <WorkflowGuide held={held} stations={stations} plate={displayedPlate} />
           <MovePad onMove={(vector) => { joystickRef.current = vector; }} />
           <div className="auto-panel">
             <div className="near-pill">
@@ -677,6 +680,7 @@ export default function App() {
             <p data-testid="feedback-text">{feedback}</p>
           </div>
           <span className="sr-only" data-testid="player-position">{player.x.toFixed(2)},{player.z.toFixed(2)}</span>
+          <VisualStateProbe stations={stations} plate={plate} />
         </section>
       )}
       {screen === 'result' && <ResultScreen elapsed={elapsed} mistakes={mistakes} stars={stars} onReplay={begin} />}
@@ -730,6 +734,24 @@ function OrderChip({ done, label }: { done: boolean; label: string }) {
       <i />
       <b className="sr-only">{done ? 'Done ' : ''}{label}</b>
     </span>
+  );
+}
+
+function VisualStateProbe({ stations, plate }: { stations: StationSlots; plate: PlateState }) {
+  const plateContents = (Object.entries(plate) as Array<[PlateComponent, boolean]>)
+    .filter(([, visible]) => visible)
+    .map(([component]) => component)
+    .join(',');
+
+  return (
+    <div className="sr-only" aria-hidden="true">
+      {STATIONS.map((station) => (
+        <span key={station.id} data-testid={`station-state-${station.id}`}>
+          {stations[station.id]?.item ?? 'empty'}
+        </span>
+      ))}
+      <span data-testid="plate-station-state">{plateContents || 'empty'}</span>
+    </div>
   );
 }
 

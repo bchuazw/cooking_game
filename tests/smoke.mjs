@@ -54,6 +54,22 @@ async function waitHeld(page, text, timeout = 9000) {
   );
 }
 
+async function expectStationEmpty(page, id) {
+  await page.waitForFunction(
+    (stationId) => document.querySelector(`[data-testid="station-state-${stationId}"]`)?.textContent?.trim() === 'empty',
+    id,
+    { timeout: 2500 },
+  );
+}
+
+async function expectPlateStationEmpty(page) {
+  await page.waitForFunction(
+    () => document.querySelector('[data-testid="plate-station-state"]')?.textContent?.trim() === 'empty',
+    undefined,
+    { timeout: 2500 },
+  );
+}
+
 async function waitResult(page) {
   await page.getByTestId('result-stars').waitFor({ timeout: 10000 });
 }
@@ -76,21 +92,25 @@ async function playFullOrder(page) {
 
   await moveToStation(page, 'mortar');
   await waitHeld(page, /chili sauce/i);
+  await expectStationEmpty(page, 'mortar');
 
   await moveToStation(page, 'plate');
   await waitHeld(page, /empty hands/i);
 
   await moveToStation(page, 'riceCooker');
   await waitHeld(page, /fragrant rice/i, 12000);
+  await expectStationEmpty(page, 'riceCooker');
 
   await moveToStation(page, 'plate');
   await waitHeld(page, /empty hands/i);
 
   await moveToStation(page, 'pot');
   await waitHeld(page, /poached chicken/i, 12000);
+  await expectStationEmpty(page, 'pot');
 
   await moveToStation(page, 'plate');
   await waitHeld(page, /chicken rice/i);
+  await expectPlateStationEmpty(page);
 
   await moveToStation(page, 'serve');
   await waitResult(page);
