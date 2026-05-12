@@ -304,11 +304,38 @@ function buildKitchen(root: THREE.Group) {
 function makeRoom(root: THREE.Group, cube: CubeFn) {
   cube(root, COLORS.wallDark, 0, 1.15, -3.08, 8.4, 2.25, 0.22);
   cube(root, COLORS.wall, 0, 0.78, -3.2, 8.2, 0.34, 0.28);
+  cube(root, '#257f8a', 0, 1.72, -2.94, 8.0, 0.1, 0.035);
+  cube(root, '#ffd565', 0, 1.55, -2.93, 7.7, 0.055, 0.035);
+  cube(root, '#f47d55', 0, 1.47, -2.92, 7.7, 0.035, 0.035);
+  cube(root, '#fff0bc', -0.2, 0.92, -2.91, 6.7, 0.52, 0.035);
+  for (let x = -3.25; x <= 2.9; x += 0.56) cube(root, '#e4bc62', x, 0.92, -2.885, 0.018, 0.48, 0.025, true, 0.55);
+  for (let y = 0.7; y <= 1.12; y += 0.14) cube(root, '#e4bc62', -0.2, y, -2.88, 6.55, 0.014, 0.025, true, 0.55);
+  for (let x = -2.95; x <= 2.8; x += 1.12) {
+    cube(root, '#ffed9a', x, 1.18, -2.875, 0.12, 0.12, 0.026, true, 0.62);
+    cube(root, '#34b58f', x + 0.28, 0.76, -2.875, 0.1, 0.1, 0.026, true, 0.52);
+  }
+  makeWallFrame(root, cube, -2.85, 1.5, '#fff6d2', '#ef8b4c');
+  makeWallFrame(root, cube, 2.75, 1.5, '#e7fff4', '#2aa68e');
+  for (let x = -2.5; x <= 2.5; x += 2.5) makePendantLight(root, cube, x);
   cube(root, '#102e34', 0, -0.34, -0.35, 8.55, 0.16, 4.86);
   cube(root, COLORS.floor, 0, -0.2, -0.35, 8.0, 0.14, 4.42);
   cube(root, '#fff0b9', 0, -0.09, -0.35, 7.62, 0.035, 4.05, true, 0.32);
   for (let x = -3.35; x <= 3.35; x += 0.95) cube(root, COLORS.tileLine, x, -0.07, -0.35, 0.024, 0.035, 4.0, true, 0.72);
   for (let z = -2.25; z <= 1.55; z += 0.95) cube(root, COLORS.tileLine, 0, -0.065, z, 7.54, 0.035, 0.024, true, 0.72);
+}
+
+function makeWallFrame(root: THREE.Group, cube: CubeFn, x: number, y: number, paper: string, accent: string) {
+  cube(root, '#155a67', x, y, -2.865, 0.72, 0.45, 0.04);
+  cube(root, paper, x, y, -2.84, 0.58, 0.32, 0.035);
+  cube(root, accent, x, y + 0.09, -2.815, 0.38, 0.035, 0.02);
+  cube(root, accent, x - 0.02, y - 0.02, -2.815, 0.28, 0.03, 0.02, true, 0.74);
+  cube(root, '#f3ca68', x + 0.18, y - 0.11, -2.81, 0.08, 0.08, 0.02);
+}
+
+function makePendantLight(root: THREE.Group, cube: CubeFn, x: number) {
+  cube(root, '#184f5a', x, 1.88, -2.66, 0.035, 0.34, 0.035);
+  cube(root, '#ffe58b', x, 1.66, -2.64, 0.24, 0.14, 0.18, true, 0.84);
+  cube(root, '#f08a48', x, 1.58, -2.64, 0.3, 0.045, 0.2, true, 0.72);
 }
 
 function makeCounters(root: THREE.Group, cube: CubeFn) {
@@ -447,7 +474,8 @@ function makeRiceCooker(root: THREE.Group, cube: CubeFn, cyl: CylFn, puff: PuffF
 
 function makePot(root: THREE.Group, cube: CubeFn, cyl: CylFn, puff: PuffFn, d: DynamicRefs) {
   const group = new THREE.Group();
-  group.position.set(3.1, 0.58, -0.35);
+  const station = STATION_BY_ID.pot;
+  group.position.set(station.x, 0.58, station.z);
   root.add(group);
   cube(group, '#173b41', 0, -0.12, 0, 0.96, 0.2, 0.7);
   cube(group, '#ef6a3e', 0, -0.02, 0.34, 0.34, 0.08, 0.06);
@@ -463,12 +491,12 @@ function makePot(root: THREE.Group, cube: CubeFn, cyl: CylFn, puff: PuffFn, d: D
 
   d.potChicken = new THREE.Group();
   d.potChicken.userData.dynamic = true;
-  d.potChicken.position.set(3.1, 1.03, -0.35);
+  d.potChicken.position.set(station.x, 1.03, station.z);
   root.add(d.potChicken);
   addChickenShape(d.potChicken, cube, cyl, true, 1);
 
   for (let i = 0; i < 5; i += 1) {
-    const steam = puff(root, COLORS.paper, 2.82 + i * 0.13, 1.1, -0.48, 1, 0.5);
+    const steam = puff(root, COLORS.paper, station.x - 0.28 + i * 0.13, 1.1, station.z - 0.13, 1, 0.5);
     d.potSteam.push(steam);
   }
   for (let i = 0; i < 5; i += 1) {
@@ -477,7 +505,7 @@ function makePot(root: THREE.Group, cube: CubeFn, cyl: CylFn, puff: PuffFn, d: D
     bubble.userData.baseScale = { x: 0.035, y: 0.012, z: 0.035 };
     d.potBubbles.push(bubble);
   }
-  d.progressBars.pot = makeProgress(root, cube, 3.1, -0.35);
+  d.progressBars.pot = makeProgress(root, cube, station.x, station.z);
 }
 
 function makeMortar(root: THREE.Group, cube: CubeFn, cyl: CylFn, d: DynamicRefs) {
@@ -849,12 +877,12 @@ function updateDynamics(d: DynamicRefs, state: KitchenVisualState | null, t: num
   const poaching = potItem === 'poachingChicken';
   d.potWater.scale.set(0.43 + Math.sin(t * 8) * 0.02, 0.035, 0.29 + Math.cos(t * 7) * 0.018);
   d.potChicken.visible = Boolean(potItem);
-  d.potChicken.position.set(3.1, 1.03 + Math.sin(t * 5) * 0.035 * (poaching ? 1 : 0.35), -0.35);
+  d.potChicken.position.set(STATION_BY_ID.pot.x, 1.03 + Math.sin(t * 5) * 0.035 * (poaching ? 1 : 0.35), STATION_BY_ID.pot.z);
   d.potChicken.rotation.z = Math.sin(t * 6) * 0.08 * (poaching ? 1 : 0);
   d.potSteam.forEach((steam, index) => {
     const rise = (t * 0.75 + index * 0.17) % 1;
     steam.visible = Boolean(potItem);
-    steam.position.set(2.82 + index * 0.13 + Math.sin(t + index) * 0.035, 1.03 + rise * 0.62, -0.48);
+    steam.position.set(STATION_BY_ID.pot.x - 0.28 + index * 0.13 + Math.sin(t + index) * 0.035, 1.03 + rise * 0.62, STATION_BY_ID.pot.z - 0.13);
     steam.scale.setScalar(0.62 + rise * 0.34);
   });
   d.potBubbles.forEach((bubble, index) => {

@@ -14,8 +14,8 @@ const TARGETS = {
   plate: { name: 'Plate Station', x: -0.15, z: 1.38 },
   fridge: { name: 'Fridge', x: -3.15, z: -1.25 },
   board: { name: 'Cutting Board', x: 0.05, z: -2.0 },
-  pot: { name: 'Stock Pot', x: 3.1, z: -0.35 },
-  mortar: { name: 'Chili Mortar', x: -2.4, z: 1.05 },
+  pot: { name: 'Stock Pot', x: 3.35, z: -0.35 },
+  mortar: { name: 'Chili Mortar', x: -2.4, z: 1.55 },
   serve: { name: 'Serve Window', x: 1.75, z: 1.38 },
 };
 
