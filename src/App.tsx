@@ -227,7 +227,7 @@ export default function App() {
       if (!held && !chickenStarted) {
         return {
           enabled: true,
-          label: 'Pick up raw chicken',
+          label: 'Open fridge for chicken',
           station: 'fridge',
           kind: 'instant',
           run: () => {

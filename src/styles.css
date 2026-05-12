@@ -747,22 +747,16 @@ p {
 }
 
 .auto-panel.working {
-  gap: 5px;
+  gap: 6px;
 }
 
 .auto-panel.working .education-tip {
-  min-height: 28px;
-  padding: 5px 10px;
-  display: grid;
-  place-items: center;
-}
-
-.auto-panel.working .education-tip h3 {
-  margin: 0;
+  padding: 7px 10px 8px;
 }
 
 .auto-panel.working .education-tip p {
-  display: none;
+  font-size: clamp(10px, 2.8vw, 12px);
+  line-height: 1.18;
 }
 
 .auto-panel.working .near-pill {

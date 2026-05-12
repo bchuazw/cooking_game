@@ -367,17 +367,25 @@ function makeFridge(root: THREE.Group, cube: CubeFn) {
   group.position.set(-3.18, 0.42, -1.23);
   root.add(group);
   cube(group, '#eaf5f3', 0, 0.42, 0, 0.58, 1.12, 0.48);
+  cube(group, '#5aa8ae', 0, 0.46, -0.282, 0.48, 0.72, 0.035);
+  cube(group, '#dff3f0', 0, 0.62, -0.31, 0.44, 0.035, 0.035);
+  cube(group, '#dff3f0', 0, 0.28, -0.31, 0.44, 0.035, 0.035);
+  cube(group, COLORS.chickenRaw, -0.11, 0.72, -0.335, 0.16, 0.1, 0.05);
+  cube(group, '#fff4d8', 0.02, 0.72, -0.34, 0.08, 0.055, 0.045);
+  cube(group, '#2ea05a', 0.1, 0.4, -0.335, 0.12, 0.08, 0.045);
+  cube(group, '#ffcf55', -0.11, 0.38, -0.335, 0.1, 0.07, 0.045);
   cube(group, '#f8ffff', 0, 0.75, -0.255, 0.52, 0.38, 0.035);
   cube(group, '#c8d8d2', 0, -0.22, 0, 0.58, 0.18, 0.48);
   const door = new THREE.Group();
   door.userData.dynamic = true;
+  door.position.x = 0.31;
   group.add(door);
-  cube(door, '#a9d9df', 0, 0.52, -0.27, 0.5, 0.46, 0.05);
-  cube(door, '#6f9ca4', 0.2, 0.36, -0.31, 0.04, 0.38, 0.04);
-  cube(door, '#e9fbff', -0.07, 0.54, -0.315, 0.04, 0.22, 0.025);
-  cube(door, '#e9fbff', -0.07, 0.54, -0.315, 0.18, 0.04, 0.025);
-  cube(door, '#e9fbff', -0.07, 0.54, -0.315, 0.13, 0.035, 0.025).rotation.z = 0.75;
-  cube(door, '#e9fbff', -0.07, 0.54, -0.315, 0.13, 0.035, 0.025).rotation.z = -0.75;
+  cube(door, '#a9d9df', 0, 0.52, 0, 0.055, 0.46, 0.42);
+  cube(door, '#6f9ca4', 0.035, 0.36, 0.15, 0.035, 0.38, 0.04);
+  cube(door, '#e9fbff', 0.04, 0.54, -0.05, 0.025, 0.22, 0.04);
+  cube(door, '#e9fbff', 0.04, 0.54, -0.05, 0.025, 0.04, 0.18);
+  cube(door, '#e9fbff', 0.04, 0.54, -0.05, 0.025, 0.035, 0.13).rotation.x = 0.75;
+  cube(door, '#e9fbff', 0.04, 0.54, -0.05, 0.025, 0.035, 0.13).rotation.x = -0.75;
   cube(group, '#f6fbfb', -0.16, 0.88, -0.26, 0.12, 0.12, 0.035);
   cube(group, '#ffcf55', 0.08, 0.88, -0.26, 0.1, 0.08, 0.035);
   cube(group, '#d3e2df', 0, 0.05, -0.26, 0.5, 0.035, 0.035);
@@ -477,17 +485,17 @@ function makePot(root: THREE.Group, cube: CubeFn, cyl: CylFn, puff: PuffFn, d: D
   const station = STATION_BY_ID.pot;
   group.position.set(station.x, 0.58, station.z);
   root.add(group);
-  cube(group, '#173b41', 0, -0.12, 0, 0.96, 0.2, 0.7);
-  cube(group, '#ef6a3e', 0, -0.02, 0.34, 0.34, 0.08, 0.06);
-  cube(group, '#ffd65b', 0, 0.03, 0.36, 0.2, 0.06, 0.045);
-  cyl(group, COLORS.steelDark, 0, 0.1, 0, 0.5, 0.26, 0.36);
-  cyl(group, COLORS.steel, 0, 0.29, 0, 0.43, 0.1, 0.29);
-  cube(group, COLORS.steelDark, -0.56, 0.2, 0, 0.16, 0.08, 0.12);
-  cube(group, COLORS.steelDark, 0.56, 0.2, 0, 0.16, 0.08, 0.12);
-  d.potWater = cyl(group, COLORS.blue, 0, 0.39, 0, 0.43, 0.035, 0.29, true, 0.74);
+  cube(group, '#173b41', 0, -0.12, 0, 0.44, 0.2, 0.7);
+  cube(group, '#ef6a3e', 0, -0.02, 0.34, 0.22, 0.08, 0.06);
+  cube(group, '#ffd65b', 0, 0.03, 0.36, 0.14, 0.06, 0.045);
+  cyl(group, COLORS.steelDark, 0, 0.1, 0, 0.33, 0.25, 0.34);
+  cyl(group, COLORS.steel, 0, 0.29, 0, 0.28, 0.1, 0.27);
+  cube(group, COLORS.steelDark, -0.36, 0.2, 0, 0.11, 0.07, 0.11);
+  cube(group, COLORS.steelDark, 0.36, 0.2, 0, 0.11, 0.07, 0.11);
+  d.potWater = cyl(group, COLORS.blue, 0, 0.39, 0, 0.28, 0.035, 0.26, true, 0.74);
   d.potWater.userData.dynamic = true;
-  cyl(group, '#c2f3f5', -0.11, 0.42, -0.04, 0.2, 0.012, 0.08, true, 0.58, 12);
-  cyl(group, '#e1ffff', 0.16, 0.43, 0.08, 0.12, 0.01, 0.06, true, 0.48, 12);
+  cyl(group, '#c2f3f5', -0.07, 0.42, -0.04, 0.12, 0.012, 0.07, true, 0.58, 12);
+  cyl(group, '#e1ffff', 0.1, 0.43, 0.08, 0.08, 0.01, 0.05, true, 0.48, 12);
 
   d.potChicken = new THREE.Group();
   d.potChicken.userData.dynamic = true;
@@ -842,9 +850,10 @@ function updateDynamics(d: DynamicRefs, state: KitchenVisualState | null, t: num
     }
   }
 
-  const fridgePulse = Math.max(pulse('fridge'), live.nearStation === 'fridge' ? 0.28 : 0);
-  d.fridgeDoor.rotation.y = -0.42 * fridgePulse;
-  d.fridgeDoor.position.x = -0.04 * fridgePulse;
+  const fridgePulse = Math.max(stationMotion('fridge'), live.nearStation === 'fridge' ? 0.28 : 0);
+  d.fridgeDoor.rotation.y = -1.35 * fridgePulse;
+  d.fridgeDoor.position.x = 0.31 + 0.1 * fridgePulse;
+  d.fridgeDoor.position.z = 0.32 * fridgePulse;
 
   const pantryPulse = Math.max(pulse('pantry'), live.nearStation === 'pantry' ? 0.25 : 0);
   d.pantrySack.position.y = 0.72 + Math.abs(Math.sin(t * 12)) * 0.06 * pantryPulse;
@@ -875,7 +884,7 @@ function updateDynamics(d: DynamicRefs, state: KitchenVisualState | null, t: num
 
   const potItem = live.stations.pot?.item;
   const poaching = potItem === 'poachingChicken';
-  d.potWater.scale.set(0.43 + Math.sin(t * 8) * 0.02, 0.035, 0.29 + Math.cos(t * 7) * 0.018);
+  d.potWater.scale.set(0.28 + Math.sin(t * 8) * 0.014, 0.035, 0.26 + Math.cos(t * 7) * 0.014);
   d.potChicken.visible = Boolean(potItem);
   d.potChicken.position.set(STATION_BY_ID.pot.x, 1.03 + Math.sin(t * 5) * 0.035 * (poaching ? 1 : 0.35), STATION_BY_ID.pot.z);
   d.potChicken.rotation.z = Math.sin(t * 6) * 0.08 * (poaching ? 1 : 0);
