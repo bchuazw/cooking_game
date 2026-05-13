@@ -114,7 +114,7 @@ export default function App() {
     setActiveProgress(0);
     setDwell(null);
     setDwellProgress(0);
-    setFeedback('Get rice from the pantry or chicken from the fridge.');
+    setFeedback(dishStrings.startFeedback);
     setStartedAt(now);
     setServedAt(0);
     setNowTick(now);
@@ -454,7 +454,7 @@ export default function App() {
         },
       };
     }
-  }, [clearStation, finishOrder, held, nearStation, orderComplete, plate, pulseStation, setStationItem, stations]);
+  }, [clearStation, finishOrder, held, nearStation, orderComplete, plate, pulseStation, setStationItem, stations, dishId, itemLabels, plateLabels, TIMERS]);
 
   useEffect(() => {
     if (screen !== 'play' || !action.enabled) return;
