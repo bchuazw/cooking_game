@@ -715,7 +715,7 @@ export default function App() {
             </div>
             <p data-testid="feedback-text">{feedback}</p>
           </div>
-          <span className="sr-only" data-testid="player-position">{player.x.toFixed(2)},{player.z.toFixed(2)}</span>
+          <span className="sr-only" aria-hidden="true" data-testid="player-position">{player.x.toFixed(2)},{player.z.toFixed(2)}</span>
           <VisualStateProbe stations={stations} plate={plate} />
         </section>
       )}
