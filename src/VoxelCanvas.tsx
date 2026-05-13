@@ -103,17 +103,17 @@ export function VoxelCanvas({ state }: { state: KitchenVisualState | null }) {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.25));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 0.78;
+    renderer.toneMappingExposure = 0.55;
     renderer.setClearColor(0x000000, 0);
     host.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
-    scene.fog = new THREE.Fog(0x2b8893, 14, 26);
-    scene.add(new THREE.HemisphereLight(0xfff1c7, 0x10545f, 2.2));
-    const key = new THREE.DirectionalLight(0xfff6e0, 1.5);
+    scene.fog = new THREE.Fog(0x1f6c78, 12, 24);
+    scene.add(new THREE.HemisphereLight(0xffe3a8, 0x093f4a, 1.6));
+    const key = new THREE.DirectionalLight(0xfff0c8, 1.1);
     key.position.set(2, 9, 3);
     scene.add(key);
-    const rim = new THREE.DirectionalLight(0xff8d76, 0.75);
+    const rim = new THREE.DirectionalLight(0xff8d76, 0.55);
     rim.position.set(-3, 4, -3);
     scene.add(rim);
 

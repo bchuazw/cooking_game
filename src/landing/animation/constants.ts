@@ -62,9 +62,9 @@ export const URL_BLOCK_TRANSITION_SEC = 1.4;
 export const VIEW_SCALE_3D = 1.6;
 export const VIEW_SCALE_2D = 2.1;
 
-// Centering offsets for 2D view
-export const Y_OFFSET_2D = 0.08;
-export const X_OFFSET_2D = 0.015;
+// Centering offsets for 2D view (0 = centered)
+export const Y_OFFSET_2D = 0;
+export const X_OFFSET_2D = 0;
 
 /** Sakura petals when style is tree; 6 verts per leaf. */
 export const LEAF_COUNT = 420;
