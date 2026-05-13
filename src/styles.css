@@ -303,14 +303,15 @@ p {
   grid-template-columns: 56px 1fr 72px;
   gap: 8px;
   align-items: center;
-  background: rgba(20, 81, 91, 0.78);
-  color: var(--paper);
+  background: rgba(11, 56, 64, 0.92);
+  color: #fff8e6;
 }
 
 .status-strip strong {
-  color: #ffd76d;
+  color: #ffe27a;
   font-size: 17px;
   line-height: 1;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
 }
 
 .status-strip span,
@@ -326,7 +327,7 @@ p {
 
 .status-strip em {
   text-align: right;
-  color: #d8cbb0;
+  color: #ffd9b0;
 }
 
 .workflow-guide {
@@ -339,10 +340,10 @@ p {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   align-items: center;
-  border: 1px solid rgba(255, 247, 229, 0.22);
+  border: 1px solid rgba(255, 247, 229, 0.32);
   border-radius: 8px;
-  background: rgba(21, 111, 122, 0.5);
-  box-shadow: inset 0 1px rgba(255, 255, 255, 0.08), 0 12px 24px rgba(19, 74, 83, 0.18);
+  background: rgba(10, 56, 64, 0.78);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.1), 0 12px 24px rgba(19, 74, 83, 0.28);
   backdrop-filter: blur(4px);
   pointer-events: none;
 }
@@ -355,12 +356,13 @@ p {
   place-items: center;
   align-content: center;
   gap: 4px;
-  color: rgba(255, 247, 229, 0.72);
+  color: #fff8e6;
   font-size: 9px;
   font-weight: 950;
   line-height: 1;
   text-align: center;
   text-transform: uppercase;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
 }
 
 .workflow-step + .workflow-step::before {
@@ -371,7 +373,7 @@ p {
   width: 24px;
   height: 3px;
   border-radius: 99px;
-  background: rgba(255, 247, 229, 0.26);
+  background: rgba(255, 247, 229, 0.48);
 }
 
 .workflow-step i {
@@ -380,7 +382,8 @@ p {
   height: 24px;
   display: block;
   border-radius: 8px;
-  background: rgba(255, 233, 163, 0.26);
+  background: rgba(255, 245, 215, 0.5);
+  box-shadow: inset 0 0 0 1px rgba(255, 247, 229, 0.18);
 }
 
 .workflow-step i::before,
@@ -675,10 +678,10 @@ p {
   bottom: max(22px, env(safe-area-inset-bottom));
   width: 122px;
   height: 122px;
-  border: 2px solid rgba(255, 247, 229, 0.34);
+  border: 2px solid rgba(255, 247, 229, 0.62);
   border-radius: 50%;
-  background: rgba(18, 83, 96, 0.44);
-  box-shadow: 0 14px 28px rgba(19, 74, 83, 0.32);
+  background: rgba(10, 56, 64, 0.72);
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.38);
   touch-action: none;
   transform: translateX(-50%);
 }
@@ -690,8 +693,8 @@ p {
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  background: rgba(255, 247, 229, 0.9);
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.24);
+  background: #fff7e5;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.32);
 }
 
 .auto-panel {
@@ -711,13 +714,14 @@ p {
   padding: 7px 10px;
   display: grid;
   place-items: center;
-  border: 1px solid rgba(255, 247, 229, 0.42);
+  border: 1px solid rgba(255, 247, 229, 0.5);
   border-radius: 8px;
-  background: rgba(20, 81, 91, 0.74);
-  color: var(--paper);
-  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.22);
+  background: rgba(11, 56, 64, 0.92);
+  color: #fff8e6;
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.3);
   font-size: 12px;
   font-weight: 950;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
 }
 
 .education-tip {
