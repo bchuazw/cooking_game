@@ -123,7 +123,7 @@ export default function App() {
     autoCooldownRef.current = { key: '', until: 0 };
     joystickRef.current = { x: 0, z: 0 };
     keysRef.current = { left: false, right: false, up: false, down: false };
-  }, []);
+  }, [dishStrings.startFeedback]);
 
   const pulseStation = useCallback((station: StationId) => {
     setPulse({ station, key: performance.now() });
