@@ -1,20 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import {
-  COLLISION_BOXES,
-  DISH,
-  ITEM_LABELS,
-  PLATE_LABELS,
   PLAYER_RADIUS,
-  STATION_BY_ID,
-  STATIONS,
   TIMERS,
   WORLD_LIMITS,
+  type CollisionBox,
   type HeldItem,
   type PlateComponent,
+  type StationDefinition,
   type StationId,
   type StationItem,
 } from './gameData';
 import { VoxelCanvas, type KitchenVisualState, type VisualStationState } from './VoxelCanvas';
+import { DISHES, DISH_ORDER, getDish, type DishConfig, type DishId } from './dishes';
+import { useI18n } from './i18n';
 
 type Screen = 'menu' | 'play' | 'result';
 
@@ -55,42 +53,21 @@ const RESULT_ART_SRC = `${import.meta.env.BASE_URL}assets/chicken-rice-result.we
 
 const EMPTY_PLATE: PlateState = { rice: false, chicken: false, sauce: false };
 const COMPLETE_PLATE: PlateState = { rice: true, chicken: true, sauce: true };
-const STATION_TIPS: Partial<Record<StationId, { title: string; body: string }>> = {
-  pantry: {
-    title: 'Rice prep',
-    body: 'Jasmine rice is rinsed first so the grains cook fluffy instead of gummy.',
-  },
-  riceCooker: {
-    title: 'Fragrant rice',
-    body: 'Garlic, ginger, chicken fat, stock, and pandan give the rice its savory aroma.',
-  },
-  fridge: {
-    title: 'Chicken choice',
-    body: 'A skin-on whole chicken gives juicy meat and a rich stock for the rice.',
-  },
-  board: {
-    title: 'Prep the chicken',
-    body: 'Trimming extra fat is useful: it can be rendered to perfume the rice.',
-  },
-  pot: {
-    title: 'Poaching',
-    body: 'Gentle poaching keeps the meat tender; an ice bath helps firm the skin.',
-  },
-  mortar: {
-    title: 'Chili sauce',
-    body: 'The sauce is pounded from red chili, garlic, ginger, lime or calamansi, and a splash of stock.',
-  },
-  plate: {
-    title: 'Plating',
-    body: 'Cucumber cools the plate, while chili and dark soy add heat and depth.',
-  },
-  serve: {
-    title: 'Hawker classic',
-    body: 'Singapore versions grew from Hainanese Wenchang chicken and local hawker practice.',
-  },
-};
-
 export default function App() {
+  const { t, locale, setLocale } = useI18n();
+  const [dishId, setDishId] = useState<DishId>('chicken-rice');
+  const dish = useMemo(() => getDish(dishId), [dishId]);
+  const dishStrings = dish.strings[locale];
+  const stationDefs = dish.stations;
+  const stationById = useMemo(
+    () => Object.fromEntries(stationDefs.map((s) => [s.id, s])) as Record<StationId, StationDefinition>,
+    [stationDefs],
+  );
+  const collisionBoxes = dish.collisionBoxes;
+  const itemLabels = dishStrings.itemLabels;
+  const plateLabels = dishStrings.plateLabels;
+  const stationTips = dishStrings.stationTips;
+  const workflowLabels = dishStrings.workflowLabels;
   const [screen, setScreen] = useState<Screen>('menu');
   const [player, setPlayer] = useState<PlayerState>(START_PLAYER);
   const [held, setHeld] = useState<HeldItem | null>(null);
@@ -121,7 +98,7 @@ export default function App() {
   const displayedPlate = held === 'chickenRice' ? COMPLETE_PLATE : plate;
   const stars = scoreStars(elapsed, mistakes);
 
-  const visualStations = useMemo(() => buildVisualStationState(stations, nowTick), [stations, nowTick]);
+  const visualStations = useMemo(() => buildVisualStationState(stationDefs, stations, nowTick), [stationDefs, stations, nowTick]);
   const targetStation = useMemo(() => getTargetStation(held, stations, plate), [held, plate, stations]);
   const tipStation = nearStation ?? targetStation;
 
@@ -188,7 +165,7 @@ export default function App() {
       if (held) {
         return {
           enabled: true,
-          label: `Discard ${ITEM_LABELS[held]}`,
+          label: `Discard ${itemLabels[held] ?? held}`,
           station: 'trash',
           kind: 'instant',
           run: () => {
@@ -465,13 +442,13 @@ export default function App() {
         (component === 'sauce' || plate.sauce);
       return {
         enabled: true,
-        label: completesPlate ? 'Finish plate' : `Plate ${PLATE_LABELS[component]}`,
+        label: completesPlate ? 'Finish plate' : `Plate ${plateLabels[component]}`,
         station: 'plate',
         kind: 'instant',
         run: () => {
           setPlate((prev) => (completesPlate ? EMPTY_PLATE : { ...prev, [component]: true }));
           setHeld(completesPlate ? 'chickenRice' : null);
-          setFeedback(completesPlate ? 'Plate complete. Serve it at the window.' : `${PLATE_LABELS[component]} plated.`);
+          setFeedback(completesPlate ? 'Plate complete. Serve it at the window.' : `${plateLabels[component]} plated.`);
           pulseStation('plate');
           playSfx(completesPlate ? 'pickup' : 'plate');
         },
@@ -549,7 +526,7 @@ export default function App() {
       setPlayer((prev) => {
         const moving = Math.hypot(x, z) > 0.05;
         if (!moving) return prev.moving ? { ...prev, moving: false } : prev;
-        const next = moveWithCollision(prev, x * MOVE_SPEED * dt, z * MOVE_SPEED * dt);
+        const next = moveWithCollision(prev, x * MOVE_SPEED * dt, z * MOVE_SPEED * dt, collisionBoxes);
         return {
           x: next.x,
           z: next.z,
@@ -565,7 +542,7 @@ export default function App() {
 
   useEffect(() => {
     if (screen !== 'play') return;
-    setNearStation(getNearestStation(player));
+    setNearStation(getNearestStation(player, stationDefs));
   }, [player, screen]);
 
   useEffect(() => {
@@ -696,60 +673,145 @@ export default function App() {
 
   return (
     <main className="app-shell">
-      {screen === 'menu' && <MenuScreen best={best} onBegin={begin} />}
+      {screen === 'menu' && (
+        <DishPickerScreen
+          best={best}
+          dishId={dishId}
+          onSelectDish={setDishId}
+          onBegin={begin}
+          locale={locale}
+          onLocaleChange={setLocale}
+        />
+      )}
       {screen === 'play' && (
         <section className="screen play-screen">
-          <VoxelCanvas state={visualState} />
-          <StationLabels near={nearStation} active={activeHold?.station ?? dwell?.station ?? null} />
-          <TopHud elapsed={elapsed} held={held} mistakes={mistakes} plate={displayedPlate} />
-          <WorkflowGuide held={held} stations={stations} plate={displayedPlate} />
-          <MovePad onMove={(vector) => { joystickRef.current = vector; }} />
+          <VoxelCanvas state={visualState} dishId={dishId} />
+          <StationLabels near={nearStation} active={activeHold?.station ?? dwell?.station ?? null} stationDefs={stationDefs} />
+          <TopHud elapsed={elapsed} held={held} mistakes={mistakes} plate={displayedPlate} itemLabels={itemLabels} t={t} />
+          <WorkflowGuide held={held} stations={stations} plate={displayedPlate} labels={workflowLabels} />
+          <MovePad onMove={(vector) => { joystickRef.current = vector; }} ariaLabel={t.hud.moveAria} />
           <div className={`auto-panel ${activeHold || dwell ? 'working' : ''}`}>
-            <StationTip station={tipStation} />
+            <StationTip station={tipStation} tips={stationTips} />
             <div className="near-pill">
-              <span data-testid="nearby-station">{nearStation ? STATION_BY_ID[nearStation].name : 'No station'}</span>
+              <span data-testid="nearby-station">{nearStation ? stationById[nearStation].name : t.hud.noStation}</span>
             </div>
             <div className={`auto-task ${action.enabled ? 'ready' : ''}`} data-testid="auto-task">
               <i style={{ transform: `scaleX(${activeHold ? activeProgress : dwellProgress})` }} />
-              <strong>{action.enabled ? (activeHold || dwell ? 'Working' : 'Stop here') : ''}</strong>
+              <strong>{action.enabled ? (activeHold || dwell ? t.hud.working : t.hud.stopHere) : ''}</strong>
             </div>
             <p data-testid="feedback-text">{feedback}</p>
           </div>
-          <span className="sr-only" data-testid="player-position">{player.x.toFixed(2)},{player.z.toFixed(2)}</span>
-          <VisualStateProbe stations={stations} plate={plate} />
+          <span className="sr-only" aria-hidden="true" data-testid="player-position">{player.x.toFixed(2)},{player.z.toFixed(2)}</span>
+          <VisualStateProbe stations={stations} plate={plate} stationDefs={stationDefs} />
         </section>
       )}
-      {screen === 'result' && <ResultScreen elapsed={elapsed} mistakes={mistakes} stars={stars} onReplay={begin} />}
+      {screen === 'result' && (
+        <ResultScreen
+          elapsed={elapsed}
+          mistakes={mistakes}
+          stars={stars}
+          onReplay={begin}
+          dishId={dishId}
+          dishStrings={dishStrings}
+          t={t}
+        />
+      )}
     </main>
   );
 }
 
-function MenuScreen({ best, onBegin }: { best: number; onBegin: () => void }) {
+function DishPickerScreen({
+  best,
+  dishId,
+  onSelectDish,
+  onBegin,
+  locale,
+  onLocaleChange,
+}: {
+  best: number;
+  dishId: DishId;
+  onSelectDish: (id: DishId) => void;
+  onBegin: () => void;
+  locale: 'en' | 'ja';
+  onLocaleChange: (l: 'en' | 'ja') => void;
+}) {
+  const { t } = useI18n();
+  const dish = getDish(dishId);
+  const dishStrings = dish.strings[locale];
   return (
     <section className="screen menu-screen">
-      <VoxelCanvas state={null} />
+      <VoxelCanvas state={null} dishId={dishId} />
       <div className="menu-vignette" />
       <div className="menu-card">
-        <p className="eyebrow">Singapore kitchen rush</p>
-        <h1>Hawker Rush</h1>
-        <p>{DISH.goal}</p>
+        <p className="eyebrow">{t.menu.eyebrow}</p>
+        <h1>{dishStrings.name}</h1>
+        <p>{dishStrings.goal}</p>
+        <div className="dish-picker" role="group" aria-label={t.menu.pick}>
+          {DISH_ORDER.map((id) => {
+            const optStrings = DISHES[id].strings[locale];
+            return (
+              <button
+                key={id}
+                type="button"
+                className={`dish-chip ${dishId === id ? 'dish-chip--active' : ''}`}
+                aria-pressed={dishId === id}
+                onClick={() => onSelectDish(id)}
+              >
+                {optStrings.shortName}
+              </button>
+            );
+          })}
+        </div>
         <div className="best-row">
-          <span>Best shift</span>
+          <span>{t.menu.bestShift}</span>
           <strong>{renderStars(best || 1)}</strong>
         </div>
-        <button className="primary-button" data-testid="start-chicken-rice" onClick={onBegin}>Start chicken rice</button>
+        <button className="primary-button" data-testid="start-chicken-rice" onClick={onBegin}>
+          {t.menu.play(dishStrings.shortName)}
+        </button>
+        <div className="locale-toggle" role="group" aria-label={t.menu.languageLabel}>
+          <button
+            type="button"
+            className={`locale-btn ${locale === 'en' ? 'locale-btn--active' : ''}`}
+            aria-pressed={locale === 'en'}
+            onClick={() => onLocaleChange('en')}
+          >
+            EN
+          </button>
+          <button
+            type="button"
+            className={`locale-btn ${locale === 'ja' ? 'locale-btn--active' : ''}`}
+            aria-pressed={locale === 'ja'}
+            onClick={() => onLocaleChange('ja')}
+          >
+            日本語
+          </button>
+        </div>
       </div>
     </section>
   );
 }
 
-function TopHud({ elapsed, held, mistakes }: { elapsed: number; held: HeldItem | null; mistakes: number; plate: PlateState }) {
+function TopHud({
+  elapsed,
+  held,
+  mistakes,
+  itemLabels,
+  t,
+}: {
+  elapsed: number;
+  held: HeldItem | null;
+  mistakes: number;
+  plate: PlateState;
+  itemLabels: Partial<Record<HeldItem | StationItem, string>>;
+  t: import('./i18n/types').Dictionary;
+}) {
   return (
     <header className="top-hud">
       <section className="status-strip">
         <strong data-testid="timer-text">{formatTime(elapsed)}</strong>
-        <span data-testid="held-item">{held ? ITEM_LABELS[held] : 'Empty hands'}</span>
-        <em>{mistakes ? `${mistakes} mistake${mistakes > 1 ? 's' : ''}` : 'Clean'}</em>
+        <span data-testid="held-item">{held ? itemLabels[held] ?? held : t.hud.emptyHands}</span>
+        <em>{mistakes ? t.hud.mistakes(mistakes) : t.hud.clean}</em>
       </section>
     </header>
   );
@@ -764,7 +826,7 @@ function OrderChip({ done, label }: { done: boolean; label: string }) {
   );
 }
 
-function VisualStateProbe({ stations, plate }: { stations: StationSlots; plate: PlateState }) {
+function VisualStateProbe({ stations, plate, stationDefs }: { stations: StationSlots; plate: PlateState; stationDefs: StationDefinition[] }) {
   const plateContents = (Object.entries(plate) as Array<[PlateComponent, boolean]>)
     .filter(([, visible]) => visible)
     .map(([component]) => component)
@@ -772,7 +834,7 @@ function VisualStateProbe({ stations, plate }: { stations: StationSlots; plate: 
 
   return (
     <div className="sr-only" aria-hidden="true">
-      {STATIONS.map((station) => (
+      {stationDefs.map((station) => (
         <span key={station.id} data-testid={`station-state-${station.id}`}>
           {stations[station.id]?.item ?? 'empty'}
         </span>
@@ -782,8 +844,8 @@ function VisualStateProbe({ stations, plate }: { stations: StationSlots; plate: 
   );
 }
 
-function StationTip({ station }: { station: StationId | null }) {
-  const tip = station ? STATION_TIPS[station] : null;
+function StationTip({ station, tips }: { station: StationId | null; tips: Partial<Record<StationId, { title: string; body: string }>> }) {
+  const tip = station ? tips[station] : null;
   if (!tip) return null;
 
   return (
@@ -794,19 +856,19 @@ function StationTip({ station }: { station: StationId | null }) {
   );
 }
 
-function WorkflowGuide({ held, stations, plate }: { held: HeldItem | null; stations: StationSlots; plate: PlateState }) {
+function WorkflowGuide({ held, stations, plate, labels }: { held: HeldItem | null; stations: StationSlots; plate: PlateState; labels: Record<PlateComponent | 'plate' | 'serve', string> }) {
   const active = getActiveWorkflowStep(held, stations, plate);
   const complete = plate.rice && plate.chicken && plate.sauce;
   const steps = [
-    { id: 'rice', label: 'Rice', done: plate.rice },
-    { id: 'chicken', label: 'Chicken', done: plate.chicken },
-    { id: 'chili', label: 'Chili', done: plate.sauce },
-    { id: 'plate', label: 'Plate', done: held === 'chickenRice' },
-    { id: 'serve', label: 'Serve', done: false },
+    { id: 'rice', label: labels.rice, done: plate.rice },
+    { id: 'chicken', label: labels.chicken, done: plate.chicken },
+    { id: 'chili', label: labels.sauce, done: plate.sauce },
+    { id: 'plate', label: labels.plate, done: held === 'chickenRice' },
+    { id: 'serve', label: labels.serve, done: false },
   ];
 
   return (
-    <div className="workflow-guide" aria-label="Chicken rice checklist">
+    <div className="workflow-guide" aria-label="Recipe checklist">
       {steps.map((step) => (
         <span
           key={step.id}
@@ -820,10 +882,10 @@ function WorkflowGuide({ held, stations, plate }: { held: HeldItem | null; stati
   );
 }
 
-function StationLabels({ near, active }: { near: StationId | null; active: StationId | null }) {
+function StationLabels({ near, active, stationDefs }: { near: StationId | null; active: StationId | null; stationDefs: StationDefinition[] }) {
   return (
     <div className="station-labels" aria-hidden>
-      {STATIONS.map((station) => (
+      {stationDefs.map((station) => (
         <span
           key={station.id}
           className={`station-label station-${station.id} ${near === station.id ? 'near' : ''} ${active === station.id ? 'active' : ''}`}
@@ -838,7 +900,7 @@ function StationLabels({ near, active }: { near: StationId | null; active: Stati
   );
 }
 
-function MovePad({ onMove }: { onMove: (vector: { x: number; z: number }) => void }) {
+function MovePad({ onMove, ariaLabel }: { onMove: (vector: { x: number; z: number }) => void; ariaLabel: string }) {
   const padRef = useRef<HTMLDivElement>(null);
   const [knob, setKnob] = useState({ x: 0, z: 0 });
 
@@ -871,6 +933,8 @@ function MovePad({ onMove }: { onMove: (vector: { x: number; z: number }) => voi
       ref={padRef}
       className="move-pad"
       data-testid="move-pad"
+      role="application"
+      aria-label={ariaLabel}
       onPointerDown={(event) => {
         event.currentTarget.setPointerCapture(event.pointerId);
         update(event);
@@ -886,14 +950,30 @@ function MovePad({ onMove }: { onMove: (vector: { x: number; z: number }) => voi
   );
 }
 
-function ResultScreen({ elapsed, mistakes, stars, onReplay }: { elapsed: number; mistakes: number; stars: number; onReplay: () => void }) {
+function ResultScreen({
+  elapsed,
+  mistakes,
+  stars,
+  onReplay,
+  dishId,
+  dishStrings,
+  t,
+}: {
+  elapsed: number;
+  mistakes: number;
+  stars: number;
+  onReplay: () => void;
+  dishId: DishId;
+  dishStrings: import('./dishes/types').DishStrings;
+  t: import('./i18n/types').Dictionary;
+}) {
   return (
     <section className="screen result-screen">
       <VoxelCanvas
         state={{
           player: { x: 1.75, z: 1.55, facing: Math.PI, moving: false },
           held: null,
-          stations: emptyVisualStations(),
+          stations: emptyVisualStations(getDish(dishId).stations),
           plate: { rice: true, chicken: true, sauce: true },
           nearStation: 'serve',
           targetStation: null,
@@ -903,26 +983,31 @@ function ResultScreen({ elapsed, mistakes, stars, onReplay }: { elapsed: number;
           pulseKey: 1,
           served: true,
         }}
+        dishId={dishId}
       />
       <div className="menu-vignette" />
       <div className="result-card">
         <div className="result-art">
-          <img src={RESULT_ART_SRC} alt="Illustration of Hainanese chicken rice with rice, sliced chicken, cucumber, and chili sauce" />
+          <img src={RESULT_ART_SRC} alt={dishStrings.name} />
         </div>
-        <p className="eyebrow">Order served</p>
-        <h1>{DISH.name}</h1>
+        <p className="eyebrow">{t.result.eyebrow}</p>
+        <h1>{dishStrings.name}</h1>
         <div className="result-stars" data-testid="result-stars">{renderStars(stars)}</div>
-        <p className="result-meta">Time {formatTime(elapsed)} - {mistakes ? `${mistakes} mistake${mistakes > 1 ? 's' : ''}` : 'clean cook'}</p>
-        <p>{DISH.learning}</p>
-        <button className="primary-button" onClick={onReplay}>Play again</button>
+        <p className="result-meta">{t.result.timeLabel} {formatTime(elapsed)} · {mistakes ? t.hud.mistakes(mistakes) : t.hud.clean}</p>
+        <p>{dishStrings.goal}</p>
+        <button className="primary-button" onClick={onReplay}>{t.result.replay(dishStrings.shortName)}</button>
       </div>
     </section>
   );
 }
 
-function buildVisualStationState(stations: StationSlots, now: number): Record<StationId, VisualStationState> {
+function buildVisualStationState(
+  stationDefs: StationDefinition[],
+  stations: StationSlots,
+  now: number,
+): Record<StationId, VisualStationState> {
   const visual = {} as Record<StationId, VisualStationState>;
-  for (const station of STATIONS) {
+  for (const station of stationDefs) {
     const slot = stations[station.id];
     let progress = 0;
     if (slot?.startedAt && slot.readyAt) {
@@ -939,13 +1024,13 @@ function buildVisualStationState(stations: StationSlots, now: number): Record<St
   return visual;
 }
 
-function emptyVisualStations() {
-  return Object.fromEntries(STATIONS.map((station) => [station.id, { item: null, progress: 0, overcooked: false }])) as Record<StationId, VisualStationState>;
+function emptyVisualStations(stationDefs: StationDefinition[]) {
+  return Object.fromEntries(stationDefs.map((station) => [station.id, { item: null, progress: 0, overcooked: false }])) as Record<StationId, VisualStationState>;
 }
 
-function getNearestStation(player: PlayerState): StationId | null {
+function getNearestStation(player: PlayerState, stationDefs: StationDefinition[]): StationId | null {
   let best: { id: StationId; distance: number } | null = null;
-  for (const station of STATIONS) {
+  for (const station of stationDefs) {
     const distance = Math.hypot(player.x - station.x, player.z - station.z);
     if (distance <= INTERACT_RADIUS && (!best || distance < best.distance)) {
       best = { id: station.id, distance };
@@ -954,17 +1039,17 @@ function getNearestStation(player: PlayerState): StationId | null {
   return best?.id ?? null;
 }
 
-function moveWithCollision(player: PlayerState, dx: number, dz: number) {
+function moveWithCollision(player: PlayerState, dx: number, dz: number, boxes: CollisionBox[]) {
   let x = clamp(player.x + dx, WORLD_LIMITS.minX, WORLD_LIMITS.maxX);
   let z = player.z;
-  if (hitsCounter(x, z)) x = player.x;
+  if (hitsCounter(x, z, boxes)) x = player.x;
   z = clamp(player.z + dz, WORLD_LIMITS.minZ, WORLD_LIMITS.maxZ);
-  if (hitsCounter(x, z)) z = player.z;
+  if (hitsCounter(x, z, boxes)) z = player.z;
   return { x, z };
 }
 
-function hitsCounter(x: number, z: number) {
-  return COLLISION_BOXES.some(
+function hitsCounter(x: number, z: number, boxes: CollisionBox[]) {
+  return boxes.some(
     (box) =>
       x > box.minX - PLAYER_RADIUS &&
       x < box.maxX + PLAYER_RADIUS &&

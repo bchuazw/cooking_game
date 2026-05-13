@@ -16,10 +16,10 @@
   width: min(100vw, 480px);
   min-height: 100%;
   margin: 0 auto;
-  padding: max(12px, env(safe-area-inset-top)) 14px max(14px, env(safe-area-inset-bottom));
+  padding: max(18px, env(safe-area-inset-top)) 16px max(20px, env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 14px;
   background:
     linear-gradient(180deg, rgba(0, 0, 0, 0.06), transparent 18%, rgba(6, 42, 52, 0.38) 100%),
     linear-gradient(180deg, #34a8a8 0%, #1f8898 58%, #ac6532 100%);
@@ -117,7 +117,7 @@
 #cherry-canvas {
   display: block;
   width: 100%;
-  height: clamp(220px, 36vh, 320px);
+  height: clamp(280px, 46vh, 400px);
   touch-action: manipulation;
   cursor: pointer;
   outline: none;
@@ -132,9 +132,9 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.75rem;
-  padding: 1rem;
-  min-height: 0;
+  gap: 0.85rem;
+  padding: 1.4rem 1rem;
+  min-height: clamp(280px, 44vh, 380px);
   background:
     radial-gradient(70% 60% at 50% 35%, rgba(255, 249, 226, 0.96) 0%, rgba(255, 232, 160, 0.9) 100%);
 }
@@ -229,8 +229,8 @@
 }
 
 .landing-ticket {
-  margin-top: 2px;
-  padding: 14px 16px 16px;
+  margin-top: 4px;
+  padding: 20px 18px 22px;
   border: 1px solid rgba(255, 247, 229, 0.5);
   border-radius: 10px;
   background: linear-gradient(135deg, rgba(255, 249, 229, 0.98), rgba(255, 231, 145, 0.94));
@@ -248,11 +248,11 @@
 }
 
 .landing-title {
-  margin: 0 0 6px;
-  font-size: clamp(22px, 6vw, 28px);
+  margin: 0 0 8px;
+  font-size: clamp(26px, 7vw, 34px);
   font-weight: 950;
   letter-spacing: -0.015em;
-  line-height: 1.15;
+  line-height: 1.18;
   color: #241813;
 }
 
@@ -261,10 +261,10 @@
 }
 
 .landing-tagline {
-  margin: 0 0 12px;
-  font-size: 13px;
+  margin: 0 0 16px;
+  font-size: 14px;
   font-weight: 760;
-  line-height: 1.38;
+  line-height: 1.42;
   color: #705f52;
 }
 
@@ -274,8 +274,8 @@
   justify-content: center;
   gap: 8px;
   width: 100%;
-  min-height: 50px;
-  padding: 12px 18px;
+  min-height: 56px;
+  padding: 14px 18px;
   font: inherit;
   font-size: 18px;
   font-weight: 950;

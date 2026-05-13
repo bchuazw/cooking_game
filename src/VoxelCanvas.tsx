@@ -54,14 +54,9 @@ interface DynamicRefs {
   lastPulseKey: number;
 }
 
-const COLORS = {
-  wall: '#60cfd2',
-  wallDark: '#176f7f',
-  floor: '#f4da94',
-  tileLine: '#d2a253',
-  counter: '#e8725e',
-  counterTop: '#4fb9ab',
-  counterDark: '#195963',
+import { getDish, type DishId } from './dishes';
+
+const FIXED_COLORS = {
   paper: '#fff8e8',
   cream: '#f4dfb6',
   steel: '#bfc9c1',
@@ -81,7 +76,30 @@ const COLORS = {
   black: '#211813',
 };
 
-export function VoxelCanvas({ state }: { state: KitchenVisualState | null }) {
+function paletteFor(dishId: DishId) {
+  const p = getDish(dishId).palette;
+  return {
+    ...FIXED_COLORS,
+    wall: p.wall,
+    wallDark: p.wallDark,
+    floor: p.floor,
+    tileLine: p.tileLine,
+    counter: p.counter,
+    counterTop: p.counterTop,
+    counterDark: p.counterDark,
+    accentTop: p.accentTop,
+    accentBottom: p.accentBottom,
+    pendantWarm: p.pendantWarm,
+    pendantRing: p.pendantRing,
+  };
+}
+
+// `COLORS` is now a mutable reference set per build; buildKitchen overwrites it
+// before constructing meshes so the palette swap doesn't require threading dish
+// through every helper.
+let COLORS = paletteFor('chicken-rice');
+
+export function VoxelCanvas({ state, dishId = 'chicken-rice' }: { state: KitchenVisualState | null; dishId?: DishId }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const stateRef = useRef<KitchenVisualState | null>(state);
 
@@ -125,7 +143,7 @@ export function VoxelCanvas({ state }: { state: KitchenVisualState | null }) {
     const root = new THREE.Group();
     root.scale.set(0.58, 1, 0.9);
     scene.add(root);
-    const { dynamics, dispose } = buildKitchen(root);
+    const { dynamics, dispose } = buildKitchen(root, dishId);
 
     const resize = () => {
       const rect = host.getBoundingClientRect();
@@ -164,12 +182,13 @@ export function VoxelCanvas({ state }: { state: KitchenVisualState | null }) {
       renderer.dispose();
       renderer.domElement.remove();
     };
-  }, []);
+  }, [dishId]);
 
   return <div ref={hostRef} className="game-canvas" aria-hidden />;
 }
 
-function buildKitchen(root: THREE.Group) {
+function buildKitchen(root: THREE.Group, dishId: DishId = 'chicken-rice') {
+  COLORS = paletteFor(dishId);
   const geometries = {
     box: new THREE.BoxGeometry(1, 1, 1),
     cyl12: new THREE.CylinderGeometry(1, 1, 1, 12),
