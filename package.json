@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@types/three": "^0.184.1",
+    "qrcode": "^1.5.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "three": "^0.184.0"
@@ -22,9 +23,11 @@
   "devDependencies": {
     "@playwright/test": "^1.59.1",
     "@types/node": "^25.6.0",
+    "@types/qrcode": "^1.5.5",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.3",
+    "@webgpu/types": "^0.1.66",
     "autoprefixer": "^10.4.20",
     "playwright": "^1.59.1",
     "postcss": "^8.4.47",
