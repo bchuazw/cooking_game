@@ -297,19 +297,6 @@ fn main(input: BlockInput) -> @location(0) vec4f {
   diffuse = mix(diffuse, vivid * max(wrapLight, 0.62), vividWeight);
 
   let hdr = clamp(diffuse, vec3f(0.0), vec3f(1.0));
-
-  // Scan-view override: as the camera flattens, fade the tree palette toward
-  // high-contrast black/white modules so the result is a phone-scannable QR.
-  if (!reef) {
-    let scanWeight = smoothstep(0.78, 0.98, progress);
-    if (scanWeight > 0.0) {
-      let isModule = blockType == 1 || blockType == 2;
-      let topShade = select(vec3f(0.97, 0.97, 0.97), vec3f(0.04, 0.04, 0.04), isModule);
-      let sideShade = select(vec3f(0.86, 0.86, 0.86), vec3f(0.08, 0.08, 0.08), isModule);
-      let bw = select(sideShade, topShade, input.faceNy > 0.5);
-      return vec4f(mix(hdr, bw, scanWeight), 1.0);
-    }
-  }
   return vec4f(hdr, 1.0);
 }
 `;
