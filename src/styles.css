@@ -26,10 +26,7 @@ body,
 
 body {
   overflow: hidden;
-  background:
-    repeating-linear-gradient(135deg, rgba(255, 247, 229, 0.1) 0 2px, transparent 2px 18px),
-    repeating-linear-gradient(45deg, rgba(18, 108, 129, 0.16) 0 1px, transparent 1px 22px),
-    linear-gradient(145deg, #3aa3a8 0%, #18738a 52%, #c46f37 100%);
+  background: linear-gradient(155deg, #2f8e95 0%, #155f76 52%, #a85e2f 100%);
   touch-action: none;
   -webkit-tap-highlight-color: transparent;
 }
@@ -53,11 +50,9 @@ button:focus-visible {
   margin: 0 auto;
   overflow: hidden;
   background:
-    linear-gradient(180deg, rgba(0, 0, 0, 0.05), transparent 18%, rgba(8, 50, 60, 0.32) 100%),
-    repeating-linear-gradient(0deg, transparent 0 31px, rgba(255, 247, 229, 0.08) 31px 33px),
-    repeating-linear-gradient(90deg, transparent 0 41px, rgba(8, 60, 72, 0.18) 41px 43px),
-    linear-gradient(180deg, #3ab5b3 0%, #2a96a4 60%, #c8743e 100%);
-  box-shadow: 0 28px 90px rgba(8, 50, 60, 0.45);
+    linear-gradient(180deg, rgba(0, 0, 0, 0.06), transparent 16%, rgba(6, 42, 52, 0.38) 100%),
+    linear-gradient(180deg, #34a8a8 0%, #1f8898 58%, #ac6532 100%);
+  box-shadow: 0 28px 90px rgba(6, 42, 52, 0.48);
   user-select: none;
 }
 
