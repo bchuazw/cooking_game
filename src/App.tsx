@@ -880,6 +880,8 @@ function MovePad({ onMove }: { onMove: (vector: { x: number; z: number }) => voi
       ref={padRef}
       className="move-pad"
       data-testid="move-pad"
+      role="application"
+      aria-label="Move joystick: drag to walk"
       onPointerDown={(event) => {
         event.currentTarget.setPointerCapture(event.pointerId);
         update(event);
