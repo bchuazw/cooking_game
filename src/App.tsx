@@ -715,7 +715,7 @@ export default function App() {
             </div>
             <p data-testid="feedback-text">{feedback}</p>
           </div>
-          <span className="sr-only" aria-hidden="true" data-testid="player-position">{player.x.toFixed(2)},{player.z.toFixed(2)}</span>
+          <span className="sr-only" data-testid="player-position">{player.x.toFixed(2)},{player.z.toFixed(2)}</span>
           <VisualStateProbe stations={stations} plate={plate} />
         </section>
       )}
@@ -747,10 +747,7 @@ function TopHud({ elapsed, held, mistakes, plate }: { elapsed: number; held: Hel
   return (
     <header className="top-hud">
       <section className="order-ticket">
-        <div>
-          <p className="eyebrow">Order</p>
-          <h2>{DISH.shortName}</h2>
-        </div>
+        <h2>{DISH.shortName}</h2>
         <OrderChip done={plate.rice} label="Rice" />
         <OrderChip done={plate.chicken} label="Chicken" />
         <OrderChip done={plate.sauce} label="Chili" />
@@ -880,8 +877,6 @@ function MovePad({ onMove }: { onMove: (vector: { x: number; z: number }) => voi
       ref={padRef}
       className="move-pad"
       data-testid="move-pad"
-      role="application"
-      aria-label="Move joystick: drag to walk"
       onPointerDown={(event) => {
         event.currentTarget.setPointerCapture(event.pointerId);
         update(event);
