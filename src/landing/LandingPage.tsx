@@ -47,9 +47,10 @@ export default function LandingPage({ onEnterGame }: LandingPageProps) {
     const canvas = staticCanvasRef.current;
     if (!canvas) return;
     void QRCode.toCanvas(canvas, qrContent, {
-      width: 280,
-      margin: 2,
+      width: 260,
+      margin: 1,
       errorCorrectionLevel: 'M',
+      color: { dark: '#241813', light: '#ffffff' },
     });
   }, [hasWebGpu, qrContent]);
 
@@ -57,26 +58,13 @@ export default function LandingPage({ onEnterGame }: LandingPageProps) {
 
   return (
     <div className="landing-root">
-      <div className="landing-bg-grain" aria-hidden="true" />
-      <main className="landing-wrap">
-        <p className="landing-brand">
+      <div className="landing-shell">
+        <span className="landing-brand">
           <span className="landing-brand-dot" aria-hidden="true" />
           Hawker Mama
-        </p>
+        </span>
 
-        <header className="landing-hero">
-          <h1 className="landing-title">
-            A pocket kitchen,
-            <br />
-            <span className="landing-title-accent">one scan away.</span>
-          </h1>
-          <p className="landing-tagline">
-            A mobile-first voxel cooking game about Singapore hawker dishes. Scan the code with your
-            phone, or hop in from here.
-          </p>
-        </header>
-
-        <section className="landing-card">
+        <section className="landing-scene">
           {hasWebGpu ? (
             <>
               <div className="landing-toolbar" role="group" aria-label="View mode">
@@ -94,7 +82,7 @@ export default function LandingPage({ onEnterGame }: LandingPageProps) {
                   aria-pressed={isFlat}
                   onClick={() => setIsFlat(true)}
                 >
-                  Scannable QR
+                  Scan view
                 </button>
               </div>
               <div className="landing-canvas-shell" id="shell-webgpu">
@@ -111,39 +99,55 @@ export default function LandingPage({ onEnterGame }: LandingPageProps) {
                 <div id="wgpu-error" className="landing-error" hidden role="alert" />
               </div>
               <div className="landing-meta">
-                <span id="gpu-status" className="landing-meta-hint">
-                  Loading…
-                </span>
-                <span className="landing-meta-hint">Tap canvas to toggle</span>
+                <span id="gpu-status">Loading…</span>
+                <span>Tap canvas to toggle</span>
               </div>
               <p id="qr-feedback" className="landing-feedback" role="status" />
             </>
           ) : (
-            <div className="landing-canvas-shell landing-canvas-shell--fallback">
-              <canvas
-                ref={staticCanvasRef}
-                id="static-qr-canvas"
-                width={320}
-                height={320}
-                role="img"
-                aria-label="QR code linking to the game"
-              />
-              <p className="landing-fallback-caption">
-                Scan with your phone, or tap Play to jump in.
-              </p>
-            </div>
+            <>
+              <div className="landing-canvas-shell landing-canvas-shell--fallback">
+                <canvas
+                  ref={staticCanvasRef}
+                  id="static-qr-canvas"
+                  width={260}
+                  height={260}
+                  role="img"
+                  aria-label="QR code linking to the game"
+                />
+                <p className="landing-fallback-caption">
+                  Point a second camera at this code, or tap Play now below.
+                </p>
+              </div>
+              <div className="landing-meta">
+                <span>Scannable QR</span>
+                <span>Opens the game directly</span>
+              </div>
+            </>
           )}
         </section>
 
-        <button type="button" className="landing-cta" onClick={onEnterGame}>
-          Play now
-          <span className="landing-cta-arrow" aria-hidden="true">
-            →
-          </span>
-        </button>
+        <article className="landing-ticket">
+          <p className="landing-eyebrow">Singapore Kitchen Rush</p>
+          <h1 className="landing-title">
+            A pocket kitchen,
+            <br />
+            <span className="landing-title-accent">one scan away.</span>
+          </h1>
+          <p className="landing-tagline">
+            A mobile-first voxel cooking game about Singapore hawker dishes. Cook rice, poach
+            chicken, pound chili, plate the set, and serve it hot.
+          </p>
+          <button type="button" className="landing-cta" onClick={onEnterGame}>
+            Play now
+            <span className="landing-cta-arrow" aria-hidden="true">
+              →
+            </span>
+          </button>
+        </article>
 
-        <p className="landing-footer">Built with WebGPU · Plays best on mobile</p>
-      </main>
+        <p className="landing-footer">Plays best on mobile · No install needed</p>
+      </div>
     </div>
   );
 }
