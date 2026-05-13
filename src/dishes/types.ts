@@ -28,10 +28,20 @@ export interface DishPalette {
   pendantRing: string;
 }
 
+export interface DishTimers {
+  chopChicken: number;
+  poundSauce: number;
+  riceCook: number;
+  riceOvercook: number;
+  chickenPoach: number;
+  chickenOvercook: number;
+}
+
 export interface DishConfig {
   id: DishId;
   strings: Record<Locale, DishStrings>;
   palette: DishPalette;
   stations: StationDefinition[];
   collisionBoxes: CollisionBox[];
+  timers: DishTimers;
 }

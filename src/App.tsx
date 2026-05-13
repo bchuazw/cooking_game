@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import {
   PLAYER_RADIUS,
-  TIMERS,
   WORLD_LIMITS,
   type CollisionBox,
   type HeldItem,
@@ -68,6 +67,7 @@ export default function App() {
   const plateLabels = dishStrings.plateLabels;
   const stationTips = dishStrings.stationTips;
   const workflowLabels = dishStrings.workflowLabels;
+  const TIMERS = dish.timers;
   const [screen, setScreen] = useState<Screen>('menu');
   const [player, setPlayer] = useState<PlayerState>(START_PLAYER);
   const [held, setHeld] = useState<HeldItem | null>(null);

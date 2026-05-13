@@ -32,6 +32,14 @@ export const chickenRice: DishConfig = {
     { minX: -3.78, maxX: -3.02, minZ: -1.34, maxZ: 1.36 },
     { minX: 2.92, maxX: 3.72, minZ: -1.04, maxZ: 1.58 },
   ],
+  timers: {
+    chopChicken: 1500,
+    poundSauce: 1700,
+    riceCook: 5200,
+    riceOvercook: 16000,
+    chickenPoach: 5600,
+    chickenOvercook: 18000,
+  },
   strings: {
     en: {
       name: 'Hainanese Chicken Rice',

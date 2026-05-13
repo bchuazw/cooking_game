@@ -28,23 +28,41 @@ export const laksa: DishConfig = {
     pendantWarm: '#ffc46c',
     pendantRing: '#b04324',
   },
+  // Stations sit at the same coordinates as chicken-rice so the underlying
+  // cooking mechanics still trigger correctly, BUT a new center-island
+  // counter (see collisionBoxes below) forces the player to navigate around
+  // an obstacle in the middle of the room — different floor plan from the
+  // open rectangular chicken-rice kitchen.
   stations: [
-    { id: 'fridge',     name: 'Prawn Cooler',   shortName: 'Cooler',  x: -3.15, z: -0.55, uiX: 18, uiY: 45 },
-    { id: 'pantry',     name: 'Noodle Bar',     shortName: 'Noodles', x: -2.4,  z: -2.0,  uiX: 27, uiY: 26 },
-    { id: 'board',      name: 'Herb Board',     shortName: 'Herbs',   x: -0.6,  z: -2.0,  uiX: 44, uiY: 26 },
-    { id: 'riceCooker', name: 'Blanch Pot',     shortName: 'Blanch',  x: 1.15,  z: -2.0,  uiX: 62, uiY: 26 },
-    { id: 'pot',        name: 'Coconut Wok',    shortName: 'Wok',     x: 2.85,  z: -2.0,  uiX: 80, uiY: 26 },
-    { id: 'mortar',     name: 'Sambal Mortar',  shortName: 'Sambal',  x: -2.4,  z: 1.55,  uiX: 27, uiY: 67 },
-    { id: 'plate',      name: 'Bowl Bar',       shortName: 'Bowl',    x: -0.15, z: 1.38,  uiX: 50, uiY: 67 },
-    { id: 'serve',      name: 'Pickup Window',  shortName: 'Serve',   x: 2.0,   z: 1.38,  uiX: 72, uiY: 67 },
-    { id: 'trash',      name: 'Bin',            shortName: 'Trash',   x: 3.35,  z: 0.45,  uiX: 84, uiY: 56 },
+    { id: 'fridge', name: 'Prawn Cooler', shortName: 'Cooler', x: -3.15, z: -1.25, uiX: 18, uiY: 34 },
+    { id: 'pantry', name: 'Noodle Bar', shortName: 'Noodles', x: -1.6, z: -2.0, uiX: 34, uiY: 26 },
+    { id: 'board', name: 'Herb Board', shortName: 'Herbs', x: 0.05, z: -2.0, uiX: 50, uiY: 26 },
+    { id: 'riceCooker', name: 'Blanch Pot', shortName: 'Blanch', x: 1.75, z: -2.0, uiX: 68, uiY: 26 },
+    { id: 'pot', name: 'Coconut Wok', shortName: 'Wok', x: 3.35, z: -0.35, uiX: 82, uiY: 45 },
+    { id: 'mortar', name: 'Sambal Mortar', shortName: 'Sambal', x: -2.4, z: 1.55, uiX: 27, uiY: 67 },
+    { id: 'plate', name: 'Bowl Bar', shortName: 'Bowl', x: -0.15, z: 1.38, uiX: 50, uiY: 67 },
+    { id: 'serve', name: 'Pickup Window', shortName: 'Serve', x: 1.75, z: 1.38, uiX: 70, uiY: 67 },
+    { id: 'trash', name: 'Bin', shortName: 'Trash', x: -3.3, z: 0.65, uiX: 15, uiY: 57 },
   ],
   collisionBoxes: [
-    { minX: -3.35, maxX: 3.05, minZ: -2.52, maxZ: -1.56 },
+    { minX: -3.35, maxX: 2.85, minZ: -2.52, maxZ: -1.56 },
     { minX: -2.98, maxX: 2.62, minZ: 1.05, maxZ: 1.78 },
-    { minX: -3.78, maxX: -3.02, minZ: -1.04, maxZ: 0.0 },
-    { minX: 2.92, maxX: 3.72, minZ: -0.4, maxZ: 1.18 },
+    { minX: -3.78, maxX: -3.02, minZ: -1.34, maxZ: 1.36 },
+    { minX: 2.92, maxX: 3.72, minZ: -1.04, maxZ: 1.58 },
+    // Laksa-only: center prep island the cook must walk around.
+    { minX: -0.85, maxX: 0.85, minZ: -0.55, maxZ: 0.4 },
   ],
+  // Tighter overcook windows than chicken-rice so the player has less buffer
+  // to retrieve finished ingredients before they spoil. Same cook durations,
+  // less margin → "slightly harder" without changing mechanics.
+  timers: {
+    chopChicken: 1500,
+    poundSauce: 1700,
+    riceCook: 5200,
+    riceOvercook: 11500,
+    chickenPoach: 5600,
+    chickenOvercook: 13000,
+  },
   strings: {
     en: {
       name: 'Laksa',
