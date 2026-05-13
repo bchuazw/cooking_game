@@ -344,7 +344,7 @@ p {
 .workflow-guide {
   position: absolute;
   z-index: 14;
-  top: calc(max(10px, env(safe-area-inset-top)) + 108px);
+  top: calc(max(10px, env(safe-area-inset-top)) + 50px);
   left: 20px;
   right: 20px;
   height: 70px;
@@ -893,7 +893,7 @@ p {
   }
 
   .workflow-guide {
-    top: calc(max(8px, env(safe-area-inset-top)) + 98px);
+    top: calc(max(8px, env(safe-area-inset-top)) + 46px);
     left: 16px;
     right: 16px;
     height: 60px;

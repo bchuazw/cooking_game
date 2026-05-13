@@ -743,15 +743,9 @@ function MenuScreen({ best, onBegin }: { best: number; onBegin: () => void }) {
   );
 }
 
-function TopHud({ elapsed, held, mistakes, plate }: { elapsed: number; held: HeldItem | null; mistakes: number; plate: PlateState }) {
+function TopHud({ elapsed, held, mistakes }: { elapsed: number; held: HeldItem | null; mistakes: number; plate: PlateState }) {
   return (
     <header className="top-hud">
-      <section className="order-ticket">
-        <h2>{DISH.shortName}</h2>
-        <OrderChip done={plate.rice} label="Rice" />
-        <OrderChip done={plate.chicken} label="Chicken" />
-        <OrderChip done={plate.sauce} label="Chili" />
-      </section>
       <section className="status-strip">
         <strong data-testid="timer-text">{formatTime(elapsed)}</strong>
         <span data-testid="held-item">{held ? ITEM_LABELS[held] : 'Empty hands'}</span>
