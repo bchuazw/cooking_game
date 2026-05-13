@@ -102,16 +102,18 @@ export function VoxelCanvas({ state }: { state: KitchenVisualState | null }) {
     });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.25));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 0.78;
     renderer.setClearColor(0x000000, 0);
     host.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
-    scene.fog = new THREE.Fog(0x49bcc7, 15, 28);
-    scene.add(new THREE.HemisphereLight(0xfff1c7, 0x187286, 3.1));
-    const key = new THREE.DirectionalLight(0xffffff, 2.2);
+    scene.fog = new THREE.Fog(0x2b8893, 14, 26);
+    scene.add(new THREE.HemisphereLight(0xfff1c7, 0x10545f, 2.2));
+    const key = new THREE.DirectionalLight(0xfff6e0, 1.5);
     key.position.set(2, 9, 3);
     scene.add(key);
-    const rim = new THREE.DirectionalLight(0xff8d76, 1.1);
+    const rim = new THREE.DirectionalLight(0xff8d76, 0.75);
     rim.position.set(-3, 4, -3);
     scene.add(rim);
 
