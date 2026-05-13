@@ -44,4 +44,6 @@ export interface DishConfig {
   stations: StationDefinition[];
   collisionBoxes: CollisionBox[];
   timers: DishTimers;
+  /** Where the cook spawns at the start of a shift. Must sit OUTSIDE every collisionBox. */
+  startPos: { x: number; z: number };
 }

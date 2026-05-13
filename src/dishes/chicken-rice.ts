@@ -40,6 +40,7 @@ export const chickenRice: DishConfig = {
     chickenPoach: 5600,
     chickenOvercook: 18000,
   },
+  startPos: { x: 0, z: 0.05 },
   strings: {
     en: {
       name: 'Hainanese Chicken Rice',

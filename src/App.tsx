@@ -47,7 +47,9 @@ const BEST_KEY = 'hawker-rush:overcooked:v1';
 const INTERACT_RADIUS = 0.82;
 const MOVE_SPEED = 2.85;
 const AUTO_DWELL_MS = 1500;
-const START_PLAYER: PlayerState = { x: 0, z: 0.05, facing: Math.PI, moving: false };
+function makeStartPlayer(dish: DishConfig): PlayerState {
+  return { x: dish.startPos.x, z: dish.startPos.z, facing: Math.PI, moving: false };
+}
 const RESULT_ART_SRC = `${import.meta.env.BASE_URL}assets/chicken-rice-result.webp`;
 
 const EMPTY_PLATE: PlateState = { rice: false, chicken: false, sauce: false };
@@ -69,7 +71,7 @@ export default function App() {
   const workflowLabels = dishStrings.workflowLabels;
   const TIMERS = dish.timers;
   const [screen, setScreen] = useState<Screen>('menu');
-  const [player, setPlayer] = useState<PlayerState>(START_PLAYER);
+  const [player, setPlayer] = useState<PlayerState>(() => makeStartPlayer(getDish('chicken-rice')));
   const [held, setHeld] = useState<HeldItem | null>(null);
   const [stations, setStations] = useState<StationSlots>({});
   const [plate, setPlate] = useState<PlateState>(EMPTY_PLATE);
@@ -105,7 +107,7 @@ export default function App() {
   const begin = useCallback(() => {
     const now = performance.now();
     setScreen('play');
-    setPlayer(START_PLAYER);
+    setPlayer(makeStartPlayer(dish));
     setHeld(null);
     setStations({});
     setPlate(EMPTY_PLATE);
@@ -123,7 +125,7 @@ export default function App() {
     autoCooldownRef.current = { key: '', until: 0 };
     joystickRef.current = { x: 0, z: 0 };
     keysRef.current = { left: false, right: false, up: false, down: false };
-  }, [dishStrings.startFeedback]);
+  }, [dishStrings.startFeedback, dish]);
 
   const pulseStation = useCallback((station: StationId) => {
     setPulse({ station, key: performance.now() });

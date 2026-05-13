@@ -63,6 +63,9 @@ export const laksa: DishConfig = {
     chickenPoach: 5600,
     chickenOvercook: 13000,
   },
+  // Spawn ABOVE the center island so the cook starts outside the new
+  // collision box. (Island spans z[-0.55..0.4].)
+  startPos: { x: 0, z: -0.9 },
   strings: {
     en: {
       name: 'Laksa',
