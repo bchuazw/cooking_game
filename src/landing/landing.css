@@ -117,7 +117,7 @@
 #cherry-canvas {
   display: block;
   width: 100%;
-  height: clamp(280px, 46vh, 400px);
+  height: clamp(200px, 30vh, 280px);
   touch-action: manipulation;
   cursor: pointer;
   outline: none;
@@ -162,8 +162,8 @@
   justify-content: space-between;
   align-items: center;
   gap: 10px;
-  margin-top: 8px;
-  min-height: 1em;
+  margin-top: 6px;
+  min-height: 0;
   padding: 0 2px;
   font-size: 10px;
   font-weight: 800;
@@ -311,9 +311,9 @@
 }
 
 .landing-footer {
-  margin: 12px 0 0;
+  margin: 8px 0 0;
   text-align: center;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 850;
   letter-spacing: 0.04em;
   color: rgba(255, 247, 229, 0.86);
@@ -328,9 +328,9 @@
     padding: 16px 16px 18px;
   }
   #cherry-canvas {
-    height: clamp(240px, 38vh, 320px);
+    height: clamp(180px, 26vh, 240px);
   }
   .landing-canvas-shell--fallback {
-    min-height: clamp(240px, 38vh, 320px);
+    min-height: clamp(180px, 26vh, 240px);
   }
 }
