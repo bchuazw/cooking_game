@@ -748,22 +748,24 @@ function DishPickerScreen({
         <p className="eyebrow">{t.menu.eyebrow}</p>
         <h1>{dishStrings.name}</h1>
         <p>{dishStrings.goal}</p>
-        <div className="dish-picker" role="group" aria-label={t.menu.pick}>
-          {DISH_ORDER.map((id) => {
-            const optStrings = DISHES[id].strings[locale];
-            return (
-              <button
-                key={id}
-                type="button"
-                className={`dish-chip ${dishId === id ? 'dish-chip--active' : ''}`}
-                aria-pressed={dishId === id}
-                onClick={() => onSelectDish(id)}
-              >
-                {optStrings.shortName}
-              </button>
-            );
-          })}
-        </div>
+        {DISH_ORDER.length > 1 && (
+          <div className="dish-picker" role="group" aria-label={t.menu.pick}>
+            {DISH_ORDER.map((id) => {
+              const optStrings = DISHES[id].strings[locale];
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  className={`dish-chip ${dishId === id ? 'dish-chip--active' : ''}`}
+                  aria-pressed={dishId === id}
+                  onClick={() => onSelectDish(id)}
+                >
+                  {optStrings.shortName}
+                </button>
+              );
+            })}
+          </div>
+        )}
         <div className="best-row">
           <span>{t.menu.bestShift}</span>
           <strong>{renderStars(best || 1)}</strong>

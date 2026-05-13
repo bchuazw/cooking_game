@@ -255,10 +255,6 @@ function buildKitchen(root: THREE.Group, dishId: DishId = 'chicken-rice') {
 
   makeRoom(root, cube);
   makeCounters(root, cube);
-  if (dishId === 'laksa') {
-    addLaksaIsland(root, cube, cyl);
-    addLaksaDecor(root, cube, cyl);
-  }
   const dynamics: DynamicRefs = {
     chef: makeChef(root, cube, cyl),
     chefBody: undefined as unknown as THREE.Mesh,
@@ -385,64 +381,6 @@ function makeCounters(root: THREE.Group, cube: CubeFn) {
   cube(root, '#ffcf55', 2.58, 0.48, 1.2, 0.12, 0.08, 0.08);
   cube(root, '#f6a16f', 3.08, 0.45, -0.72, 0.035, 0.06, 0.42);
   cube(root, '#f6a16f', -3.1, 0.45, -0.36, 0.035, 0.06, 0.42);
-}
-
-/**
- * Laksa-only: a prep island in the middle of the room. Decorative wok and a
- * spice tray sit on top so the kitchen reads as a noodle stall, not the
- * chicken-rice setup. The collision box that matches this island lives in
- * dishes/laksa.ts so the player has to walk around it.
- */
-function addLaksaIsland(root: THREE.Group, cube: CubeFn, cyl: CylFn) {
-  // Counter base + top.
-  cube(root, COLORS.counterDark, 0, 0.02, -0.07, 1.62, 0.18, 0.92);
-  cube(root, COLORS.counterTop, 0, 0.28, -0.07, 1.5, 0.22, 0.78);
-  cube(root, COLORS.counter, 0, 0.43, -0.46, 1.55, 0.08, 0.08);
-  cube(root, COLORS.counter, 0, 0.43, 0.32, 1.55, 0.08, 0.08);
-  // Decorative wok.
-  cyl(root, '#1c1410', -0.35, 0.5, -0.07, 0.3, 0.08, 0.3);
-  cyl(root, '#352519', -0.35, 0.55, -0.07, 0.28, 0.04, 0.28);
-  cyl(root, '#c44b2a', -0.35, 0.58, -0.07, 0.22, 0.02, 0.22, true, 0.78, 12);
-  // Wok handle.
-  cube(root, '#6e3a1d', -0.78, 0.52, -0.07, 0.32, 0.04, 0.04);
-  // Spice tray with three jars on the right end of the island.
-  cube(root, '#2b1810', 0.42, 0.5, -0.07, 0.46, 0.05, 0.34);
-  cyl(root, '#d83a2a', 0.3, 0.58, -0.17, 0.06, 0.06, 0.06, false, 1, 12);
-  cyl(root, '#d89a3d', 0.45, 0.58, -0.17, 0.06, 0.06, 0.06, false, 1, 12);
-  cyl(root, '#3b5d3d', 0.6, 0.58, -0.17, 0.06, 0.06, 0.06, false, 1, 12);
-  cyl(root, '#f7ead0', 0.3, 0.58, 0.05, 0.06, 0.06, 0.06, false, 1, 12);
-  cyl(root, '#a04826', 0.45, 0.58, 0.05, 0.06, 0.06, 0.06, false, 1, 12);
-  cyl(root, '#1c1410', 0.6, 0.58, 0.05, 0.06, 0.06, 0.06, false, 1, 12);
-  // A small pile of yellow noodles.
-  cyl(root, '#f1bf3a', 0.05, 0.52, 0.22, 0.16, 0.04, 0.16, false, 1, 12);
-  cyl(root, '#ffd565', 0.05, 0.55, 0.22, 0.14, 0.02, 0.14, false, 1, 12);
-}
-
-/**
- * Laksa-only decor: hanging shop banner above the back counter and a noren
- * curtain over the serve window. Cheap touches that read "Asian noodle stall"
- * without redrawing every station mesh.
- */
-function addLaksaDecor(root: THREE.Group, cube: CubeFn, cyl: CylFn) {
-  // Shop banner above the back counter — yellow with two red dots (mimicking a
-  // hanging cloth sign).
-  cube(root, '#3a1a10', -1.4, 1.78, -2.9, 3.4, 0.04, 0.045);
-  cube(root, '#f4b34a', -1.4, 1.5, -2.9, 3.0, 0.5, 0.04);
-  cube(root, '#c83e2a', -1.4, 1.62, -2.88, 0.3, 0.3, 0.02);
-  cube(root, '#c83e2a', -1.4, 1.38, -2.88, 0.3, 0.3, 0.02);
-  cube(root, '#7a2f1a', -1.4, 1.78, -2.88, 3.05, 0.06, 0.025);
-  // Noren strips over the serve area.
-  for (let i = 0; i < 5; i += 1) {
-    const x = 1.0 + i * 0.36;
-    cube(root, '#c83e2a', x, 1.6, 1.5, 0.32, 0.32, 0.025, true, 0.94);
-    cube(root, '#fff8e6', x, 1.72, 1.495, 0.3, 0.06, 0.022, true, 0.96);
-  }
-  // Two lanterns over the island.
-  for (const lanternX of [-0.6, 0.6]) {
-    cube(root, '#2a1208', lanternX, 1.95, -0.07, 0.04, 0.18, 0.04);
-    cyl(root, '#c83e2a', lanternX, 1.78, -0.07, 0.14, 0.16, 0.14, false, 1, 12);
-    cyl(root, '#fff063', lanternX, 1.78, -0.07, 0.1, 0.12, 0.1, true, 0.92, 12);
-  }
 }
 
 function makeFridge(root: THREE.Group, cube: CubeFn) {

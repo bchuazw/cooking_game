@@ -1,7 +1,7 @@
 import type { HeldItem, StationItem, PlateComponent, StationId, StationDefinition, CollisionBox } from '../gameData';
 import type { Locale } from '../i18n/types';
 
-export type DishId = 'chicken-rice' | 'laksa';
+export type DishId = 'chicken-rice';
 
 export interface DishStrings {
   name: string;
