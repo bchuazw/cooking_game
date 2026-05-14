@@ -1,13 +1,14 @@
 # Hawker Mama
 
-Fresh mobile-first browser cooking game inspired by Cooking Mama, rebuilt as a Three.js voxel game about Singapore hawker dishes.
+Fresh mobile-first browser cooking game inspired by Cooking Mama, rebuilt as a Three.js voxel kitchen about Singapore hawker food.
 
-## What It Is
+## Current Build
 
-- 3 playable dishes: Hainanese Chicken Rice, Katong Laksa, and Roti Prata.
-- Each dish has 3 clear mini-games with immediate feedback and star ratings.
+- Playable dish: Hainanese Chicken Rice.
+- The current dish registry exposes one full station-based workflow: rice prep, rice cooker, chicken prep, poach, chili mortar, plating, and serve.
+- The game is mobile-first, browser-based, and rendered with real-time Three.js voxel geometry.
 - Singapore cuisine learning appears after the rating, so the game stays playable first.
-- Visuals are generated in real time with Three.js voxel geometry. No old raster gameplay assets are used.
+- Draft culture-card material for future dishes may still exist under `content/`, but Laksa and Prata are not currently playable.
 
 Live site: https://bchuazw.github.io/cooking_game/
 
@@ -21,12 +22,10 @@ npm run test:smoke
 npm run capture
 ```
 
+On Windows PowerShell, use `npm.cmd run build` if script execution policy blocks `npm.ps1`.
+
 ## Verification
 
-`npm run test:smoke` opens the production preview in mobile Chromium and completes all 3 dishes:
+`npm run test:smoke` opens the production preview in mobile Chromium, completes one Hainanese Chicken Rice order, checks that the Three.js canvas renders nonblank pixels, and samples FPS.
 
-- Chicken Rice
-- Laksa
-- Prata
-
-The smoke also checks that the Three.js canvas initializes.
+`npm run capture` saves current mobile screenshots to `handover/screenshots/`.

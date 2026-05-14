@@ -12,3 +12,5 @@ playwright-report/
 test-results/
 tests/_*.mjs
 tests/_*.js
+/qa-*.png
+/blind-*.png

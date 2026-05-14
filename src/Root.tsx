@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
-import App from './App';
+import { Suspense, lazy, useEffect, useState } from 'react';
 import LandingPage from './landing/LandingPage';
+
+const App = lazy(() => import('./App'));
 
 function shouldSkipLandingFromUrl(): boolean {
   if (typeof window === 'undefined') return false;
@@ -19,7 +20,27 @@ export default function Root() {
     window.history.replaceState({}, '', url.toString());
   }, [showGame]);
 
-  if (showGame) return <App />;
+  if (showGame) {
+    return (
+      <Suspense fallback={<GameLoading />}>
+        <App />
+      </Suspense>
+    );
+  }
 
   return <LandingPage onEnterGame={() => setShowGame(true)} />;
+}
+
+function GameLoading() {
+  return (
+    <main className="app-shell">
+      <section className="screen menu-screen">
+        <div className="menu-vignette" />
+        <div className="menu-card">
+          <p className="eyebrow">Loading</p>
+          <h1>Kitchen</h1>
+        </div>
+      </section>
+    </main>
+  );
 }
