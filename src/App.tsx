@@ -51,6 +51,12 @@ function makeStartPlayer(dish: DishConfig): PlayerState {
   return { x: dish.startPos.x, z: dish.startPos.z, facing: Math.PI, moving: false };
 }
 const RESULT_ART_SRC = `${import.meta.env.BASE_URL}assets/chicken-rice-result.webp`;
+const EMBEDDED_IN_JALAN =
+  typeof window !== 'undefined' &&
+  new URLSearchParams(window.location.search).get('embed') === 'jalan-jalan';
+const AUTOSTART =
+  typeof window !== 'undefined' &&
+  new URLSearchParams(window.location.search).get('autostart') === '1';
 
 const EMPTY_PLATE: PlateState = { rice: false, chicken: false, sauce: false };
 const COMPLETE_PLATE: PlateState = { rice: true, chicken: true, sauce: true };
@@ -94,11 +100,14 @@ export default function App() {
   const dwellFrameRef = useRef<number | null>(null);
   const holdDoneRef = useRef(false);
   const autoCooldownRef = useRef({ key: '', until: 0 });
+  const autostartedRef = useRef(false);
+  const postedResultRef = useRef<string | null>(null);
 
   const elapsed = screen === 'play' ? nowTick - startedAt : servedAt ? servedAt - startedAt : 0;
   const orderComplete = plate.rice && plate.chicken && plate.sauce;
   const displayedPlate = held === 'chickenRice' ? COMPLETE_PLATE : plate;
   const stars = scoreStars(elapsed, mistakes);
+  const finalScore = scorePoints(elapsed, mistakes);
 
   const visualStations = useMemo(() => buildVisualStationState(stationDefs, stations, nowTick), [stationDefs, stations, nowTick]);
   const targetStation = useMemo(() => getTargetStation(held, stations, plate), [held, plate, stations]);
@@ -126,6 +135,38 @@ export default function App() {
     joystickRef.current = { x: 0, z: 0 };
     keysRef.current = { left: false, right: false, up: false, down: false };
   }, [dishStrings.startFeedback, dish]);
+
+  useEffect(() => {
+    if (!EMBEDDED_IN_JALAN || !AUTOSTART || autostartedRef.current) return;
+    autostartedRef.current = true;
+    begin();
+  }, [begin]);
+
+  const postResultToParent = useCallback(() => {
+    if (!EMBEDDED_IN_JALAN) return;
+    const payload = {
+      type: 'chicken-rice-score',
+      game: 'chicken_rice',
+      score: finalScore,
+      stars,
+      elapsedMs: Math.round(elapsed),
+      mistakes,
+    };
+    window.parent.postMessage(payload, window.location.origin);
+  }, [elapsed, finalScore, mistakes, stars]);
+
+  const continueToJalan = useCallback(() => {
+    postResultToParent();
+    window.parent.postMessage({ type: 'chicken-rice-exit' }, window.location.origin);
+  }, [postResultToParent]);
+
+  useEffect(() => {
+    if (screen !== 'result' || !EMBEDDED_IN_JALAN) return;
+    const resultKey = `${finalScore}:${stars}:${Math.round(elapsed)}:${mistakes}`;
+    if (postedResultRef.current === resultKey) return;
+    postedResultRef.current = resultKey;
+    postResultToParent();
+  }, [elapsed, finalScore, mistakes, postResultToParent, screen, stars]);
 
   const pulseStation = useCallback((station: StationId) => {
     setPulse({ station, key: performance.now() });
@@ -710,9 +751,11 @@ export default function App() {
       {screen === 'result' && (
         <ResultScreen
           elapsed={elapsed}
+          score={finalScore}
           mistakes={mistakes}
           stars={stars}
           onReplay={begin}
+          onContinue={EMBEDDED_IN_JALAN ? continueToJalan : undefined}
           dishId={dishId}
           dishStrings={dishStrings}
           t={t}
@@ -956,17 +999,21 @@ function MovePad({ onMove, ariaLabel }: { onMove: (vector: { x: number; z: numbe
 
 function ResultScreen({
   elapsed,
+  score,
   mistakes,
   stars,
   onReplay,
+  onContinue,
   dishId,
   dishStrings,
   t,
 }: {
   elapsed: number;
+  score: number;
   mistakes: number;
   stars: number;
   onReplay: () => void;
+  onContinue?: () => void;
   dishId: DishId;
   dishStrings: import('./dishes/types').DishStrings;
   t: import('./i18n/types').Dictionary;
@@ -997,9 +1044,14 @@ function ResultScreen({
         <p className="eyebrow">{t.result.eyebrow}</p>
         <h1>{dishStrings.name}</h1>
         <div className="result-stars" data-testid="result-stars">{renderStars(stars)}</div>
+        <p className="result-score" data-testid="result-score">{score.toLocaleString()} points</p>
         <p className="result-meta">{t.result.timeLabel} {formatTime(elapsed)} · {mistakes ? t.hud.mistakes(mistakes) : t.hud.clean}</p>
         <p>{dishStrings.goal}</p>
-        <button className="primary-button" onClick={onReplay}>{t.result.replay(dishStrings.shortName)}</button>
+        {onContinue ? (
+          <button className="primary-button" data-testid="continue-to-jalan" onClick={onContinue}>Continue</button>
+        ) : (
+          <button className="primary-button" onClick={onReplay}>{t.result.replay(dishStrings.shortName)}</button>
+        )}
       </div>
     </section>
   );
@@ -1111,6 +1163,12 @@ function scoreStars(elapsed: number, mistakes: number) {
   let score = elapsed <= 85000 ? 3 : elapsed <= 125000 ? 2 : 1;
   score -= mistakes;
   return clamp(Math.round(score), 1, 3);
+}
+
+function scorePoints(elapsed: number, mistakes: number) {
+  const seconds = Math.max(0, elapsed / 1000);
+  const timeScore = 1000 - seconds * 4;
+  return clamp(Math.round(timeScore - mistakes * 120), 200, 1000);
 }
 
 function renderStars(value: number) {

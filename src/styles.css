@@ -145,6 +145,12 @@ p {
   line-height: 1;
 }
 
+.result-score {
+  margin: 0;
+  color: #3f2518;
+  font-weight: 950;
+}
+
 .primary-button,
 .auto-task {
   min-height: 56px;
